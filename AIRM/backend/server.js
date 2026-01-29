@@ -161,7 +161,8 @@ const loadRoutes = async () => {
      FRONTEND (FINAL FIX)
   ===================== */
 
-  const frontendDist = path.resolve(process.cwd(), 'frontend', 'dist');
+  const frontendDist = path.resolve(__dirname, '../frontend/dist');
+
 
   console.log('🔍 Frontend dist:', frontendDist);
   console.log('🔍 Exists:', fs.existsSync(frontendDist));
