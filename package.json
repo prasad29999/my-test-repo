@@ -1,8 +1,8 @@
 {
-  "dependencies": {
-    "vite": "^7.3.1"
-  },
+  "name": "timesheet-api",
+  "type": "module",
+  "private": true,
   "scripts": {
-    "start": "vite --host 0.0.0.0 --port 3001"
+    "start": "node AIRM/backend/server.js"
   }
 }
