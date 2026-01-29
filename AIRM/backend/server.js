@@ -22,14 +22,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Root route for health/status (for Railway or browser checks)
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    service: 'timesheet-api',
-    env: process.env.NODE_ENV,
-  });
-});
 
 // Define PORT (Railway-safe)
 const PORT = process.env.PORT || 3001;

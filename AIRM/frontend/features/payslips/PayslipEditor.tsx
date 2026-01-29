@@ -26,7 +26,7 @@ const initialFields = {
 export default function PayslipEditor() {
   const [fields, setFields] = useState(initialFields);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFields((prev) => ({ ...prev, [name]: value }));
   };

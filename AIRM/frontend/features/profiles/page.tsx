@@ -917,7 +917,7 @@ const Profiles = ({ onlyCurrentUser = false }: ProfilesProps) => {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         profile={selectedProfile}
-        activeTab={activeTab}
+        activeTab={activeTab as 'basic' | 'contact' | 'skills' | 'experience' | 'projects' | 'education' | 'performance' | 'burnout' | 'hr-payroll' | 'documents' | 'assets' | 'activity'}
         onTabChange={setActiveTab}
         canEdit={canEdit}
         onEdit={handleEditProfile}

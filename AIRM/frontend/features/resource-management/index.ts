@@ -14,7 +14,6 @@ export * from './services/resource-managementService';
 export * from './hooks/useresource-management';
 
 // Types
-export * from './types';
 
 // Page export
 export { default } from './page';

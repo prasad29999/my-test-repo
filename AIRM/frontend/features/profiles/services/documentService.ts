@@ -90,11 +90,10 @@ export const deleteDocument = async (documentId: string): Promise<void> => {
  */
 export const downloadDocument = async (documentId: string): Promise<Blob> => {
   try {
-    const response = await api.get(`/profiles/documents/${documentId}/download`, {
-      responseType: 'blob'
-    }) as Blob;
-
-    return response;
+    const res = await fetch(`/profiles/documents/${documentId}/download`);
+    if (!res.ok) throw new Error('Failed to download document');
+    const blob = await res.blob();
+    return blob;
   } catch (error) {
     console.error('Error downloading document:', error);
     throw error;

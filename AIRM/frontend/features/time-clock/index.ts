@@ -14,7 +14,6 @@ export * from './services/time-clockService';
 export * from './hooks/usetime-clock';
 
 // Types
-export * from './types';
 
 // Page export
 export { default } from './page';

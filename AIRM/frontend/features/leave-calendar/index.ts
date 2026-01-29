@@ -13,5 +13,4 @@ export * from './services/leave-calendarService';
 export * from './hooks/useleave-calendar';
 
 // Types
-export * from './types';
 

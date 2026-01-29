@@ -451,9 +451,10 @@ export function generateExperienceLetterPDF(pdfData: ExperienceLetterPDFData, fi
   
   // TEMPLATE-LOCKED MODE: Template exists, detect and use correct layout
   const letterFormat = templateFormat.letterFormat || {};
-  const layout = letterFormat.layout || 'paragraph';
-  const hasToWhomsoever = letterFormat.hasToWhomsoever || /to\s+whom/i.test(templateFormat.content || '');
-  const hasParagraphStyle = letterFormat.hasParagraphStyle || !letterFormat.hasNumberedList;
+  const layout = (letterFormat as any).layout || 'paragraph';
+  const templateContent = (templateFormat as any).content as string | undefined;
+  const hasToWhomsoever = (letterFormat as any).hasToWhomsoever || (typeof templateContent === 'string' && /to\s+whom/i.test(templateContent));
+  const hasParagraphStyle = (letterFormat as any).hasParagraphStyle || !(letterFormat as any).hasNumberedList;
   
   console.log('[PDF Generator] Layout type:', layout);
   console.log('[PDF Generator] hasToWhomsoever:', hasToWhomsoever);
@@ -461,7 +462,8 @@ export function generateExperienceLetterPDF(pdfData: ExperienceLetterPDFData, fi
   console.log('[PDF Generator] hasNumberedList:', letterFormat.hasNumberedList);
   
   // REPLICA MODE: Use template image as background
-  if (templateFormat.templateImage) {
+  const templateImage = (templateFormat as any).templateImage;
+  if (templateImage) {
     console.log('[PDF Generator] 🎯 REPLICA MODE: Using template image as background');
     generateReplicaModeExperienceLetter(doc, pdfData, templateFormat);
     doc.save(filename || `experience_letter_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -475,7 +477,7 @@ export function generateExperienceLetterPDF(pdfData: ExperienceLetterPDFData, fi
   } else if (layout === 'paragraph' || layout === 'formal_letter' || hasParagraphStyle) {
     console.log('[PDF Generator] ✅ Using PARAGRAPH style');
     generateParagraphStyleExperienceLetter(doc, pdfData, templateFormat);
-  } else if (layout === 'table' || templateFormat.content?.toLowerCase().includes('infosys')) {
+  } else if (layout === 'table' || (typeof templateContent === 'string' && templateContent.toLowerCase().includes('infosys'))) {
     console.log('[PDF Generator] ✅ Using TABLE style');
     generateInfosysStyleExperienceLetter(doc, pdfData, templateFormat);
   } else if (layout === 'numbered_list' && letterFormat.hasNumberedList === true) {
@@ -506,8 +508,9 @@ function generateReplicaModeExperienceLetter(
   console.log('[PDF REPLICA] Starting REPLICA MODE generation');
   
   // Add the template image as background
+  const templateImage = (templateFormat as any).templateImage;
   try {
-    doc.addImage(templateFormat.templateImage, 'PNG', 0, 0, pageWidth, pageHeight);
+    doc.addImage(templateImage, 'PNG', 0, 0, pageWidth, pageHeight);
     console.log('[PDF REPLICA] Added template image as background');
   } catch (error) {
     console.error('[PDF REPLICA] Failed to add template image:', error);
@@ -518,7 +521,7 @@ function generateReplicaModeExperienceLetter(
   
   // Create a white overlay for variable field areas and add new text
   // This is a simplified approach - for production, you'd use exact bounding boxes
-  const textBlocks = templateFormat.textBlocks || [];
+  const textBlocks = Array.isArray((templateFormat as any).textBlocks) ? (templateFormat as any).textBlocks : [];
   const employeeName = pdfData.employeeDetails.name;
   const employeeId = pdfData.employeeDetails.employeeId;
   
@@ -526,8 +529,16 @@ function generateReplicaModeExperienceLetter(
   for (const block of textBlocks) {
     if (block.isVariable && block.bbox) {
       // Convert image coordinates to PDF coordinates
-      const imgWidth = templateFormat.layout?.imageWidth || 800;
-      const imgHeight = templateFormat.layout?.imageHeight || 1100;
+      let imgWidth = 800;
+      let imgHeight = 1100;
+      if (templateFormat.layout && typeof templateFormat.layout === 'object') {
+        if ('imageWidth' in templateFormat.layout && typeof (templateFormat.layout as any).imageWidth === 'number') {
+          imgWidth = (templateFormat.layout as any).imageWidth;
+        }
+        if ('imageHeight' in templateFormat.layout && typeof (templateFormat.layout as any).imageHeight === 'number') {
+          imgHeight = (templateFormat.layout as any).imageHeight;
+        }
+      }
       
       const pdfX = (block.bbox.x0 / imgWidth) * pageWidth;
       const pdfY = (block.bbox.y0 / imgHeight) * pageHeight;
@@ -867,7 +878,8 @@ function generateInfosysStyleExperienceLetter(
   doc.setFontSize(10);
   const joiningDate = formatDate(pdfData.employmentDetails.dateOfJoining);
   const leavingDate = formatDate(pdfData.employmentDetails.lastWorkingDay);
-  const resignationDate = formatDate(pdfData.employmentDetails.resignationDate || pdfData.employmentDetails.lastWorkingDay);
+  // Some data models may not have resignationDate, so fallback to lastWorkingDay
+  const resignationDate = formatDate((pdfData.employmentDetails as any).resignationDate || pdfData.employmentDetails.lastWorkingDay);
   
   const openingPara = `With reference to your decision to resign from Infosys Limited ("Company" hereafter) and your resignation letter dated ${resignationDate}, we are in acceptance of the same and you are relieved of your duties and responsibilities from the closing hours of ${leavingDate}.`;
   

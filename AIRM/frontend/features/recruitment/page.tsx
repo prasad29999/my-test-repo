@@ -657,7 +657,7 @@ const RecruitmentPage = () => {
                     <div className="mb-2 flex items-center gap-2">
                       <input type="checkbox" id="selectAllVerifications" onChange={e => {
                         const checked = e.target.checked;
-                        setSelectedVerifications(checked ? selectedCandidate.background_verifications.map(v => v.id) : []);
+                        setSelectedVerifications(checked ? selectedCandidate.background_verifications.map(v => v.id).filter((id): id is string => typeof id === 'string') : []);
                       }} />
                       <Label htmlFor="selectAllVerifications">Select All</Label>
                     </div>
@@ -665,9 +665,9 @@ const RecruitmentPage = () => {
                       <div key={verification.id || index} className="p-3 border rounded-lg flex flex-col gap-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <input type="checkbox" checked={selectedVerifications?.includes(verification.id)} onChange={e => {
+                            <input type="checkbox" checked={selectedVerifications?.includes(verification.id ?? '')} onChange={e => {
                               const checked = e.target.checked;
-                              setSelectedVerifications(prev => checked ? [...prev, verification.id] : prev.filter(id => id !== verification.id));
+                               setSelectedVerifications(prev => checked ? [...prev, ...(verification.id ? [verification.id] : [])] : prev.filter(id => id !== verification.id));
                             }} />
                             {verification.verification_type === 'identity' && <FileText className="h-4 w-4" />}
                             {verification.verification_type === 'education' && <GraduationCap className="h-4 w-4" />}
@@ -679,7 +679,7 @@ const RecruitmentPage = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleSendVerificationMail(selectedCandidate.id, verification.id)}>
+                             <Button size="sm" variant="outline" onClick={() => handleSendVerificationMail(selectedCandidate.id, verification.id ?? '')}>
                               <Eye className="h-4 w-4 mr-1" /> Send Mail
                             </Button>
                             {verification.status === 'pending' && selectedCandidate.current_stage === 'verification' ? (

@@ -10,7 +10,6 @@ export * from './services/timesheetService';
 export * from './hooks/usetimesheet';
 
 // Types
-export * from './types';
 
 // Page exports
 export { default } from './page';

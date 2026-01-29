@@ -10,7 +10,6 @@ export * from './services/monitoringService';
 export * from './hooks/usemonitoring';
 
 // Types
-export * from './types';
 
 // Page export
 export { default } from './page';

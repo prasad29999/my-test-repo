@@ -67,6 +67,8 @@ const Profiles = ({ onlyCurrentUser = false }: ProfilesProps) => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedProfile, setSelectedProfile] = useState<EmployeeProfile | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  // Fix: Add missing uploadFiles state for file uploads
+  const [uploadFiles, setUploadFiles] = useState<{ [key: string]: File | null }>({});
 
   // If onlyCurrentUser is true, show detail dialog by default
   useEffect(() => {

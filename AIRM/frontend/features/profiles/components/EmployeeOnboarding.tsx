@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+
 import { CheckCircle, Upload, FileText, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { DocumentUpload } from './DocumentUpload';
 import { DOCUMENT_CATEGORIES, DOCUMENT_TYPES } from '../types';
@@ -58,16 +59,15 @@ export const EmployeeOnboarding: React.FC<EmployeeOnboardingProps> = ({ employee
         const profileId = employeeId || userData.id;
 
         // Fetch employee profile
-        const profileResponse = await api.profiles.getById(profileId);
+        const profileResponse = await import('../services/profilesService').then(m => m.getProfileById(profileId));
         setEmployeeProfile(profileResponse.profile);
 
         // Fetch existing documents
-        const documentsResponse = await api.profiles.getDocuments(profileId);
-        const existingDocuments = documentsResponse.documents || [];
+        const existingDocuments = await getEmployeeDocuments(profileId);
 
         // Initialize document statuses
         const statuses = requiredDocuments.map(reqDoc => {
-          const uploaded = existingDocuments.some(doc =>
+          const uploaded = existingDocuments.some((doc: any) =>
             doc.document_category === reqDoc.category && doc.document_type === reqDoc.type
           );
           return {
@@ -93,11 +93,10 @@ export const EmployeeOnboarding: React.FC<EmployeeOnboardingProps> = ({ employee
     if (!employeeProfile?.id) return;
 
     try {
-      const documentsResponse = await api.profiles.getDocuments(employeeProfile.id);
-      const existingDocuments = documentsResponse.documents || [];
+      const existingDocuments = await getEmployeeDocuments(employeeProfile.id);
 
       const updatedStatuses = requiredDocuments.map(reqDoc => {
-        const uploaded = existingDocuments.some(doc =>
+        const uploaded = existingDocuments.some((doc: any) =>
           doc.document_category === reqDoc.category && doc.document_type === reqDoc.type
         );
         return {
@@ -245,7 +244,9 @@ export const EmployeeOnboarding: React.FC<EmployeeOnboardingProps> = ({ employee
                     <span>Overall Progress</span>
                     <span>{Math.round(getCompletionPercentage())}%</span>
                   </div>
-                  <Progress value={getCompletionPercentage()} className="h-2" />
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="bg-blue-500 h-2" style={{ width: `${getCompletionPercentage()}%` }} />
+                  </div>
                 </div>
 
                 {/* Document Status Grid */}

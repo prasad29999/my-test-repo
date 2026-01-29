@@ -1052,7 +1052,7 @@ export default function LeaveCalendar() {
                       const today = new Date();
                       const start = new Date(today);
                       start.setDate(today.getDate() - today.getDay()); // Sunday
-                      setAttendanceWeekStart(start);
+                       setAttendanceWeekStart(start as any);
                     }}
                   >
                     This Week
@@ -1158,7 +1158,7 @@ export default function LeaveCalendar() {
                               <td className="border p-3">{format(new Date(record.date), 'EEE, MMM d')}</td>
                               {isAdmin && <td className="border p-3">{record.full_name || record.email}</td>}
                               <td className="border p-3 text-center">
-                                {record.status === 'upcoming' || !record.status ? (
+                                {(record.status === 'upcoming' as any) || !record.status ? (
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${getAttendanceStatusColor(record.status)}`}> </span>
                                 ) : (
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${getAttendanceStatusColor(record.status)}`}>

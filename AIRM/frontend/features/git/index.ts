@@ -10,7 +10,6 @@ export * from './services/gitService';
 export * from './hooks/usegit';
 
 // Types
-export * from './types';
 
 // Page export
 export { default } from './page';

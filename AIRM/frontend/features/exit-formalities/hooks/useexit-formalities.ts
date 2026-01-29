@@ -33,6 +33,7 @@ import type {
   SaveExitInterviewRequest,
   AddExitDocumentRequest,
   FinalSettlement,
+  ExitSettlement,
   SettlementPDFData,
   AssetHandoverPDFData,
   ExperienceLetterPDFData,
@@ -181,7 +182,7 @@ export function useExitMutation() {
  * Hook to get settlement
  */
 export function useSettlement(exitRequestId: string | null) {
-  return useQuery<FinalSettlement | null>({
+  return useQuery<ExitSettlement | null>({
     queryKey: ['settlement', exitRequestId],
     queryFn: async () => {
       if (!exitRequestId) return null;

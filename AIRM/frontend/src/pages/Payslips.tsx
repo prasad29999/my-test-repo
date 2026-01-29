@@ -491,7 +491,7 @@ const Payslips = () => {
                     {payslipDetail.payslip.document_url && (
                       <Button
                         variant="outline"
-                        onClick={() => window.open(payslipDetail.payslip.document_url, '_blank')}
+                        onClick={() => payslipDetail.payslip.document_url && window.open(payslipDetail.payslip.document_url, '_blank')}
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Download PDF
@@ -528,8 +528,8 @@ const Payslips = () => {
 /**
  * Create Payslip Dialog Component
  */
-import EmployeeDataForm from '@/features/hr-documents/components/EmployeeDataForm';
-import { EmployeeData, defaultEmployeeData } from '@/features/hr-documents/types';
+import EmployeeDataForm from '../../features/hr-documents/components/EmployeeDataForm';
+import { EmployeeData, defaultEmployeeData } from '../../features/hr-documents/types';
 
 const CreatePayslipDialog = ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) => {
   const [employeeData, setEmployeeData] = useState<EmployeeData>(defaultEmployeeData);
@@ -540,6 +540,11 @@ const CreatePayslipDialog = ({ isOpen, onClose, onSuccess }: { isOpen: boolean; 
       await mutations.upsertPayslip.mutateAsync({
         ...employeeData,
         status: 'generated',
+        user_id: employeeData.employee_id || '',
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+        basic_pay: Number(employeeData.basic_salary) || 0,
+        hra: Number(employeeData.hra) || 0,
       });
       toast({
         title: 'Success',

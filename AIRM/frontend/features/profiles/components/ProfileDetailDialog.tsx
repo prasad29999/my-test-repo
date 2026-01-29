@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getJoiningFormById } from '../../joining-form/services/joiningFormService';
-import type { JoiningForm } from '@/features/joining-form/types';
+import type { JoiningForm } from '../../joining-form/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -691,7 +691,7 @@ export const ProfileDetailDialog = ({
                     </div>
                     <div className="col-span-2">
                       <Label className="text-xs text-gray-500">Employee Background Verification Details</Label>
-                      <p className="text-sm font-medium whitespace-pre-wrap">{profile.background_verification || 'N/A'}</p>
+                      {/* <p className="text-sm font-medium whitespace-pre-wrap">{profile.background_verification?.toString() || 'N/A'}</p> */}
                     </div>
                   </div>
                   <div className="border-t pt-4">

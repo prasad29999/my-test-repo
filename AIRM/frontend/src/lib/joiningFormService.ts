@@ -1,5 +1,5 @@
 // Service for joining form onboarding API
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "./api";
 
 export async function createJoiningProfile(email: string) {
   if (!email) throw new Error("Email is required");
