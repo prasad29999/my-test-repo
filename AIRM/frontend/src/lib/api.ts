@@ -3,8 +3,11 @@
  * Uses PostgreSQL database via Express.js backend
  */
 
+// Get API base URL from environment variable (required)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-if (!API_BASE_URL) throw new Error('VITE_API_BASE_URL is not set!');
+if (!API_BASE_URL) {
+  throw new Error('VITE_API_BASE_URL environment variable is required. Set it to your production API URL (e.g., https://your-app.railway.app)');
+}
 
 // Get auth token from localStorage
 const getToken = () => {
@@ -42,7 +45,7 @@ export async function apiRequest<T>(
       // Handle connection errors more gracefully
       if (response.status === 0 || response.type === 'error') {
         console.error('❌ Connection error - server may not be running');
-        throw new Error('Cannot connect to server. Please make sure the backend server is running on http://localhost:3001');
+        throw new Error(`Cannot connect to server at ${API_BASE_URL}. Please check your VITE_API_BASE_URL configuration.`);
       }
       const error = await response.json().catch(() => ({ message: 'Request failed' }));
       console.error('❌ API Error:', error);

@@ -70,7 +70,11 @@ const HRDocumentGenerator: React.FC = () => {
   const [salaryBreakup, setSalaryBreakup] = useState<any>(null);
   const [viewTemplateData, setViewTemplateData] = useState<any>(null);
 
-  const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+  // Use VITE_API_BASE_URL (required) - no fallback to localhost
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (!apiBase) {
+    throw new Error('VITE_API_BASE_URL environment variable is required');
+  }
 
   // Fetch templates when documentType or activeTab changes.
   // When viewing the Templates tab we want the full unfiltered list,
@@ -141,7 +145,6 @@ const HRDocumentGenerator: React.FC = () => {
     setUploadProgress(0);
 
     try {
-      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
       const response = await fetch(`${apiBase}/api/hr-documents/templates/upload`, {
         method: 'POST',
         body: formData,
@@ -159,7 +162,11 @@ const HRDocumentGenerator: React.FC = () => {
         // Refresh template list (unfiltered) to ensure newly uploaded template appears
         try {
           console.log('[hr-documents] upload response:', data);
-          const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+          // Use VITE_API_BASE_URL (required) - no fallback to localhost
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (!apiBase) {
+    throw new Error('VITE_API_BASE_URL environment variable is required');
+  }
           const resp = await fetch(`${apiBase}/api/hr-documents/templates`);
           const all = await resp.json();
           if (all.success) {
@@ -206,7 +213,11 @@ const HRDocumentGenerator: React.FC = () => {
     if (!employeeData.grossSalary) return;
 
     try {
-      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+      // Use VITE_API_BASE_URL (required) - no fallback to localhost
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (!apiBase) {
+    throw new Error('VITE_API_BASE_URL environment variable is required');
+  }
       const response = await fetch(`${apiBase}/api/hr-documents/calculate-salary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -229,7 +240,11 @@ const HRDocumentGenerator: React.FC = () => {
       // Use override data if provided (and looks like employee data), otherwise use state
       const dataToPreview = (overrideData && overrideData.employeeName) ? overrideData : employeeData;
 
-      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+      // Use VITE_API_BASE_URL (required) - no fallback to localhost
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (!apiBase) {
+    throw new Error('VITE_API_BASE_URL environment variable is required');
+  }
       const response = await fetch(`${apiBase}/api/hr-documents/generate/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

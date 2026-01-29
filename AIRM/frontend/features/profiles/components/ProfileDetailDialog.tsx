@@ -792,7 +792,11 @@ export const ProfileDetailDialog = ({
                               formData.append('type', doc.type);
                               formData.append('user_id', profile.id);
                               const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-                              const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/profiles/upload-document`, {
+                              const apiBase = import.meta.env.VITE_API_BASE_URL;
+                              if (!apiBase) {
+                                throw new Error('VITE_API_BASE_URL environment variable is required');
+                              }
+                              const response = await fetch(`${apiBase}/api/profiles/upload-document`, {
                                 method: 'POST',
                                 body: formData,
                                 headers: { 'Authorization': `Bearer ${token || ''}` },
@@ -852,7 +856,11 @@ export const ProfileDetailDialog = ({
                               formData.append('type', doc.type);
                               formData.append('user_id', profile.id);
                               const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-                              const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/profiles/upload-document`, {
+                              const apiBase = import.meta.env.VITE_API_BASE_URL;
+                              if (!apiBase) {
+                                throw new Error('VITE_API_BASE_URL environment variable is required');
+                              }
+                              const response = await fetch(`${apiBase}/api/profiles/upload-document`, {
                                 method: 'POST',
                                 body: formData,
                                 headers: { 'Authorization': `Bearer ${token || ''}` },
@@ -911,7 +919,11 @@ export const ProfileDetailDialog = ({
                               formData.append('type', doc.type);
                               formData.append('user_id', profile.id);
                               const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-                              const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/profiles/upload-document`, {
+                              const apiBase = import.meta.env.VITE_API_BASE_URL;
+                              if (!apiBase) {
+                                throw new Error('VITE_API_BASE_URL environment variable is required');
+                              }
+                              const response = await fetch(`${apiBase}/api/profiles/upload-document`, {
                                 method: 'POST',
                                 body: formData,
                                 headers: { 'Authorization': `Bearer ${token || ''}` },

@@ -234,7 +234,8 @@ const Profiles = ({ onlyCurrentUser = false }: ProfilesProps) => {
       formData.append('documentType', documentType);
       formData.append('name', `${templateName} - ${file.name.replace(/\.[^/.]+$/, '')}`);
 
-      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      if (!apiBase) throw new Error('VITE_API_BASE_URL is not set!');
       const response = await fetch(`${apiBase}/api/hr-documents/templates/upload`, {
         method: 'POST',
         body: formData,
@@ -289,7 +290,8 @@ const Profiles = ({ onlyCurrentUser = false }: ProfilesProps) => {
       formData.append('image', file);
       formData.append('type', type);
 
-      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      if (!apiBase) throw new Error('VITE_API_BASE_URL is not set!');
       const response = await fetch(`${apiBase}/api/hr-documents/branding/upload`, {
         method: 'POST',
         body: formData,

@@ -104,6 +104,7 @@ export const downloadDocument = async (documentId: string): Promise<Blob> => {
  * Get document preview URL
  */
 export const getDocumentPreviewUrl = (documentId: string): string => {
-  const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (!apiBase) throw new Error('VITE_API_BASE_URL is not set!');
   return `${apiBase}/api/profiles/documents/${documentId}/preview`;
 };

@@ -44,7 +44,11 @@ export const DocumentApproval: React.FC<DocumentApprovalProps> = ({
       setLoading(true);
       // Get all pending documents using the status endpoint
       const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/profiles/documents/status/pending`, {
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      if (!apiBase) {
+        throw new Error('VITE_API_BASE_URL environment variable is required');
+      }
+      const response = await fetch(`${apiBase}/api/profiles/documents/status/pending`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
