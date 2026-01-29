@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
-import path from 'node:path';
 import fs from 'fs-extra';
 import multer from 'multer';
 
@@ -19,14 +19,20 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Define PORT (Railway-safe)
+// Railway-safe PORT
 const PORT = process.env.PORT || 3001;
 
 /* =====================
    UPLOADS
 ===================== */
 
-const verificationUploadsDir = path.join(process.cwd(), 'backend', 'uploads', 'verification');
+const verificationUploadsDir = path.join(
+  process.cwd(),
+  'backend',
+  'uploads',
+  'verification'
+);
+
 fs.ensureDirSync(verificationUploadsDir);
 app.use('/uploads/verification', express.static(verificationUploadsDir));
 
@@ -34,29 +40,31 @@ app.use('/uploads/verification', express.static(verificationUploadsDir));
    CORS & BODY
 ===================== */
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
 
-    if (
-      origin.startsWith('http://localhost:') ||
-      origin.startsWith('http://127.0.0.1:')
-    ) {
-      return callback(null, true);
-    }
+      if (
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:')
+      ) {
+        return callback(null, true);
+      }
 
-    const allowedOrigins = (process.env.CORS_ORIGIN || '')
-      .split(',')
-      .filter(Boolean);
+      const allowedOrigins = (process.env.CORS_ORIGIN || '')
+        .split(',')
+        .filter(Boolean);
 
-    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
 
-    callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-}));
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -113,7 +121,7 @@ const loadRoutes = async () => {
       const mod = await import(p);
       return mod.default || mod;
     } catch (err) {
-      console.warn(`Warning: could not load module ${p}:`, err.message);
+      console.warn(`⚠️ Could not load ${p}:`, err.message);
       return null;
     }
   };
@@ -163,36 +171,51 @@ const loadRoutes = async () => {
 (async () => {
   await loadRoutes();
 
-  /* ERROR HANDLING */
+  /* =====================
+     ERROR HANDLER
+  ===================== */
+
   app.use((err, req, res, next) => {
-    console.error('Error:', err);
+    console.error('❌ Error:', err);
     res.status(err.status || 500).json({
       error: err.message || 'Internal server error',
     });
   });
 
-  app.use((req, res) => {
+  /* =====================
+     FRONTEND (STATIC)
+     MUST BE BEFORE 404
+  ===================== */
+
+  const frontendPath = path.resolve(__dirname, './public');
+
+  console.log('🔍 Frontend path:', frontendPath);
+  console.log('🔍 Exists:', fs.existsSync(frontendPath));
+
+  if (fs.existsSync(frontendPath)) {
+    console.log('🌐 Serving frontend from backend/public');
+
+    app.use(express.static(frontendPath));
+
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+  }
+
+  /* =====================
+     API 404 ONLY
+  ===================== */
+
+  app.use('/api', (req, res) => {
     res.status(404).json({
       error: 'Not found',
-      message: `Route ${req.method} ${req.path} not found`,
+      message: `API route ${req.method} ${req.path} not found`,
     });
   });
 
   /* =====================
-     FRONTEND (LAST)
+     START SERVER
   ===================== */
-
-  const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
-
-  if (fs.existsSync(frontendDistPath)) {
-    console.log('🌐 Serving frontend from', frontendDistPath);
-    app.use(express.static(frontendDistPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(frontendDistPath, 'index.html'));
-    });
-  } else {
-    console.log('ℹ️ Frontend dist not found — API-only mode');
-  }
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`
