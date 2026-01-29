@@ -46,14 +46,22 @@ export function errorHandler(err, req, res, next) {
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 }
+/* =====================
+   FRONTEND (LAST)
+===================== */
 
-/**
- * 404 handler
- */
-export function notFoundHandler(req, res) {
-  res.status(404).json({
-    error: 'Not found',
-    message: `Route ${req.method} ${req.path} not found`,
+const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+
+if (fs.existsSync(frontendDistPath)) {
+  console.log('🌐 Serving frontend from', frontendDistPath);
+
+  app.use(express.static(frontendDistPath));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
+} else {
+  console.log('⚠️ frontend/dist not found');
 }
+
 
