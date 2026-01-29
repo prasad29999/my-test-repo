@@ -1,3 +1,7 @@
+console.log('🔥 server.js loaded');
+console.log('🔥 NODE_ENV:', process.env.NODE_ENV);
+console.log('🔥 PORT:', process.env.PORT);
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -189,6 +193,7 @@ const loadRoutes = async () => {
       message: `API route ${req.method} ${req.path} not found`,
     });
   });
+  console.log('🔥 About to start listening...');
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);

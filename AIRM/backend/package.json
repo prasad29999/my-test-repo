@@ -5,8 +5,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "build": "vite build"
+    "start": "node server.js"
+    
   },
   "keywords": [
     "express",
