@@ -223,7 +223,9 @@ const Profiles = ({ onlyCurrentUser = false }: ProfilesProps) => {
       const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
       
       // Upload the file to the backend
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/profiles/upload-batch`, {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      if (!API_BASE_URL) throw new Error('VITE_API_BASE_URL is not set!');
+      const response = await fetch(`${API_BASE_URL}/api/profiles/upload-batch`, {
         method: 'POST',
         body: formData,
         // Don't set Content-Type header as it will be set automatically with boundary
@@ -2011,7 +2013,9 @@ const Profiles = ({ onlyCurrentUser = false }: ProfilesProps) => {
                                     formData.append('type', doc.type);
                                     formData.append('user_id', selectedProfile.id);
                                     const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-                                    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/profiles/upload-document`, {
+                                    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+                                    if (!API_BASE_URL) throw new Error('VITE_API_BASE_URL is not set!');
+                                    const response = await fetch(`${API_BASE_URL}/api/profiles/upload-document`, {
                                       method: 'POST',
                                       body: formData,
                                       headers: { 'Authorization': `Bearer ${token || ''}` },
