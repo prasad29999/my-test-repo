@@ -306,7 +306,7 @@ export async function sendWelcomeEmail(email, userName) {
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5174'}" 
+              <a href="${process.env.APP_BASE_URL || ''}" 
                  style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                         color: white; 
                         text-decoration: none; 
@@ -341,7 +341,7 @@ What you can do:
 To access your account, simply use the magic link authentication - no passwords needed!
 Just enter your email address and we'll send you a secure login link.
 
-Access VCP Portal: ${process.env.FRONTEND_URL || 'http://localhost:5174'}
+Access VCP Portal: ${process.env.APP_BASE_URL || ''}
 
 Need help? Contact your administrator or reach out to the TechieMaya team.
       `

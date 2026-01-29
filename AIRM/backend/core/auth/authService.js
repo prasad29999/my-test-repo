@@ -38,7 +38,11 @@ export async function sendMagicLink(email) {
         { expiresIn: '15m' }
       );
 
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+      // Use APP_BASE_URL (required) - no fallback to localhost
+      if (!process.env.APP_BASE_URL) {
+        throw new Error('APP_BASE_URL environment variable is required');
+      }
+      const frontendUrl = process.env.APP_BASE_URL;
       const magicLink = `${frontendUrl}/auth/verify?token=${magicToken}`;
 
       return {
@@ -70,8 +74,11 @@ export async function sendMagicLink(email) {
     { expiresIn: '15m' } // Magic links expire in 15 minutes
   );
 
-  // Create the magic link URL
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+  // Create the magic link URL - use APP_BASE_URL (required)
+  if (!process.env.APP_BASE_URL) {
+    throw new Error('APP_BASE_URL environment variable is required');
+  }
+  const frontendUrl = process.env.APP_BASE_URL;
   const magicLink = `${frontendUrl}/auth/verify?token=${magicToken}`;
 
   // Send email with magic link

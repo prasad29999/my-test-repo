@@ -20,8 +20,14 @@ import multer from 'multer';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Validate required environment variables
+if (!process.env.APP_BASE_URL) {
+  throw new Error('APP_BASE_URL environment variable is required. Set it to your production domain (e.g., https://your-app.railway.app)');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+const APP_BASE_URL = process.env.APP_BASE_URL;
 
 /* =====================
    UPLOADS
@@ -41,11 +47,23 @@ app.use('/uploads/verification', express.static(verificationUploadsDir));
    CORS
 ===================== */
 
+// CORS configuration - use APP_BASE_URL for production
+const corsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+// Always allow the APP_BASE_URL origin
+if (APP_BASE_URL && !corsOrigins.includes(APP_BASE_URL)) {
+  corsOrigins.push(APP_BASE_URL);
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
 
+      // Allow Railway domains
       try {
         const host = new URL(origin).host;
         if (host.endsWith('.up.railway.app')) {
@@ -53,22 +71,28 @@ app.use(
         }
       } catch {}
 
-      if (
-        origin.startsWith('http://localhost:') ||
-        origin.startsWith('http://127.0.0.1:')
-      ) {
+      // In development, allow localhost (but warn)
+      if (process.env.NODE_ENV === 'development') {
+        if (
+          origin.startsWith('http://localhost:') ||
+          origin.startsWith('http://127.0.0.1:')
+        ) {
+          console.warn('⚠️  Allowing localhost origin in development:', origin);
+          return callback(null, true);
+        }
+      }
+
+      // Check against allowed origins
+      if (corsOrigins.includes('*') || corsOrigins.includes(origin)) {
         return callback(null, true);
       }
 
-      const allowedOrigins = (process.env.CORS_ORIGIN || '')
-        .split(',')
-        .map(o => o.trim())
-        .filter(Boolean);
-
-      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      // Check if origin matches APP_BASE_URL
+      if (APP_BASE_URL && origin === APP_BASE_URL) {
         return callback(null, true);
       }
 
+      console.error('❌ CORS blocked origin:', origin);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,

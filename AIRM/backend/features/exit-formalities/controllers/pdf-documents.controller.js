@@ -190,7 +190,11 @@ export async function getAssetHandoverPDFData(req, res) {
     const assetRecoveries = await exitModel.getAssetRecovery(exit_request_id);
     const assets = await exitModel.getEmployeeAssets(exitRequest.user_id);
 
-    const serviceBaseUrl = `http://localhost:${process.env.PORT || 3001}`;
+    // Use APP_BASE_URL for internal backend calls (required)
+    if (!process.env.APP_BASE_URL) {
+      throw new Error('APP_BASE_URL environment variable is required');
+    }
+    const serviceBaseUrl = process.env.APP_BASE_URL;
     let companyName = process.env.COMPANY_NAME || 'TechieMaya';
     let companyAddress = process.env.COMPANY_ADDRESS || '';
     let adminName = 'Authorized Signatory';
@@ -377,6 +381,12 @@ export async function getExperienceLetterPDFData(req, res) {
     // Get employee profile
     const profile = await profileModel.getProfileById(exitRequest.user_id);
     
+    // Use APP_BASE_URL for internal backend calls (required)
+    if (!process.env.APP_BASE_URL) {
+      throw new Error('APP_BASE_URL environment variable is required');
+    }
+    const serviceBaseUrl = process.env.APP_BASE_URL;
+    
     // Check for learned experience letter template - DYNAMIC for ANY company
     let templateFormat = {
       useNumberedFormat: false,
@@ -398,7 +408,7 @@ export async function getExperienceLetterPDFData(req, res) {
     
     // Fetch branding assets (logo and signature images)
     try {
-      const brandingResponse = await fetch(`http://localhost:${process.env.PORT || 3001}/api/hr-documents/branding`);
+      const brandingResponse = await fetch(`${serviceBaseUrl}/api/hr-documents/branding`);
       const brandingData = await brandingResponse.json();
       
       if (brandingData.success && brandingData.branding) {
@@ -421,7 +431,7 @@ export async function getExperienceLetterPDFData(req, res) {
       let template = null;
       
       console.log('[pdf-documents] Fetching ALL templates to find the most recent one...');
-      const allResponse = await fetch(`http://localhost:${process.env.PORT || 3001}/api/hr-documents/templates`);
+      const allResponse = await fetch(`${serviceBaseUrl}/api/hr-documents/templates`);
       const allData = await allResponse.json();
       
       if (allData.success && allData.templates && allData.templates.length > 0) {
