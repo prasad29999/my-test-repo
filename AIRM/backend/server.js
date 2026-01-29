@@ -34,13 +34,13 @@ fs.ensureDirSync(verificationUploadsDir);
 app.use('/uploads/verification', express.static(verificationUploadsDir));
 
 /* =====================
-   CORS (FIXED)
+   CORS (FINAL FIX)
 ===================== */
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow direct browser access (/, assets, favicon)
+      // Allow direct browser hits (/, assets, favicon)
       if (!origin) return callback(null, true);
 
       // Allow Railway same-origin
@@ -51,7 +51,7 @@ app.use(
         }
       } catch {}
 
-      // Allow localhost
+      // Allow localhost for dev
       if (
         origin.startsWith('http://localhost:') ||
         origin.startsWith('http://127.0.0.1:')
@@ -59,7 +59,7 @@ app.use(
         return callback(null, true);
       }
 
-      // Optional extra origins
+      // Optional extra origins via env
       const allowedOrigins = (process.env.CORS_ORIGIN || '')
         .split(',')
         .map(o => o.trim())
@@ -158,10 +158,10 @@ const loadRoutes = async () => {
   await loadRoutes();
 
   /* =====================
-     FRONTEND (CORRECT PATH)
+     FRONTEND (FINAL FIX)
   ===================== */
 
-  const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+  const frontendDist = path.resolve(process.cwd(), 'frontend', 'dist');
 
   console.log('🔍 Frontend dist:', frontendDist);
   console.log('🔍 Exists:', fs.existsSync(frontendDist));
@@ -174,6 +174,8 @@ const loadRoutes = async () => {
     app.get('*', (req, res) => {
       res.sendFile(path.join(frontendDist, 'index.html'));
     });
+  } else {
+    console.log('ℹ️ Frontend dist not found — API-only mode');
   }
 
   /* =====================
