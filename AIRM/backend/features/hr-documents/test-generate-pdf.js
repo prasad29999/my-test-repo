@@ -2,7 +2,11 @@ import axios from 'axios';
 import fs from 'fs';
 
 const testGeneratePDF = async () => {
-  const url = 'http://localhost:3000/hr-documents/generate/pdf'; // Adjust the port if necessary
+  // Use APP_BASE_URL (required) - no localhost fallback
+  if (!process.env.APP_BASE_URL) {
+    throw new Error('APP_BASE_URL environment variable is required for testing');
+  }
+  const url = `${process.env.APP_BASE_URL}/api/hr-documents/generate/pdf`;
 
   const payload = {
     templateId: 'example-template.docx', // Replace with an actual template ID
