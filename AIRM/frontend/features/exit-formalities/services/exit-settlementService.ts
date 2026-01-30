@@ -28,7 +28,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken();
-  const fullUrl = `${API_BASE_URL}${endpoint}`;
+  const fullUrl = `${API_BASE_URL}/api${endpoint}`;
   
   const response = await fetch(fullUrl, {
     ...options,

@@ -152,6 +152,7 @@ const loadRoutes = async () => {
 
   // Load feature routes
   const featureRoutes = {
+    users: await safeImport('./features/users/routes/users.routes.js'),
     profiles: await safeImport('./features/profiles/routes/profiles.routes.js'),
     projects: await safeImport('./features/projects/routes/projects.routes.js'),
     timesheet: await safeImport('./features/timesheet/routes/timesheet.routes.js'),
@@ -181,20 +182,68 @@ const loadRoutes = async () => {
   if (legacyRoutes.git) app.use('/api/git', legacyRoutes.git);
 
   // Register feature routes (prefer feature routes over legacy if both exist)
-  if (featureRoutes.profiles) app.use('/api/profiles', featureRoutes.profiles);
-  if (featureRoutes.projects) app.use('/api/projects', featureRoutes.projects);
-  if (featureRoutes.timesheet) app.use('/api/timesheet', featureRoutes.timesheet);
-  if (featureRoutes.timeClock) app.use('/api/time-clock', featureRoutes.timeClock);
-  if (featureRoutes.leaveCalendar) app.use('/api/leave-calendar', featureRoutes.leaveCalendar);
-  if (featureRoutes.issues) app.use('/api/issues', featureRoutes.issues);
-  if (featureRoutes.exitFormalities) app.use('/api/exit-formalities', featureRoutes.exitFormalities);
-  if (featureRoutes.payrollPf) app.use('/api/payroll-pf', featureRoutes.payrollPf);
-  if (featureRoutes.payslips) app.use('/api/payslips', featureRoutes.payslips);
-  if (featureRoutes.recruitment) app.use('/api/recruitment', featureRoutes.recruitment);
-  if (featureRoutes.hrDocuments) app.use('/api/hr-documents', featureRoutes.hrDocuments);
-  if (featureRoutes.joiningForm) app.use('/api/joining-form', featureRoutes.joiningForm);
-  if (featureRoutes.git) app.use('/api/git', featureRoutes.git);
-  if (featureRoutes.monitoring) app.use('/api/monitoring', featureRoutes.monitoring);
+  if (featureRoutes.users) {
+    app.use('/api/users', featureRoutes.users);
+    console.log('✅ Registered: /api/users (feature)');
+  }
+  if (featureRoutes.profiles) {
+    app.use('/api/profiles', featureRoutes.profiles);
+    console.log('✅ Registered: /api/profiles (feature)');
+  }
+  if (featureRoutes.projects) {
+    app.use('/api/projects', featureRoutes.projects);
+    console.log('✅ Registered: /api/projects (feature)');
+  }
+  if (featureRoutes.timesheet) {
+    app.use('/api/timesheet', featureRoutes.timesheet);
+    console.log('✅ Registered: /api/timesheet (feature)');
+  }
+  if (featureRoutes.timeClock) {
+    app.use('/api/time-clock', featureRoutes.timeClock);
+    console.log('✅ Registered: /api/time-clock (feature)');
+  }
+  if (featureRoutes.leaveCalendar) {
+    app.use('/api/leave-calendar', featureRoutes.leaveCalendar);
+    console.log('✅ Registered: /api/leave-calendar (feature)');
+  }
+  if (featureRoutes.issues) {
+    app.use('/api/issues', featureRoutes.issues);
+    console.log('✅ Registered: /api/issues (feature)');
+  }
+  if (featureRoutes.exitFormalities) {
+    app.use('/api/exit-formalities', featureRoutes.exitFormalities);
+    console.log('✅ Registered: /api/exit-formalities (feature)');
+  }
+  if (featureRoutes.payrollPf) {
+    app.use('/api/payroll-pf', featureRoutes.payrollPf);
+    console.log('✅ Registered: /api/payroll-pf (feature)');
+  }
+  if (featureRoutes.payslips) {
+    app.use('/api/payslips', featureRoutes.payslips);
+    console.log('✅ Registered: /api/payslips (feature)');
+  }
+  if (featureRoutes.recruitment) {
+    app.use('/api/recruitment', featureRoutes.recruitment);
+    console.log('✅ Registered: /api/recruitment (feature)');
+  }
+  if (featureRoutes.hrDocuments) {
+    app.use('/api/hr-documents', featureRoutes.hrDocuments);
+    console.log('✅ Registered: /api/hr-documents (feature)');
+  }
+  if (featureRoutes.joiningForm) {
+    app.use('/api/joining-form', featureRoutes.joiningForm);
+    console.log('✅ Registered: /api/joining-form (feature)');
+  } else {
+    console.warn('⚠️  joining-form route not loaded!');
+  }
+  if (featureRoutes.git) {
+    app.use('/api/git', featureRoutes.git);
+    console.log('✅ Registered: /api/git (feature)');
+  }
+  if (featureRoutes.monitoring) {
+    app.use('/api/monitoring', featureRoutes.monitoring);
+    console.log('✅ Registered: /api/monitoring (feature)');
+  }
 
   console.log('✅ Routes loaded successfully');
 };
