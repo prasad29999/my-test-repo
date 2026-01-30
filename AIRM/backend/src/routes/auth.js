@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import pool from '../db/connection.js';
 import { authenticate } from '../middleware/auth.js';
-import { sendMagicLinkEmail } from '../services/emailService.js';
+import { sendMagicLinkEmail } from '../../shared/services/emailService.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
