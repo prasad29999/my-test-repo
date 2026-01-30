@@ -7,11 +7,9 @@ export async function sendVerificationMail(candidateId, verificationId) {
   const verification = (candidate.background_verifications || []).find(v => v.id === verificationId);
   if (!verification) throw new Error('Verification not found');
   if (!candidate.email) throw new Error('Candidate email not found');
-  // Use APP_BASE_URL (required) - no fallback to localhost
-  if (!process.env.APP_BASE_URL) {
-    throw new Error('APP_BASE_URL environment variable is required');
-  }
-  const BASE_URL = process.env.APP_BASE_URL;
+  // Use APP_BASE_URL with localhost fallback for local development
+  const PORT = process.env.PORT || 3001;
+  const BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
   const uploadLink = `${BASE_URL}/upload-docs/${candidateId}/${verificationId}`;
   // Send email with upload link
   await sendVerificationMailEmail({

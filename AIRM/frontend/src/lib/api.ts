@@ -3,10 +3,12 @@
  * Uses PostgreSQL database via Express.js backend
  */
 
-// Get API base URL from environment variable (required)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-if (!API_BASE_URL) {
-  throw new Error('VITE_API_BASE_URL environment variable is required. Set it to your production API URL (e.g., https://your-app.railway.app)');
+// Get API base URL from environment variable, with localhost fallback for local development
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
+// Warn in production if VITE_API_BASE_URL is not set
+if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
+  console.warn('⚠️  WARNING: VITE_API_BASE_URL not set in production build. Using localhost fallback.');
 }
 
 // Get auth token from localStorage

@@ -20,14 +20,16 @@ import multer from 'multer';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Validate required environment variables
-if (!process.env.APP_BASE_URL) {
-  throw new Error('APP_BASE_URL environment variable is required. Set it to your production domain (e.g., https://your-app.railway.app)');
+// APP_BASE_URL: Use environment variable or fallback to localhost for local development
+const PORT = process.env.PORT || 3001;
+const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
+
+// Warn in production if APP_BASE_URL is not set
+if (process.env.NODE_ENV === 'production' && !process.env.APP_BASE_URL) {
+  console.warn('⚠️  WARNING: APP_BASE_URL not set in production. Using localhost fallback.');
 }
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-const APP_BASE_URL = process.env.APP_BASE_URL;
 
 /* =====================
    UPLOADS
@@ -134,15 +136,67 @@ const loadRoutes = async () => {
     }
   };
 
-  const routes = {
-    auth: await safeImport('./core/auth/routes.js'),
-    users: await safeImport('./core/users/routes.js'),
-    projects: await safeImport('./features/projects/routes/projects.routes.js'),
+  // Load all routes from src/routes (legacy routes)
+  const legacyRoutes = {
+    auth: await safeImport('./src/routes/auth.js'),
+    users: await safeImport('./src/routes/users.js'),
+    projects: await safeImport('./src/routes/projects.js'),
+    notifications: await safeImport('./src/routes/notifications.js'),
+    leave: await safeImport('./src/routes/leave.js'),
+    issues: await safeImport('./src/routes/issues.js'),
+    profiles: await safeImport('./src/routes/profiles.js'),
+    timesheets: await safeImport('./src/routes/timesheets.js'),
+    labels: await safeImport('./src/routes/labels.js'),
+    git: await safeImport('./src/routes/git.js'),
   };
 
-  if (routes.auth) app.use('/api/auth', routes.auth);
-  if (routes.users) app.use('/api/users', routes.users);
-  if (routes.projects) app.use('/api/projects', routes.projects);
+  // Load feature routes
+  const featureRoutes = {
+    profiles: await safeImport('./features/profiles/routes/profiles.routes.js'),
+    projects: await safeImport('./features/projects/routes/projects.routes.js'),
+    timesheet: await safeImport('./features/timesheet/routes/timesheet.routes.js'),
+    timeClock: await safeImport('./features/time-clock/routes/time-clock.routes.js'),
+    leaveCalendar: await safeImport('./features/leave-calendar/routes/leave-calendar.routes.js'),
+    issues: await safeImport('./features/issues/routes/issues.routes.js'),
+    exitFormalities: await safeImport('./features/exit-formalities/routes/exit-formalities.routes.js'),
+    payrollPf: await safeImport('./features/payroll-pf/routes/payroll-pf.routes.js'),
+    payslips: await safeImport('./features/payslips/routes/payslips.routes.js'),
+    recruitment: await safeImport('./features/recruitment/routes/index.js'),
+    hrDocuments: await safeImport('./features/hr-documents/routes/hr-documents.routes.js'),
+    joiningForm: await safeImport('./features/joining-form/routes/joining-form.routes.js'),
+    git: await safeImport('./features/git/routes/git.routes.js'),
+    monitoring: await safeImport('./features/monitoring/routes/monitoring.routes.js'),
+  };
+
+  // Register legacy routes (from src/routes)
+  if (legacyRoutes.auth) app.use('/api/auth', legacyRoutes.auth);
+  if (legacyRoutes.users) app.use('/api/users', legacyRoutes.users);
+  if (legacyRoutes.projects) app.use('/api/projects', legacyRoutes.projects);
+  if (legacyRoutes.notifications) app.use('/api/notifications', legacyRoutes.notifications);
+  if (legacyRoutes.leave) app.use('/api/leave', legacyRoutes.leave);
+  if (legacyRoutes.issues) app.use('/api/issues', legacyRoutes.issues);
+  if (legacyRoutes.profiles) app.use('/api/profiles', legacyRoutes.profiles);
+  if (legacyRoutes.timesheets) app.use('/api/timesheets', legacyRoutes.timesheets);
+  if (legacyRoutes.labels) app.use('/api/labels', legacyRoutes.labels);
+  if (legacyRoutes.git) app.use('/api/git', legacyRoutes.git);
+
+  // Register feature routes (prefer feature routes over legacy if both exist)
+  if (featureRoutes.profiles) app.use('/api/profiles', featureRoutes.profiles);
+  if (featureRoutes.projects) app.use('/api/projects', featureRoutes.projects);
+  if (featureRoutes.timesheet) app.use('/api/timesheet', featureRoutes.timesheet);
+  if (featureRoutes.timeClock) app.use('/api/time-clock', featureRoutes.timeClock);
+  if (featureRoutes.leaveCalendar) app.use('/api/leave-calendar', featureRoutes.leaveCalendar);
+  if (featureRoutes.issues) app.use('/api/issues', featureRoutes.issues);
+  if (featureRoutes.exitFormalities) app.use('/api/exit-formalities', featureRoutes.exitFormalities);
+  if (featureRoutes.payrollPf) app.use('/api/payroll-pf', featureRoutes.payrollPf);
+  if (featureRoutes.payslips) app.use('/api/payslips', featureRoutes.payslips);
+  if (featureRoutes.recruitment) app.use('/api/recruitment', featureRoutes.recruitment);
+  if (featureRoutes.hrDocuments) app.use('/api/hr-documents', featureRoutes.hrDocuments);
+  if (featureRoutes.joiningForm) app.use('/api/joining-form', featureRoutes.joiningForm);
+  if (featureRoutes.git) app.use('/api/git', featureRoutes.git);
+  if (featureRoutes.monitoring) app.use('/api/monitoring', featureRoutes.monitoring);
+
+  console.log('✅ Routes loaded successfully');
 };
 
 /* =====================
@@ -157,9 +211,15 @@ const loadRoutes = async () => {
   console.log('🔍 Frontend dist:', frontendDist);
   console.log('🔍 Exists:', fs.existsSync(frontendDist));
 
+  // Serve frontend static files (but only for non-API routes)
   if (fs.existsSync(frontendDist)) {
     app.use(express.static(frontendDist));
-    app.get('*', (req, res) => {
+    // Catch-all handler: serve index.html for non-API routes
+    app.get('*', (req, res, next) => {
+      // Don't serve HTML for API routes
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'API route not found' });
+      }
       res.sendFile(path.join(frontendDist, 'index.html'));
     });
   }
