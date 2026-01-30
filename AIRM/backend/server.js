@@ -169,6 +169,13 @@ const loadRoutes = async () => {
     monitoring: await safeImport('./features/monitoring/routes/monitoring.routes.js'),
   };
 
+  // Register feature routes FIRST (prefer feature routes over legacy if both exist)
+  if (featureRoutes.timesheet) {
+    app.use('/api/timesheet', featureRoutes.timesheet);
+    app.use('/api/timesheets', featureRoutes.timesheet); // Also register at plural for compatibility
+    console.log('✅ Registered: /api/timesheet and /api/timesheets (feature)');
+  }
+
   // Register legacy routes (from src/routes)
   if (legacyRoutes.auth) app.use('/api/auth', legacyRoutes.auth);
   if (legacyRoutes.users) app.use('/api/users', legacyRoutes.users);
@@ -177,7 +184,8 @@ const loadRoutes = async () => {
   if (legacyRoutes.leave) app.use('/api/leave', legacyRoutes.leave);
   if (legacyRoutes.issues) app.use('/api/issues', legacyRoutes.issues);
   if (legacyRoutes.profiles) app.use('/api/profiles', legacyRoutes.profiles);
-  if (legacyRoutes.timesheets) app.use('/api/timesheets', legacyRoutes.timesheets);
+  // Skip legacy timesheets route - using feature route instead
+  // if (legacyRoutes.timesheets) app.use('/api/timesheets', legacyRoutes.timesheets);
   if (legacyRoutes.labels) app.use('/api/labels', legacyRoutes.labels);
   if (legacyRoutes.git) app.use('/api/git', legacyRoutes.git);
 
@@ -193,10 +201,6 @@ const loadRoutes = async () => {
   if (featureRoutes.projects) {
     app.use('/api/projects', featureRoutes.projects);
     console.log('✅ Registered: /api/projects (feature)');
-  }
-  if (featureRoutes.timesheet) {
-    app.use('/api/timesheet', featureRoutes.timesheet);
-    console.log('✅ Registered: /api/timesheet (feature)');
   }
   if (featureRoutes.timeClock) {
     app.use('/api/time-clock', featureRoutes.timeClock);
