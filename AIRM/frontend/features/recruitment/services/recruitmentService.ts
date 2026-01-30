@@ -1,8 +1,19 @@
 export async function uploadVerificationDocuments(candidateId: string, verificationId: string, files: File[]): Promise<any> {
   const formData = new FormData();
   files.forEach(file => formData.append('documents', file));
-  const res = await fetch(`/api/recruitment/${candidateId}/verification/${verificationId}/upload`, {
+  
+  // Use API_BASE_URL from environment variable
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  if (!API_BASE_URL) {
+    throw new Error('VITE_API_BASE_URL environment variable is required');
+  }
+  
+  const token = localStorage.getItem('auth_token');
+  const res = await fetch(`${API_BASE_URL}/api/recruitment/${candidateId}/verification/${verificationId}/upload`, {
     method: 'POST',
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
     body: formData,
   });
   if (!res.ok) throw new Error('Failed to upload documents');

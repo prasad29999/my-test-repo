@@ -58,14 +58,14 @@ async function apiRequest<T>(
  * Get all profiles
  */
 export async function getAllProfiles(): Promise<GetAllProfilesResponse> {
-  return apiRequest<GetAllProfilesResponse>('/profiles');
+  return apiRequest<GetAllProfilesResponse>('/api/profiles');
 }
 
 /**
  * Get profile by ID
  */
 export async function getProfileById(id: string): Promise<GetProfileResponse> {
-  return apiRequest<GetProfileResponse>(`/profiles/${id}`);
+  return apiRequest<GetProfileResponse>(`/api/profiles/${id}`);
 }
 
 /**
@@ -75,7 +75,7 @@ export async function updateProfile(
   id: string,
   data: UpdateProfileRequest
 ): Promise<UpdateProfileResponse> {
-  return apiRequest<UpdateProfileResponse>(`/profiles/${id}`, {
+  return apiRequest<UpdateProfileResponse>(`/api/profiles/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
@@ -85,7 +85,7 @@ export async function updateProfile(
  * Delete profile by id
  */
 export async function deleteProfile(id: string): Promise<any> {
-  return apiRequest<any>(`/profiles/${id}`, {
+  return apiRequest<any>(`/api/profiles/${id}`, {
     method: 'DELETE',
   });
 }
@@ -95,7 +95,7 @@ export async function deleteProfile(id: string): Promise<any> {
  */
 export async function downloadTemplate(): Promise<void> {
   const token = getToken();
-  const fullUrl = `${API_BASE_URL}/profiles/template/download`;
+  const fullUrl = `${API_BASE_URL}/api/profiles/template/download`;
   
   const response = await fetch(fullUrl, {
     method: 'GET',
@@ -126,7 +126,7 @@ export async function downloadTemplate(): Promise<void> {
  */
 export async function uploadProfileFile(file: File): Promise<any> {
   const token = getToken();
-  const fullUrl = `${API_BASE_URL}/profiles/extract`;
+  const fullUrl = `${API_BASE_URL}/api/profiles/extract`;
   
   const formData = new FormData();
   formData.append('file', file);
@@ -152,7 +152,7 @@ export async function uploadProfileFile(file: File): Promise<any> {
  */
 export async function uploadBatchProfiles(file: File): Promise<any> {
   const token = getToken();
-  const fullUrl = `${API_BASE_URL}/profiles/upload-batch`;
+  const fullUrl = `${API_BASE_URL}/api/profiles/upload-batch`;
   
   const formData = new FormData();
   formData.append('file', file);
