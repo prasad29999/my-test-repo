@@ -81,11 +81,10 @@ router.post('/send-magic-link', [
         res.json({
           message: 'Magic link sent to your email successfully! Please check your inbox.',
           emailSent: true,
-          // For development only - remove in production
-          ...(process.env.NODE_ENV === 'development' && {
-            magicLink: magicLink,
-            previewUrl: emailResult.previewUrl
-          })
+          // Always include magic link for frontend to display (useful for testing)
+          magicLink: magicLink,
+          frontendUrl: `${frontendUrl}/auth/verify?token=${magicToken}`,
+          ...(emailResult.previewUrl && { previewUrl: emailResult.previewUrl })
         });
       }
       
