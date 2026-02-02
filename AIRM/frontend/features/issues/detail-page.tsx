@@ -81,29 +81,36 @@ export default function IssueDetail() {
         return;
       }
 
-        // Check admin status - check multiple possible response structures and localStorage
+        // Check admin status - prioritize localStorage (more reliable), then API
         // API returns: { id, email, full_name, role } directly (not wrapped in 'user')
         const isAdminFromStorage = userData.role === 'admin';
         
-        let isAdminFromAPI = false;
-        try {
-          const currentUserResp = await api.auth.getMe() as any;
-          console.log('User role check:', { 
-            response: currentUserResp,
-            role: currentUserResp?.role || currentUserResp?.user?.role || currentUserResp?.data?.role,
-            storageRole: userData.role
-          });
-          // Check direct role first (API returns user object directly), then nested structures
-          isAdminFromAPI = currentUserResp?.role === 'admin' || 
-                          currentUserResp?.user?.role === 'admin' ||
-                          currentUserResp?.data?.role === 'admin';
-        } catch (apiError) {
-          console.warn('Could not fetch user from API, using localStorage:', apiError);
+        // If localStorage says admin, use it immediately (faster and more reliable)
+        if (isAdminFromStorage) {
+          setIsAdmin(true);
+          console.log('Admin status from localStorage: true');
+        } else {
+          // Only check API if localStorage doesn't have admin role
+          let isAdminFromAPI = false;
+          try {
+            const currentUserResp = await api.auth.getMe() as any;
+            console.log('User role check from API:', { 
+              response: currentUserResp,
+              role: currentUserResp?.role || currentUserResp?.user?.role || currentUserResp?.data?.role,
+              storageRole: userData.role
+            });
+            // Check direct role first (API returns user object directly), then nested structures
+            isAdminFromAPI = currentUserResp?.role === 'admin' || 
+                            currentUserResp?.user?.role === 'admin' ||
+                            currentUserResp?.data?.role === 'admin';
+          } catch (apiError) {
+            console.warn('Could not fetch user from API, using localStorage:', apiError);
+          }
+          
+          const isUserAdmin = isAdminFromStorage || isAdminFromAPI;
+          console.log('Final admin status:', { isAdminFromStorage, isAdminFromAPI, isUserAdmin });
+          setIsAdmin(isUserAdmin);
         }
-        
-        const isUserAdmin = isAdminFromStorage || isAdminFromAPI;
-        console.log('Final admin status:', { isAdminFromStorage, isAdminFromAPI, isUserAdmin });
-        setIsAdmin(isUserAdmin);
       await loadIssueData();
       await loadLabels();
       await loadUsers();

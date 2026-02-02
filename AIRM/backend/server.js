@@ -218,6 +218,14 @@ const loadRoutes = async () => {
   if (featureRoutes.issues) {
     app.use('/api/issues', featureRoutes.issues);
     console.log('✅ Registered: /api/issues (feature)');
+    console.log('   Available endpoints:');
+    console.log('   - POST /api/issues/:id/assign (Admin)');
+    console.log('   - DELETE /api/issues/:id/assign/:user_id (Admin)');
+    console.log('   - POST /api/issues/:id/labels (Admin)');
+    console.log('   - DELETE /api/issues/:id/labels/:label_id (Admin)');
+    console.log('   - POST /api/issues/:id/comments');
+  } else {
+    console.warn('⚠️  Feature issues route not loaded!');
   }
   if (featureRoutes.exitFormalities) {
     app.use('/api/exit-formalities', featureRoutes.exitFormalities);
