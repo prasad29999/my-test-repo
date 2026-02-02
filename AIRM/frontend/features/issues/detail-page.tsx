@@ -624,12 +624,6 @@ export default function IssueDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {/* Temporary debug - remove after verifying production */}
-                {import.meta.env.PROD && (
-                  <div className="text-xs bg-yellow-100 p-1 mb-2 rounded">
-                    Debug: isAdmin={String(isAdmin)}, localStorage.role={JSON.parse(localStorage.getItem('user') || '{}')?.role || 'none'}
-                  </div>
-                )}
                 {assignees.map((assignee) => (
                   <div key={assignee.user_id} className="flex items-center justify-between">
                     <span className="text-sm">{assignee.email}</span>
