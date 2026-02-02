@@ -313,12 +313,26 @@ export async function unassignUserFromIssue(issueId, userId) {
  * Add label to issue
  */
 export async function addLabelToIssue(issueId, labelId) {
-  await pool.query(
-    `INSERT INTO erp.issue_labels (issue_id, label_id)
-     VALUES ($1, $2)
-     ON CONFLICT (issue_id, label_id) DO NOTHING`,
-    [issueId, labelId]
-  );
+  // Explicitly generate UUID to ensure id is set (some DBs don't have uuid default configured)
+  try {
+    await pool.query(
+      `INSERT INTO erp.issue_labels (id, issue_id, label_id)
+       VALUES (gen_random_uuid(), $1, $2)
+       ON CONFLICT (issue_id, label_id) DO NOTHING`,
+      [issueId, labelId]
+    );
+  } catch (error) {
+    if (error.message?.includes('gen_random_uuid') || error.message?.includes('function')) {
+      await pool.query(
+        `INSERT INTO erp.issue_labels (id, issue_id, label_id)
+         VALUES (uuid_generate_v4(), $1, $2)
+         ON CONFLICT (issue_id, label_id) DO NOTHING`,
+        [issueId, labelId]
+      );
+      return;
+    }
+    throw error;
+  }
 }
 
 /**

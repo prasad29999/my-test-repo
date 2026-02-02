@@ -45,25 +45,32 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken();
-  const fullUrl = `${API_BASE_URL}${endpoint}`;
+  // All backend endpoints are mounted under /api
+  const fullUrl = `${API_BASE_URL}/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   
   const response = await fetch(fullUrl, {
     ...options,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    const errorMessage = error.message || error.error || `HTTP error! status: ${response.status}`;
+    // Try to parse JSON error; if server returned HTML, show a clearer message.
+    const contentType = response.headers.get('content-type') || '';
+    const error = contentType.includes('application/json')
+      ? await response.json().catch(() => ({ message: 'Request failed' }))
+      : { message: `Non-JSON error response (${response.status}). Check endpoint: ${endpoint}` };
+    const errorMessage = (error as any).message || (error as any).error || `HTTP error! status: ${response.status}`;
     console.error(`[API Error] ${fullUrl}:`, errorMessage, error);
     throw new Error(errorMessage);
   }
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({} as any));
   console.log(`[API Success] ${fullUrl}:`, data);
   return data;
 }
