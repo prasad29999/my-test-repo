@@ -81,8 +81,26 @@ export default function IssueDetail() {
         return;
       }
 
-        const currentUserResp = await api.auth.getMe() as any;
-        setIsAdmin(currentUserResp?.user?.role === 'admin');
+        // Check admin status - check multiple possible response structures and localStorage
+        const isAdminFromStorage = userData.role === 'admin';
+        
+        let isAdminFromAPI = false;
+        try {
+          const currentUserResp = await api.auth.getMe() as any;
+          console.log('User role check:', { 
+            response: currentUserResp,
+            role: currentUserResp?.user?.role || currentUserResp?.role || currentUserResp?.data?.role,
+            storageRole: userData.role
+          });
+          isAdminFromAPI = currentUserResp?.user?.role === 'admin' || 
+                          currentUserResp?.role === 'admin' ||
+                          currentUserResp?.data?.role === 'admin';
+        } catch (apiError) {
+          console.warn('Could not fetch user from API, using localStorage:', apiError);
+        }
+        
+        const isUserAdmin = isAdminFromStorage || isAdminFromAPI;
+        setIsAdmin(isUserAdmin);
       await loadIssueData();
       await loadLabels();
       await loadUsers();
@@ -608,55 +626,65 @@ export default function IssueDetail() {
                 {assignees.length === 0 && !showAssigneesDropdown && (
                   <p className="text-sm text-gray-500 text-center py-2">No assignees</p>
                 )}
-                {isAdmin && (
-                  <div className="space-y-2">
-                    {showAssigneesDropdown && (
-                      <div className="border rounded p-3 space-y-2 max-h-60 overflow-y-auto">
-                        {availableUsers
-                          .filter(u => !assignees.some(a => a.user_id === u.user_id))
-                          .map(user => (
-                            <label
-                              key={user.user_id}
-                              className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedUserIds.includes(user.user_id)}
-                                onChange={() => toggleUserSelection(user.user_id)}
-                                className="rounded border-gray-300"
-                              />
-                              <span className="text-sm">{user.email}</span>
-                            </label>
-                          ))}
-                        {availableUsers.filter(u => !assignees.some(a => a.user_id === u.user_id)).length === 0 && (
-                          <p className="text-sm text-gray-500 text-center py-2">No available users to assign</p>
-                        )}
-                        {selectedUserIds.length > 0 && (
-                          <div className="pt-2 border-t">
-                            <Button
-                              size="sm"
-                              className="w-full"
-                              onClick={assignMultipleUsers}
-                            >
-                              Assign {selectedUserIds.length} User{selectedUserIds.length > 1 ? 's' : ''}
-                            </Button>
-                          </div>
-                        )}
-                        <div className="pt-2 border-t">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => {
-                              setShowAssigneesDropdown(false);
-                              setSelectedUserIds([]);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
+                {/* Show Add Assignees button only for admins - always show when dropdown is closed */}
+                {isAdmin && !showAssigneesDropdown && (
+                  <div className="mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowAssigneesDropdown(true)}
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      Add Assignees
+                    </Button>
+                  </div>
+                )}
+                {isAdmin && showAssigneesDropdown && (
+                  <div className="border rounded p-3 space-y-2 max-h-60 overflow-y-auto">
+                    {availableUsers
+                      .filter(u => !assignees.some(a => a.user_id === u.user_id))
+                      .map(user => (
+                        <label
+                          key={user.user_id}
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedUserIds.includes(user.user_id)}
+                            onChange={() => toggleUserSelection(user.user_id)}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-sm">{user.email}</span>
+                        </label>
+                      ))}
+                    {availableUsers.filter(u => !assignees.some(a => a.user_id === u.user_id)).length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-2">No available users to assign</p>
+                    )}
+                    {selectedUserIds.length > 0 && (
+                      <div className="pt-2 border-t">
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={assignMultipleUsers}
+                        >
+                          Assign {selectedUserIds.length} User{selectedUserIds.length > 1 ? 's' : ''}
+                        </Button>
                       </div>
                     )}
+                    <div className="pt-2 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          setShowAssigneesDropdown(false);
+                          setSelectedUserIds([]);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>

@@ -134,30 +134,44 @@ export async function createIssue(issueData, userId) {
  * Update issue
  */
 export async function updateIssue(issueId, updates, userId) {
-  const existing = await issueModel.getGitLabIssue(issueId);
-  
-  if (!existing) {
+  // Verify issue exists in main issues table first
+  const issue = await issueModel.getIssueById(issueId);
+  if (!issue) {
     throw new Error('Issue not found');
   }
 
-  // Update in GitLab
-  try {
-    await gitlabService.updateGitLabIssue(
-      existing.gitlab_project_id,
-      existing.gitlab_iid,
-      updates
-    );
-  } catch (gitlabError) {
-    throw new Error(`Failed to update issue in GitLab: ${gitlabError.response?.data?.message || gitlabError.message}`);
+  // Try to get GitLab issue info (optional)
+  const gitlabIssue = await issueModel.getGitLabIssue(issueId);
+  
+  // Update in GitLab if GitLab integration exists
+  if (gitlabIssue) {
+    try {
+      await gitlabService.updateGitLabIssue(
+        gitlabIssue.gitlab_project_id,
+        gitlabIssue.gitlab_iid,
+        updates
+      );
+    } catch (gitlabError) {
+      console.error('GitLab update failed:', gitlabError.message);
+      // Continue with local update even if GitLab fails
+    }
+
+    // Update in GitLab issues table if it exists
+    try {
+      await issueModel.updateGitLabIssue(issueId, updates);
+    } catch (error) {
+      console.error('Failed to update GitLab issue table:', error.message);
+      // Continue with main issues table update
+    }
   }
 
-  // Update in local database
-  const updatedIssue = await issueModel.updateGitLabIssue(issueId, updates);
+  // Update in main issues table (always)
+  const updatedIssue = await issueModel.updateIssue(issueId, updates);
 
   // Track status change
-  if (updates.status && updates.status !== existing.status) {
+  if (updates.status && updates.status !== issue.status) {
     await issueModel.addIssueActivity(issueId, userId, 'status_changed', {
-      old_status: existing.status,
+      old_status: issue.status,
       new_status: updates.status,
     });
   }

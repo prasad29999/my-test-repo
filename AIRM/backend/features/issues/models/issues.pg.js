@@ -233,11 +233,26 @@ export async function getLabelsByIds(labelIds) {
  * Add issue activity
  */
 export async function addIssueActivity(issueId, userId, action, details) {
-  await pool.query(
-    `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
-     VALUES ($1, $2, $3, $4)`,
-    [issueId, userId, action, JSON.stringify(details)]
-  );
+  // Explicitly generate UUID to ensure id is set
+  // Try gen_random_uuid() first (built-in PostgreSQL 13+), fallback to uuid_generate_v4()
+  try {
+    await pool.query(
+      `INSERT INTO erp.issue_activity (id, issue_id, user_id, action, details)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
+      [issueId, userId, action, JSON.stringify(details)]
+    );
+  } catch (error) {
+    // If gen_random_uuid() fails, try uuid_generate_v4() (requires uuid-ossp extension)
+    if (error.message.includes('gen_random_uuid') || error.message.includes('function')) {
+      await pool.query(
+        `INSERT INTO erp.issue_activity (id, issue_id, user_id, action, details)
+         VALUES (uuid_generate_v4(), $1, $2, $3, $4)`,
+        [issueId, userId, action, JSON.stringify(details)]
+      );
+    } else {
+      throw error;
+    }
+  }
 }
 
 /**
@@ -255,12 +270,27 @@ export async function assignUsersToIssue(issueId, assigneeIds, assignedBy) {
     );
 
     if (existing.rows.length === 0) {
-      await pool.query(
-        `INSERT INTO erp.issue_assignees (issue_id, user_id, assigned_by)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (issue_id, user_id) DO NOTHING`,
-        [issueId, assigneeIdStr, assignedBy]
-      );
+      // Explicitly generate UUID to ensure id is set
+      try {
+        await pool.query(
+          `INSERT INTO erp.issue_assignees (id, issue_id, user_id, assigned_by)
+           VALUES (gen_random_uuid(), $1, $2, $3)
+           ON CONFLICT (issue_id, user_id) DO NOTHING`,
+          [issueId, assigneeIdStr, assignedBy]
+        );
+      } catch (error) {
+        // If gen_random_uuid() fails, try uuid_generate_v4()
+        if (error.message.includes('gen_random_uuid') || error.message.includes('function')) {
+          await pool.query(
+            `INSERT INTO erp.issue_assignees (id, issue_id, user_id, assigned_by)
+             VALUES (uuid_generate_v4(), $1, $2, $3)
+             ON CONFLICT (issue_id, user_id) DO NOTHING`,
+            [issueId, assigneeIdStr, assignedBy]
+          );
+        } else {
+          throw error;
+        }
+      }
       assigned.push(assigneeIdStr);
     }
   }
@@ -322,12 +352,29 @@ export async function addComment(issueId, userId, comment) {
     throw new Error('Missing required parameters: issueId, userId, or comment');
   }
 
-  const result = await pool.query(
-    `INSERT INTO erp.issue_comments (issue_id, user_id, comment)
-     VALUES ($1, $2, $3)
-     RETURNING *`,
-    [issueId, userId, comment]
-  );
+  // Explicitly generate UUID to ensure id is set
+  // Try gen_random_uuid() first (built-in PostgreSQL 13+), fallback to uuid_generate_v4()
+  let result;
+  try {
+    result = await pool.query(
+      `INSERT INTO erp.issue_comments (id, issue_id, user_id, comment)
+       VALUES (gen_random_uuid(), $1, $2, $3)
+       RETURNING *`,
+      [issueId, userId, comment]
+    );
+  } catch (error) {
+    // If gen_random_uuid() fails, try uuid_generate_v4() (requires uuid-ossp extension)
+    if (error.message.includes('gen_random_uuid') || error.message.includes('function')) {
+      result = await pool.query(
+        `INSERT INTO erp.issue_comments (id, issue_id, user_id, comment)
+         VALUES (uuid_generate_v4(), $1, $2, $3)
+         RETURNING *`,
+        [issueId, userId, comment]
+      );
+    } else {
+      throw error;
+    }
+  }
   
   if (!result.rows || result.rows.length === 0) {
     throw new Error('Failed to insert comment');
@@ -364,55 +411,162 @@ export async function getCommentWithUser(commentId) {
 }
 
 /**
- * Get GitLab issue info
+ * Get GitLab issue info (optional - table may not exist)
+ * Returns null if GitLab integration is not set up
  */
 export async function getGitLabIssueInfo(issueId) {
-  const result = await pool.query(
-    'SELECT gi.gitlab_iid, gi.gitlab_issue_id, gp.gitlab_project_id FROM erp.gitlab_issues gi JOIN erp.gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
-    [issueId]
-  );
-  return result.rows[0] || null;
+  try {
+    // Check if gitlab_issues table exists first
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'erp' 
+        AND table_name = 'gitlab_issues'
+      );
+    `);
+    
+    if (!tableCheck.rows[0]?.exists) {
+      console.log('GitLab issues table does not exist, skipping GitLab integration');
+      return null;
+    }
+
+    const result = await pool.query(
+      'SELECT gi.gitlab_iid, gi.gitlab_issue_id, gp.gitlab_project_id FROM erp.gitlab_issues gi JOIN erp.gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
+      [issueId]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    // If table doesn't exist or query fails, return null (GitLab integration is optional)
+    console.log('GitLab issue info not available:', error.message);
+    return null;
+  }
 }
 
 /**
- * Get existing GitLab issue
+ * Get existing GitLab issue (optional - table may not exist)
+ * Returns null if GitLab integration is not set up
  */
 export async function getGitLabIssue(issueId) {
-  const result = await pool.query(
-    'SELECT gi.*, gp.gitlab_project_id FROM erp.gitlab_issues gi JOIN erp.gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
-    [issueId]
-  );
-  return result.rows[0] || null;
+  try {
+    // Check if gitlab_issues table exists first
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'erp' 
+        AND table_name = 'gitlab_issues'
+      );
+    `);
+    
+    if (!tableCheck.rows[0]?.exists) {
+      return null;
+    }
+
+    const result = await pool.query(
+      'SELECT gi.*, gp.gitlab_project_id FROM erp.gitlab_issues gi JOIN erp.gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
+      [issueId]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    // If table doesn't exist or query fails, return null (GitLab integration is optional)
+    console.log('GitLab issue not available:', error.message);
+    return null;
+  }
 }
 
 /**
- * Update GitLab issue
+ * Update main issue in erp.issues table
+ */
+export async function updateIssue(issueId, updates) {
+  const updateFields = [];
+  const values = [];
+  let paramCount = 1;
+
+  if (updates.title !== undefined) {
+    updateFields.push(`title = $${paramCount++}`);
+    values.push(updates.title);
+  }
+  if (updates.description !== undefined) {
+    updateFields.push(`description = $${paramCount++}`);
+    values.push(updates.description);
+  }
+  if (updates.status !== undefined) {
+    updateFields.push(`status = $${paramCount++}`);
+    values.push(updates.status);
+  }
+  if (updates.priority !== undefined) {
+    updateFields.push(`priority = $${paramCount++}`);
+    values.push(updates.priority);
+  }
+  if (updates.project_name !== undefined) {
+    updateFields.push(`project_name = $${paramCount++}`);
+    values.push(updates.project_name);
+  }
+
+  if (updateFields.length === 0) {
+    // No updates, just return the existing issue
+    return await getIssueById(issueId);
+  }
+
+  updateFields.push(`updated_at = NOW()`);
+  values.push(issueId);
+
+  const query = `
+    UPDATE erp.issues 
+    SET ${updateFields.join(', ')}
+    WHERE id = $${paramCount}
+    RETURNING *
+  `;
+
+  const result = await pool.query(query, values);
+  return result.rows[0];
+}
+
+/**
+ * Update GitLab issue (optional - table may not exist)
  */
 export async function updateGitLabIssue(issueId, updates) {
-  const result = await pool.query(
-    `UPDATE erp.gitlab_issues 
-     SET title = COALESCE($1, title),
-         description = COALESCE($2, description),
-         status = COALESCE($3, status),
-         priority = COALESCE($4, priority),
-         estimate_hours = COALESCE($5, estimate_hours),
-         start_date = COALESCE($6, start_date),
-         due_date = COALESCE($7, due_date),
-         updated_at = NOW()
-     WHERE id = $8
-     RETURNING *`,
-    [
-      updates.title,
-      updates.description,
-      updates.status,
-      updates.priority,
-      updates.estimate_hours,
-      updates.start_date,
-      updates.due_date,
-      issueId
-    ]
-  );
-  return result.rows[0];
+  try {
+    // Check if gitlab_issues table exists first
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'erp' 
+        AND table_name = 'gitlab_issues'
+      );
+    `);
+    
+    if (!tableCheck.rows[0]?.exists) {
+      return null;
+    }
+
+    const result = await pool.query(
+      `UPDATE erp.gitlab_issues 
+       SET title = COALESCE($1, title),
+           description = COALESCE($2, description),
+           status = COALESCE($3, status),
+           priority = COALESCE($4, priority),
+           estimate_hours = COALESCE($5, estimate_hours),
+           start_date = COALESCE($6, start_date),
+           due_date = COALESCE($7, due_date),
+           updated_at = NOW()
+       WHERE id = $8
+       RETURNING *`,
+      [
+        updates.title,
+        updates.description,
+        updates.status,
+        updates.priority,
+        updates.estimate_hours,
+        updates.start_date,
+        updates.due_date,
+        issueId
+      ]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.log('GitLab issue update not available:', error.message);
+    return null;
+  }
 }
 
 /**
