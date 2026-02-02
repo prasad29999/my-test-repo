@@ -169,22 +169,27 @@ export async function updateIssue(issueId, updates, userId) {
  * Add comment
  */
 export async function addComment(issueId, userId, comment) {
-  const issueInfo = await issueModel.getGitLabIssueInfo(issueId);
-  
-  if (!issueInfo) {
+  // Verify issue exists first
+  const issue = await issueModel.getIssueById(issueId);
+  if (!issue) {
     throw new Error('Issue not found');
   }
 
-  // Post comment to GitLab
-  try {
-    await gitlabService.postCommentToGitLab(
-      issueInfo.gitlab_project_id,
-      issueInfo.gitlab_iid,
-      comment
-    );
-  } catch (gitlabError) {
-    console.error('GitLab comment post failed:', gitlabError.response?.data || gitlabError.message);
-    // Continue with local save
+  // Try to get GitLab issue info (optional - issue may not have GitLab association)
+  const issueInfo = await issueModel.getGitLabIssueInfo(issueId);
+  
+  // Post comment to GitLab if issue has GitLab association
+  if (issueInfo) {
+    try {
+      await gitlabService.postCommentToGitLab(
+        issueInfo.gitlab_project_id,
+        issueInfo.gitlab_iid,
+        comment
+      );
+    } catch (gitlabError) {
+      console.error('GitLab comment post failed:', gitlabError.response?.data || gitlabError.message);
+      // Continue with local save even if GitLab fails
+    }
   }
 
   // Add comment locally

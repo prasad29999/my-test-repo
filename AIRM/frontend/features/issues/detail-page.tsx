@@ -577,9 +577,17 @@ export default function IssueDetail() {
             {/* Assignees */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle 
+                  className={`flex items-center gap-2 ${isAdmin ? 'cursor-pointer hover:text-blue-600' : ''}`}
+                  onClick={() => isAdmin && setShowAssigneesDropdown(!showAssigneesDropdown)}
+                >
                   <User className="h-4 w-4" />
                   Assignees
+                  {isAdmin && (
+                    <span className="text-xs text-gray-500 ml-auto">
+                      {showAssigneesDropdown ? '▼' : '▶'}
+                    </span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -597,16 +605,11 @@ export default function IssueDetail() {
                     )}
                   </div>
                 ))}
+                {assignees.length === 0 && !showAssigneesDropdown && (
+                  <p className="text-sm text-gray-500 text-center py-2">No assignees</p>
+                )}
                 {isAdmin && (
                   <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setShowAssigneesDropdown(!showAssigneesDropdown)}
-                    >
-                      {showAssigneesDropdown ? "Cancel" : "Add Assignees"}
-                    </Button>
                     {showAssigneesDropdown && (
                       <div className="border rounded p-3 space-y-2 max-h-60 overflow-y-auto">
                         {availableUsers
@@ -639,6 +642,19 @@ export default function IssueDetail() {
                             </Button>
                           </div>
                         )}
+                        <div className="pt-2 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => {
+                              setShowAssigneesDropdown(false);
+                              setSelectedUserIds([]);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
