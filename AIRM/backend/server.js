@@ -177,17 +177,22 @@ const loadRoutes = async () => {
   }
 
   // Register legacy routes (from src/routes)
+  // Skip legacy routes if feature routes exist (feature routes take precedence)
   if (legacyRoutes.auth) app.use('/api/auth', legacyRoutes.auth);
-  if (legacyRoutes.users) app.use('/api/users', legacyRoutes.users);
-  if (legacyRoutes.projects) app.use('/api/projects', legacyRoutes.projects);
+  if (legacyRoutes.users && !featureRoutes.users) app.use('/api/users', legacyRoutes.users);
+  if (legacyRoutes.projects && !featureRoutes.projects) app.use('/api/projects', legacyRoutes.projects);
   if (legacyRoutes.notifications) app.use('/api/notifications', legacyRoutes.notifications);
-  if (legacyRoutes.leave) app.use('/api/leave', legacyRoutes.leave);
-  if (legacyRoutes.issues) app.use('/api/issues', legacyRoutes.issues);
-  if (legacyRoutes.profiles) app.use('/api/profiles', legacyRoutes.profiles);
+  if (legacyRoutes.leave && !featureRoutes.leaveCalendar) app.use('/api/leave', legacyRoutes.leave);
+  // Skip legacy issues route if feature route exists (feature route has the fixed code)
+  if (legacyRoutes.issues && !featureRoutes.issues) {
+    app.use('/api/issues', legacyRoutes.issues);
+    console.log('⚠️  Using legacy /api/issues route (feature route not available)');
+  }
+  if (legacyRoutes.profiles && !featureRoutes.profiles) app.use('/api/profiles', legacyRoutes.profiles);
   // Skip legacy timesheets route - using feature route instead
   // if (legacyRoutes.timesheets) app.use('/api/timesheets', legacyRoutes.timesheets);
   if (legacyRoutes.labels) app.use('/api/labels', legacyRoutes.labels);
-  if (legacyRoutes.git) app.use('/api/git', legacyRoutes.git);
+  if (legacyRoutes.git && !featureRoutes.git) app.use('/api/git', legacyRoutes.git);
 
   // Register feature routes (prefer feature routes over legacy if both exist)
   if (featureRoutes.users) {
