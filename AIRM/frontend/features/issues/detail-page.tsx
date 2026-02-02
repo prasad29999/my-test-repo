@@ -81,36 +81,41 @@ export default function IssueDetail() {
         return;
       }
 
-        // Check admin status - prioritize localStorage (more reliable), then API
+        // Check admin status - always check API to get latest role, fallback to localStorage
         // API returns: { id, email, full_name, role } directly (not wrapped in 'user')
         const isAdminFromStorage = userData.role === 'admin';
         
-        // If localStorage says admin, use it immediately (faster and more reliable)
-        if (isAdminFromStorage) {
-          setIsAdmin(true);
-          console.log('Admin status from localStorage: true');
-        } else {
-          // Only check API if localStorage doesn't have admin role
-          let isAdminFromAPI = false;
-          try {
-            const currentUserResp = await api.auth.getMe() as any;
-            console.log('User role check from API:', { 
-              response: currentUserResp,
-              role: currentUserResp?.role || currentUserResp?.user?.role || currentUserResp?.data?.role,
-              storageRole: userData.role
-            });
-            // Check direct role first (API returns user object directly), then nested structures
-            isAdminFromAPI = currentUserResp?.role === 'admin' || 
-                            currentUserResp?.user?.role === 'admin' ||
-                            currentUserResp?.data?.role === 'admin';
-          } catch (apiError) {
-            console.warn('Could not fetch user from API, using localStorage:', apiError);
-          }
+        let isAdminFromAPI = false;
+        let apiRole = null;
+        try {
+          const currentUserResp = await api.auth.getMe() as any;
+          console.log('User role check from API:', { 
+            response: currentUserResp,
+            role: currentUserResp?.role || currentUserResp?.user?.role || currentUserResp?.data?.role,
+            storageRole: userData.role
+          });
+          // Check direct role first (API returns user object directly), then nested structures
+          apiRole = currentUserResp?.role || currentUserResp?.user?.role || currentUserResp?.data?.role;
+          isAdminFromAPI = apiRole === 'admin';
           
-          const isUserAdmin = isAdminFromStorage || isAdminFromAPI;
-          console.log('Final admin status:', { isAdminFromStorage, isAdminFromAPI, isUserAdmin });
-          setIsAdmin(isUserAdmin);
+          // Update localStorage with latest role from API
+          if (apiRole && userData.role !== apiRole) {
+            userData.role = apiRole;
+            localStorage.setItem('user', JSON.stringify(userData));
+            console.log('Updated localStorage role to:', apiRole);
+          }
+        } catch (apiError) {
+          console.warn('Could not fetch user from API, using localStorage:', apiError);
         }
+        
+        const isUserAdmin = isAdminFromStorage || isAdminFromAPI;
+        console.log('Final admin status:', { 
+          isAdminFromStorage, 
+          isAdminFromAPI, 
+          apiRole,
+          isUserAdmin 
+        });
+        setIsAdmin(isUserAdmin);
       await loadIssueData();
       await loadLabels();
       await loadUsers();
@@ -619,6 +624,12 @@ export default function IssueDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
+                {/* Temporary debug - remove after verifying production */}
+                {process.env.NODE_ENV === 'production' && (
+                  <div className="text-xs bg-yellow-100 p-1 mb-2 rounded">
+                    Debug: isAdmin={String(isAdmin)}, localStorage.role={JSON.parse(localStorage.getItem('user') || '{}')?.role || 'none'}
+                  </div>
+                )}
                 {assignees.map((assignee) => (
                   <div key={assignee.user_id} className="flex items-center justify-between">
                     <span className="text-sm">{assignee.email}</span>
@@ -638,17 +649,15 @@ export default function IssueDetail() {
                 )}
                 {/* Show Add Assignees button only for admins - always show when dropdown is closed */}
                 {isAdmin && !showAssigneesDropdown && (
-                  <div className="mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setShowAssigneesDropdown(true)}
-                    >
-                      <User className="h-4 w-4 mr-2" />
-                      Add Assignees
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => setShowAssigneesDropdown(true)}
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Add Assignees
+                  </Button>
                 )}
                 {isAdmin && showAssigneesDropdown && (
                   <div className="border rounded p-3 space-y-2 max-h-60 overflow-y-auto">
