@@ -226,6 +226,9 @@ const loadRoutes = async () => {
   if (featureRoutes.leaveCalendar) {
     app.use('/api/leave-calendar', featureRoutes.leaveCalendar);
     console.log('✅ Registered: /api/leave-calendar (feature)');
+    // Backward-compatible alias: some frontend code still calls /api/leave
+    app.use('/api/leave', featureRoutes.leaveCalendar);
+    console.log('✅ Registered: /api/leave (alias -> leave-calendar feature)');
   }
   if (featureRoutes.issues) {
     app.use('/api/issues', featureRoutes.issues);
