@@ -157,6 +157,12 @@ export const api = {
         body: JSON.stringify({ user_id }),
       }),
     
+    assignUsers: (id: string, user_ids: string[]) =>
+      apiRequest(`/issues/${id}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ user_ids }),
+      }),
+    
     unassignUser: (id: string, user_id: string) =>
       apiRequest(`/issues/${id}/assign/${user_id}`, {
         method: 'DELETE',
