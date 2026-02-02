@@ -31,8 +31,8 @@ export async function apiRequest<T>(
     console.warn('⚠️ No auth token found!');
   }
   
-  try {
-    const response = await fetch(fullUrl, {
+  const doFetch = async (url: string) =>
+    fetch(url, {
       ...options,
       // Avoid cached 304 responses (304 has no body and breaks response.json())
       cache: 'no-store',
@@ -43,6 +43,15 @@ export async function apiRequest<T>(
         ...options.headers,
       },
     });
+
+  try {
+    let response = await doFetch(fullUrl);
+
+    // If some proxy/browser still returns 304, retry once with a cache-busting query param.
+    if (response.status === 304) {
+      const bust = fullUrl.includes('?') ? '&' : '?';
+      response = await doFetch(`${fullUrl}${bust}_cb=${Date.now()}`);
+    }
 
     console.log(`📡 Response status: ${response.status} ${response.statusText}`);
 

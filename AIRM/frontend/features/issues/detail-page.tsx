@@ -625,7 +625,7 @@ export default function IssueDetail() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {/* Temporary debug - remove after verifying production */}
-                {process.env.NODE_ENV === 'production' && (
+                {import.meta.env.PROD && (
                   <div className="text-xs bg-yellow-100 p-1 mb-2 rounded">
                     Debug: isAdmin={String(isAdmin)}, localStorage.role={JSON.parse(localStorage.getItem('user') || '{}')?.role || 'none'}
                   </div>

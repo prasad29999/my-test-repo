@@ -284,13 +284,19 @@ const loadRoutes = async () => {
 (async () => {
   await loadRoutes();
 
-  const frontendDist = path.resolve(__dirname, 'public');
+  // Prefer the Vite build output if present (Railway builds `../frontend/dist`),
+  // otherwise fall back to `backend/public` (legacy).
+  const frontendDistCandidates = [
+    path.resolve(__dirname, '../frontend/dist'),
+    path.resolve(__dirname, 'public'),
+  ];
+  const frontendDist = frontendDistCandidates.find(p => fs.existsSync(p));
 
   console.log('🔍 Frontend dist:', frontendDist);
-  console.log('🔍 Exists:', fs.existsSync(frontendDist));
+  console.log('🔍 Exists:', frontendDist ? true : false);
 
   // Serve frontend static files (but only for non-API routes)
-  if (fs.existsSync(frontendDist)) {
+  if (frontendDist) {
     app.use(express.static(frontendDist));
     // Catch-all handler: serve index.html for non-API routes
     app.get('*', (req, res, next) => {
