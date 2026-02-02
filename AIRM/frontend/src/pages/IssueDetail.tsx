@@ -550,6 +550,13 @@ export default function IssueDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
+                {/* Debug info for troubleshooting assign dropdown */}
+                <div style={{ fontSize: '11px', color: '#888' }}>
+                  <div>isAdmin: {JSON.stringify(isAdmin)}</div>
+                  <div>availableUsers: {availableUsers.length}</div>
+                  <div>assignees: {assignees.length}</div>
+                  <div>Assignable users: {availableUsers.filter(u => !assignees.some(a => a.user_id === u.user_id)).length}</div>
+                </div>
                 {assignees.map((assignee) => (
                   <div key={assignee.user_id} className="flex items-center justify-between">
                     <span className="text-sm">{assignee.email}</span>
