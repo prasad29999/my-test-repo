@@ -69,6 +69,8 @@ export default function IssueDetail() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editProjectName, setEditProjectName] = useState("");
+  const [showAssigneesDropdown, setShowAssigneesDropdown] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   useEffect(() => {
     const initPage = async () => {
@@ -326,6 +328,37 @@ export default function IssueDetail() {
     }
   };
 
+  const assignMultipleUsers = async () => {
+    if (!id || selectedUserIds.length === 0) return;
+    
+    try {
+      await api.issues.assignUsers(id, selectedUserIds);
+      
+      toast({
+        title: "Success",
+        description: `${selectedUserIds.length} user(s) assigned successfully`,
+      });
+      
+      setSelectedUserIds([]);
+      setShowAssigneesDropdown(false);
+      await loadIssueData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign users",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
   const unassignUser = async (userId: string) => {
     if (!id) return;
     
@@ -565,24 +598,50 @@ export default function IssueDetail() {
                   </div>
                 ))}
                 {isAdmin && (
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        assignUser(e.target.value);
-                        e.target.value = "";
-                      }
-                    }}
-                    className="w-full p-2 border rounded text-sm"
-                  >
-                    <option value="">Assign user...</option>
-                    {availableUsers
-                      .filter(u => !assignees.some(a => a.user_id === u.user_id))
-                      .map(user => (
-                        <option key={user.user_id} value={user.user_id}>
-                          {user.email}
-                        </option>
-                      ))}
-                  </select>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowAssigneesDropdown(!showAssigneesDropdown)}
+                    >
+                      {showAssigneesDropdown ? "Cancel" : "Add Assignees"}
+                    </Button>
+                    {showAssigneesDropdown && (
+                      <div className="border rounded p-3 space-y-2 max-h-60 overflow-y-auto">
+                        {availableUsers
+                          .filter(u => !assignees.some(a => a.user_id === u.user_id))
+                          .map(user => (
+                            <label
+                              key={user.user_id}
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedUserIds.includes(user.user_id)}
+                                onChange={() => toggleUserSelection(user.user_id)}
+                                className="rounded border-gray-300"
+                              />
+                              <span className="text-sm">{user.email}</span>
+                            </label>
+                          ))}
+                        {availableUsers.filter(u => !assignees.some(a => a.user_id === u.user_id)).length === 0 && (
+                          <p className="text-sm text-gray-500 text-center py-2">No available users to assign</p>
+                        )}
+                        {selectedUserIds.length > 0 && (
+                          <div className="pt-2 border-t">
+                            <Button
+                              size="sm"
+                              className="w-full"
+                              onClick={assignMultipleUsers}
+                            >
+                              Assign {selectedUserIds.length} User{selectedUserIds.length > 1 ? 's' : ''}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
