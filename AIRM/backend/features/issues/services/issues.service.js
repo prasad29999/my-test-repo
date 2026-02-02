@@ -194,7 +194,18 @@ export async function addComment(issueId, userId, comment) {
 
   // Add comment locally
   const commentRecord = await issueModel.addComment(issueId, userId, comment);
+  
+  if (!commentRecord || !commentRecord.id) {
+    console.error('Failed to create comment record:', { issueId, userId, commentLength: comment?.length });
+    throw new Error('Failed to create comment');
+  }
+
   const commentWithUser = await issueModel.getCommentWithUser(commentRecord.id);
+  
+  if (!commentWithUser) {
+    console.error('Failed to retrieve comment with user info:', { commentId: commentRecord.id });
+    throw new Error('Failed to retrieve comment');
+  }
 
   // Add activity
   await issueModel.addIssueActivity(issueId, userId, 'commented', {

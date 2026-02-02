@@ -174,6 +174,12 @@ export async function addComment(req, res) {
     const userId = req.userId;
     const { comment } = req.body;
 
+    console.log('Add comment request:', { issueId, userId, commentLength: comment?.length });
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({ error: 'Comment is required' });
+    }
+
     try {
       const commentRecord = await issueService.addComment(issueId, userId, comment);
       res.status(201).json({
@@ -181,6 +187,8 @@ export async function addComment(req, res) {
         comment: commentRecord
       });
     } catch (error) {
+      console.error('Add comment service error:', error);
+      console.error('Error stack:', error.stack);
       if (error.message === 'Issue not found') {
         return res.status(404).json({ error: 'Issue not found' });
       }
@@ -189,9 +197,12 @@ export async function addComment(req, res) {
     }
   } catch (error) {
     console.error('Add comment error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error message:', error.message);
     res.status(500).json({ 
       error: 'Failed to add comment',
-      message: 'Internal server error' 
+      message: error.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }

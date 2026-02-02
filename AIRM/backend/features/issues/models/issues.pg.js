@@ -318,12 +318,21 @@ export async function getLabelById(labelId) {
  * Add comment to issue
  */
 export async function addComment(issueId, userId, comment) {
+  if (!issueId || !userId || !comment) {
+    throw new Error('Missing required parameters: issueId, userId, or comment');
+  }
+
   const result = await pool.query(
     `INSERT INTO erp.issue_comments (issue_id, user_id, comment)
      VALUES ($1, $2, $3)
      RETURNING *`,
     [issueId, userId, comment]
   );
+  
+  if (!result.rows || result.rows.length === 0) {
+    throw new Error('Failed to insert comment');
+  }
+  
   return result.rows[0];
 }
 
@@ -331,6 +340,10 @@ export async function addComment(issueId, userId, comment) {
  * Get comment with user info
  */
 export async function getCommentWithUser(commentId) {
+  if (!commentId) {
+    throw new Error('Comment ID is required');
+  }
+
   const result = await pool.query(
     `SELECT 
       ic.*,
@@ -341,7 +354,13 @@ export async function getCommentWithUser(commentId) {
      WHERE ic.id = $1`,
     [commentId]
   );
-  return result.rows[0] || null;
+  
+  if (!result.rows || result.rows.length === 0) {
+    console.error('Comment not found with ID:', commentId);
+    return null;
+  }
+  
+  return result.rows[0];
 }
 
 /**
