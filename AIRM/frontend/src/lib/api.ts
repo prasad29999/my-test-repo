@@ -34,8 +34,11 @@ export async function apiRequest<T>(
   try {
     const response = await fetch(fullUrl, {
       ...options,
+      // Avoid cached 304 responses (304 has no body and breaks response.json())
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
@@ -54,7 +57,8 @@ export async function apiRequest<T>(
       throw new Error(error.message || `HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
+    // Some responses (e.g. 204) have no body
+    const data = await response.json().catch(() => ({} as any));
     console.log(`✅ API Success: ${endpoint}`, data);
     return data;
   } catch (error: any) {

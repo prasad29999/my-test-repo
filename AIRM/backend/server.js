@@ -31,6 +31,18 @@ if (process.env.NODE_ENV === 'production' && !process.env.APP_BASE_URL) {
 
 const app = express();
 
+// Prevent API responses from being cached (avoids 304 w/ empty body for JSON APIs)
+app.disable('etag');
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+  }
+  next();
+});
+
 /* =====================
    UPLOADS
 ===================== */
