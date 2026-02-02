@@ -82,6 +82,7 @@ export default function IssueDetail() {
       }
 
         // Check admin status - check multiple possible response structures and localStorage
+        // API returns: { id, email, full_name, role } directly (not wrapped in 'user')
         const isAdminFromStorage = userData.role === 'admin';
         
         let isAdminFromAPI = false;
@@ -89,17 +90,19 @@ export default function IssueDetail() {
           const currentUserResp = await api.auth.getMe() as any;
           console.log('User role check:', { 
             response: currentUserResp,
-            role: currentUserResp?.user?.role || currentUserResp?.role || currentUserResp?.data?.role,
+            role: currentUserResp?.role || currentUserResp?.user?.role || currentUserResp?.data?.role,
             storageRole: userData.role
           });
-          isAdminFromAPI = currentUserResp?.user?.role === 'admin' || 
-                          currentUserResp?.role === 'admin' ||
+          // Check direct role first (API returns user object directly), then nested structures
+          isAdminFromAPI = currentUserResp?.role === 'admin' || 
+                          currentUserResp?.user?.role === 'admin' ||
                           currentUserResp?.data?.role === 'admin';
         } catch (apiError) {
           console.warn('Could not fetch user from API, using localStorage:', apiError);
         }
         
         const isUserAdmin = isAdminFromStorage || isAdminFromAPI;
+        console.log('Final admin status:', { isAdminFromStorage, isAdminFromAPI, isUserAdmin });
         setIsAdmin(isUserAdmin);
       await loadIssueData();
       await loadLabels();
