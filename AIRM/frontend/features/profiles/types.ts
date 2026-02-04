@@ -111,6 +111,8 @@ export interface EmployeeProfile {
   project_history?: any[];
   performance_reviews?: any[];
   documents?: any[];
+  onboarding_status?: string | null;
+  onboarding_completed_at?: string | null;
   burnout_score?: number;
   created_at: string;
   updated_at: string | null;

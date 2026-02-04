@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
+
 interface Project {
   id: number;
   gitlab_project_id: number;
@@ -68,12 +69,12 @@ const Projects = () => {
     setCreating(true);
     try {
       await api.projects.create(createForm);
-      
+
       toast({
         title: "Success",
         description: "Project created successfully in GitLab!",
       });
-      
+
       setShowCreateDialog(false);
       setCreateForm({ name: "", description: "", visibility: "private" });
       fetchProjects(); // Refresh the list
@@ -110,7 +111,7 @@ const Projects = () => {
             Manage your projects and sync with GitLab
           </p>
         </div>
-        
+
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button>
@@ -132,7 +133,7 @@ const Projects = () => {
                   required
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -143,7 +144,7 @@ const Projects = () => {
                   rows={3}
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="visibility">Visibility</Label>
                 <select
@@ -157,7 +158,7 @@ const Projects = () => {
                   <option value="public">Public</option>
                 </select>
               </div>
-              
+
               <div className="flex justify-end space-x-2">
                 <Button
                   type="button"
@@ -199,8 +200,8 @@ const Projects = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
-            <Card 
-              key={project.id} 
+            <Card
+              key={project.id}
               className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-primary"
               onClick={() => handleProjectClick(project.id)}
             >
@@ -209,11 +210,10 @@ const Projects = () => {
                   <CardTitle className="text-lg font-semibold truncate">
                     {project.name}
                   </CardTitle>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    project.visibility === 'private' ? 'bg-red-100 text-red-800' :
+                  <span className={`text-xs px-2 py-1 rounded-full ${project.visibility === 'private' ? 'bg-red-100 text-red-800' :
                     project.visibility === 'internal' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
+                      'bg-green-100 text-green-800'
+                    }`}>
                     {project.visibility}
                   </span>
                 </div>
@@ -222,7 +222,7 @@ const Projects = () => {
                 <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
                   {project.description || "No description provided"}
                 </p>
-                
+
                 <div className="flex justify-between items-center text-sm">
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
@@ -241,11 +241,11 @@ const Projects = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 pt-3 border-t text-xs text-muted-foreground">
                   Created: {new Date(project.created_at).toLocaleDateString()}
                 </div>
-                
+
                 {project.web_url && (
                   <div className="mt-2">
                     <a

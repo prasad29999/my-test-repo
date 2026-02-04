@@ -65,9 +65,11 @@ type ViewMode = 'grid' | 'list' | 'kanban';
 
 interface ProfilesProps {
   onlyCurrentUser?: boolean;
+  hideHeader?: boolean;
+  noPadding?: boolean;
 }
 
-const Profiles = ({ onlyCurrentUser = false }: ProfilesProps) => {
+const Profiles = ({ onlyCurrentUser = false, hideHeader = false, noPadding = false }: ProfilesProps) => {
   const { id: profileId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -592,327 +594,337 @@ const Profiles = ({ onlyCurrentUser = false }: ProfilesProps) => {
   }
 
   return (
-    <div className="p-6">
+    <div className={noPadding ? "" : "p-6"}>
 
 
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            {onlyCurrentUser ? 'My Profile' : 'Employee Profiles'}
-          </h1>
-          <p className="text-gray-500 mt-1">
-            {onlyCurrentUser 
-              ? 'View and manage your profile details' 
-              : 'View and manage employee directory and professional history'}
-          </p>
-        </div>
-        {!onlyCurrentUser && (
-        <div className="flex items-center space-x-2">
-          {/* Download Template Button */}
-          <Button
-            variant="outline"
-            onClick={async () => {
-              try {
-                await downloadTemplate();
-                toast({
-                  title: "Success",
-                  description: "Template downloaded successfully",
-                });
-              } catch (error: any) {
-                toast({
-                  title: "Error",
-                  description: error.message || "Failed to download template",
-                  variant: "destructive",
-                });
-              }
-            }}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download Template
-          </Button>
-
-          {/* Upload File Dropdown */}
-          <div className="relative">
-            {/* Hidden file inputs for different upload types */}
-            <input
-              type="file"
-              id="profile-upload"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
-              // Removed quick-add profile logic. All new profiles should be added via the JoiningForm modal for consistency.
-              disabled={isUploading}
-            />
-
-            {/* Hidden file inputs for HR document templates */}
-            <input
-              type="file"
-              id="experience-template-upload"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                await handleTemplateUpload(file, 'experience_letter', 'Experience Letter');
-                e.target.value = '';
-              }}
-            />
-            <input
-              type="file"
-              id="payslip-template-upload"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                await handleTemplateUpload(file, 'payslip', 'Payslip');
-                e.target.value = '';
-              }}
-            />
-            <input
-              type="file"
-              id="asset-handover-template-upload"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                await handleTemplateUpload(file, 'asset_handover', 'Asset Handover');
-                e.target.value = '';
-              }}
-            />
-            <input
-              type="file"
-              id="relieving-letter-template-upload"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                await handleTemplateUpload(file, 'relieving_letter', 'Relieving Letter');
-                e.target.value = '';
-              }}
-            />
-
-            {/* Hidden file inputs for Logo and Signature */}
-            <input
-              type="file"
-              id="logo-upload"
-              className="hidden"
-              accept=".png,.jpg,.jpeg,.svg,.webp"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                await handleBrandingUpload(file, 'logo');
-                e.target.value = '';
-              }}
-            />
-            <input
-              type="file"
-              id="signature-upload"
-              className="hidden"
-              accept=".png,.jpg,.jpeg,.svg,.webp"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                await handleBrandingUpload(file, 'signature');
-                e.target.value = '';
-              }}
-            />
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={isUploading}>
-                  {isUploading ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload File
-                      <ChevronDown className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Upload Options</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                  onClick={() => document.getElementById('profile-upload')?.click()}
-                  className="cursor-pointer"
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Upload User Profile
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* View Mode Toggle */}
-          <div className="flex items-center border rounded-md overflow-hidden">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="rounded-none border-0"
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="rounded-none border-0"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('kanban')}
-              className="rounded-none border-0"
-            >
-              <Columns className="h-4 w-4" />
-            </Button>
-          </div>
-          {(isAdmin || true) && (
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Profile
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Add Employee Profile</DialogTitle>
-                </DialogHeader>
-                <JoiningForm isModal onCancel={() => setIsAddOpen(false)} onComplete={() => { setIsAddOpen(false); refetchProfiles(); }} />
-              </DialogContent>
-            </Dialog>
-          )}
-          <Button onClick={async () => {
-            await queryClient.invalidateQueries({ queryKey: ['profiles'] });
-            refetchProfiles();
-          }} variant="outline" disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
-        )}
-      </div>
-
-      {/* Global Search Modal (Cmd+K) */}
-      {!onlyCurrentUser && (
-      <ProfileSearchModal
-        open={isSearchOpen}
-        onOpenChange={setIsSearchOpen}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        profiles={filteredAndSortedProfiles}
-        onProfileSelect={(profile) => {
-          setSelectedProfile(profile);
-          setIsDetailOpen(true);
-          setIsSearchOpen(false);
-        }}
-      />
-      )}
-
-      {/* Search and Filters */}
-      {!onlyCurrentUser && (
-      <ProfileFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSearchClick={() => setIsSearchOpen(true)}
-        filterDepartment={filterDepartment}
-        onDepartmentChange={setFilterDepartment}
-        filterRole={filterRole}
-        onRoleChange={setFilterRole}
-        filterStatus={filterStatus}
-        onStatusChange={setFilterStatus}
-        filterExperience={filterExperience}
-        onExperienceChange={setFilterExperience}
-        sortBy={sortBy}
-        onSortByChange={setSortBy}
-        sortOrder={sortOrder}
-        onSortOrderToggle={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-        departments={departments}
-        roles={roles}
-        totalProfiles={profiles.length}
-        filteredCount={filteredAndSortedProfiles.length}
-      />
-      )}
-
-      {/* Error Display */}
-      {profilesError && (
-        <Card className="mb-6 border-red-200 bg-red-50">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 text-red-800">
-              <span className="font-semibold">Error loading profiles:</span>
-              <span>{profilesError instanceof Error ? profilesError.message : String(profilesError)}</span>
-            </div>
-            <p className="text-sm text-red-600 mt-2">
-              Check browser console and backend logs for more details.
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {onlyCurrentUser ? 'My Profile' : 'Employee Profiles'}
+            </h1>
+            <p className="text-gray-500 mt-1">
+              {onlyCurrentUser
+                ? 'View and manage your profile details'
+                : 'View and manage employee directory and professional history'}
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              onClick={() => refetchProfiles()}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Profiles Display */}
-      {filteredAndSortedProfiles.length === 0 && !loading && !profilesError ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <User className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-500">No employee profiles found</p>
-            <p className="text-sm text-gray-400 mt-2">
-              {profiles.length === 0
-                ? "The database appears to be empty. Use the '+ Add Profile' button to create profiles."
-                : "No profiles match your current filters."}
-            </p>
-            {searchQuery && (
+          </div>
+          {!onlyCurrentUser && (
+            <div className="flex items-center space-x-2">
+              {/* Download Template Button */}
               <Button
                 variant="outline"
-                className="mt-4"
-                onClick={() => setSearchQuery("")}
+                onClick={async () => {
+                  try {
+                    await downloadTemplate();
+                    toast({
+                      title: "Success",
+                      description: "Template downloaded successfully",
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Failed to download template",
+                      variant: "destructive",
+                    });
+                  }
+                }}
               >
-                Clear search
+                <Download className="h-4 w-4 mr-2" />
+                Download Template
               </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedProfiles.map((profile) => (
-            <ProfileCard
-              key={profile.id}
-              profile={profile}
-              onClick={() => handleViewProfile(profile.id)}
-            />
-          ))}
+
+              {/* Upload File Dropdown */}
+              <div className="relative">
+                {/* Hidden file inputs for different upload types */}
+                <input
+                  type="file"
+                  id="profile-upload"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                  // Removed quick-add profile logic. All new profiles should be added via the JoiningForm modal for consistency.
+                  disabled={isUploading}
+                />
+
+                {/* Hidden file inputs for HR document templates */}
+                <input
+                  type="file"
+                  id="experience-template-upload"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    await handleTemplateUpload(file, 'experience_letter', 'Experience Letter');
+                    e.target.value = '';
+                  }}
+                />
+                <input
+                  type="file"
+                  id="payslip-template-upload"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    await handleTemplateUpload(file, 'payslip', 'Payslip');
+                    e.target.value = '';
+                  }}
+                />
+                <input
+                  type="file"
+                  id="asset-handover-template-upload"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    await handleTemplateUpload(file, 'asset_handover', 'Asset Handover');
+                    e.target.value = '';
+                  }}
+                />
+                <input
+                  type="file"
+                  id="relieving-letter-template-upload"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    await handleTemplateUpload(file, 'relieving_letter', 'Relieving Letter');
+                    e.target.value = '';
+                  }}
+                />
+
+                {/* Hidden file inputs for Logo and Signature */}
+                <input
+                  type="file"
+                  id="logo-upload"
+                  className="hidden"
+                  accept=".png,.jpg,.jpeg,.svg,.webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    await handleBrandingUpload(file, 'logo');
+                    e.target.value = '';
+                  }}
+                />
+                <input
+                  type="file"
+                  id="signature-upload"
+                  className="hidden"
+                  accept=".png,.jpg,.jpeg,.svg,.webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    await handleBrandingUpload(file, 'signature');
+                    e.target.value = '';
+                  }}
+                />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" disabled={isUploading}>
+                      {isUploading ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload File
+                          <ChevronDown className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Upload Options</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem
+                      onClick={() => document.getElementById('profile-upload')?.click()}
+                      className="cursor-pointer"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      Upload User Profile
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center border rounded-md overflow-hidden">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className="rounded-none border-0"
+                >
+                  <Grid3x3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="rounded-none border-0"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('kanban')}
+                  className="rounded-none border-0"
+                >
+                  <Columns className="h-4 w-4" />
+                </Button>
+              </div>
+              {(isAdmin || true) && (
+                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Profile
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Add Employee Profile</DialogTitle>
+                    </DialogHeader>
+                    <JoiningForm isModal onCancel={() => setIsAddOpen(false)} onComplete={() => { setIsAddOpen(false); refetchProfiles(); }} />
+                  </DialogContent>
+                </Dialog>
+              )}
+              <Button onClick={async () => {
+                await queryClient.invalidateQueries({ queryKey: ['profiles'] });
+                refetchProfiles();
+              }} variant="outline" disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          )}
         </div>
-      ) : viewMode === 'list' ? (
-        <ProfileListView
-          profiles={filteredAndSortedProfiles}
-          onProfileClick={handleViewProfile}
-        />
-      ) : (
-        <ProfileKanbanView
-          kanbanColumns={kanbanColumns}
-          onProfileClick={handleViewProfile}
-        />
       )}
+
+      {/* Global Search Modal (Cmd+K) */}
+      {
+        !onlyCurrentUser && (
+          <ProfileSearchModal
+            open={isSearchOpen}
+            onOpenChange={setIsSearchOpen}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            profiles={filteredAndSortedProfiles}
+            onProfileSelect={(profile) => {
+              setSelectedProfile(profile);
+              setIsDetailOpen(true);
+              setIsSearchOpen(false);
+            }}
+          />
+        )
+      }
+
+      {/* Search and Filters */}
+      {
+        !onlyCurrentUser && (
+          <ProfileFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearchClick={() => setIsSearchOpen(true)}
+            filterDepartment={filterDepartment}
+            onDepartmentChange={setFilterDepartment}
+            filterRole={filterRole}
+            onRoleChange={setFilterRole}
+            filterStatus={filterStatus}
+            onStatusChange={setFilterStatus}
+            filterExperience={filterExperience}
+            onExperienceChange={setFilterExperience}
+            sortBy={sortBy}
+            onSortByChange={setSortBy}
+            sortOrder={sortOrder}
+            onSortOrderToggle={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            departments={departments}
+            roles={roles}
+            totalProfiles={profiles.length}
+            filteredCount={filteredAndSortedProfiles.length}
+          />
+        )
+      }
+
+      {/* Error Display */}
+      {
+        profilesError && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 text-red-800">
+                <span className="font-semibold">Error loading profiles:</span>
+                <span>{profilesError instanceof Error ? profilesError.message : String(profilesError)}</span>
+              </div>
+              <p className="text-sm text-red-600 mt-2">
+                Check browser console and backend logs for more details.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => refetchProfiles()}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )
+      }
+
+      {/* Profiles Display */}
+      {
+        filteredAndSortedProfiles.length === 0 && !loading && !profilesError ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <User className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-gray-500">No employee profiles found</p>
+              <p className="text-sm text-gray-400 mt-2">
+                {profiles.length === 0
+                  ? "The database appears to be empty. Use the '+ Add Profile' button to create profiles."
+                  : "No profiles match your current filters."}
+              </p>
+              {searchQuery && (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => setSearchQuery("")}
+                >
+                  Clear search
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredAndSortedProfiles.map((profile) => (
+              <ProfileCard
+                key={profile.id}
+                profile={profile}
+                onClick={() => handleViewProfile(profile.id)}
+              />
+            ))}
+          </div>
+        ) : viewMode === 'list' ? (
+          <ProfileListView
+            profiles={filteredAndSortedProfiles}
+            onProfileClick={handleViewProfile}
+          />
+        ) : (
+          <ProfileKanbanView
+            kanbanColumns={kanbanColumns}
+            onProfileClick={handleViewProfile}
+          />
+        )
+      }
 
       {/* Profile Detail Dialog */}
       <ProfileDetailDialog

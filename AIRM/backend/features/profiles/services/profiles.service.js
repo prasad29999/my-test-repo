@@ -73,6 +73,8 @@ function transformProfile(profile) {
       project_history: parseJsonb(profile.project_history),
       performance_reviews: parseJsonb(profile.performance_reviews),
       documents: parseJsonb(profile.documents),
+      onboarding_status: profile.onboarding_status || 'pending',
+      onboarding_completed_at: profile.onboarding_completed_at || null,
       burnout_score: profile.burnout_score !== null && profile.burnout_score !== undefined ? parseInt(profile.burnout_score) : 0,
       created_at: profile.created_at || null,
       updated_at: profile.updated_at || null,
@@ -105,13 +107,13 @@ export async function getProfileById(userId) {
     if (!userId) {
       throw new Error('User ID is required');
     }
-    
+
     const profile = await profilesModel.getProfileById(userId);
-    
+
     if (!profile) {
       return null;
     }
-    
+
     return transformProfile(profile);
   } catch (error) {
     console.error('[profiles] Error in getProfileById service:', error);
@@ -150,11 +152,11 @@ export async function updateProfile(userId, profileData) {
  */
 export async function deleteProfile(userId) {
   console.log('[profiles.service] deleteProfile called for userId:', userId);
-  
+
   // Check if user exists first
   const userExists = await profilesModel.userExists(userId);
   console.log('[profiles.service] User exists:', userExists);
-  
+
   if (!userExists) {
     throw new Error('User not found');
   }

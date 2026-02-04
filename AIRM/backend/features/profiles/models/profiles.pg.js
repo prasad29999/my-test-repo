@@ -15,7 +15,7 @@ export async function getAllProfiles() {
       `SELECT 
         u.id,
         u.email,
-        u.full_name,
+        COALESCE(p.full_name, u.full_name) as full_name,
         u.created_at,
         ur.role,
         p.phone,
@@ -62,7 +62,7 @@ export async function getProfileById(userId) {
     `SELECT 
       u.id,
       u.email,
-      u.full_name,
+      COALESCE(p.full_name, u.full_name) as full_name,
       u.created_at,
       ur.role,
       p.phone,

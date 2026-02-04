@@ -25,8 +25,8 @@ import pool from '../../../shared/database/connection.js';
 export async function getAllJoiningForms() {
   const result = await pool.query(`
     SELECT 
-      p.id,
-      p.full_name,
+      u.id,
+      COALESCE(p.full_name, u.full_name) as full_name,
       u.email,
       p.employee_id,
       p.phone,
@@ -49,13 +49,13 @@ export async function getAllJoiningForms() {
       p.height,
       p.weight,
       p.medical_history,
-      p.onboarding_status,
+      COALESCE(p.onboarding_status, 'pending') as onboarding_status,
       p.onboarding_completed_at,
-      p.created_at,
-      p.updated_at
-    FROM erp.profiles p
-    INNER JOIN erp.users u ON p.id = u.id
-    ORDER BY p.created_at DESC
+      u.created_at,
+      COALESCE(p.updated_at, u.updated_at) as updated_at
+    FROM erp.users u
+    LEFT JOIN erp.profiles p ON u.id = p.id
+    ORDER BY u.created_at DESC
   `);
   return result.rows;
 }
@@ -64,10 +64,11 @@ export async function getAllJoiningForms() {
  * Get joining form by profile ID
  */
 export async function getJoiningFormById(profileId) {
+  console.log('[joining-form-model] getJoiningFormById profileId:', profileId);
   const profileResult = await pool.query(`
     SELECT 
-      p.id,
-      p.full_name,
+      u.id,
+      COALESCE(p.full_name, u.full_name) as full_name,
       u.email,
       p.employee_id,
       p.phone,
@@ -90,14 +91,14 @@ export async function getJoiningFormById(profileId) {
       p.height,
       p.weight,
       p.medical_history,
-      p.onboarding_status,
+      COALESCE(p.onboarding_status, 'pending') as onboarding_status,
       p.onboarding_completed_at,
       p.personal_email,
       p.emergency_contact,
       p.background_verification
-    FROM erp.profiles p
-    INNER JOIN erp.users u ON p.id = u.id
-    WHERE p.id = $1
+    FROM erp.users u
+    LEFT JOIN erp.profiles p ON u.id = p.id
+    WHERE u.id = $1
   `, [profileId]);
 
   if (profileResult.rows.length === 0) {
@@ -263,6 +264,14 @@ export async function upsertEmployeeInfo(profileId, data) {
     serializedBackgroundVerification,
     onboarding_status || 'pending'
   ]);
+
+  // Sync full_name to users table if provided
+  if (full_name) {
+    await pool.query(
+      'UPDATE erp.users SET full_name = $1 WHERE id = $2',
+      [full_name, profileId]
+    );
+  }
 }
 
 
@@ -374,7 +383,7 @@ export async function deletePreviousEmployment(employmentId) {
 export async function saveFamilyMembers(profileId, members) {
   // Delete existing
   await pool.query('DELETE FROM erp.employee_family_members WHERE profile_id = $1', [profileId]);
-  
+
   // Insert new
   for (const member of members) {
     await addFamilyMember(profileId, member);
@@ -387,7 +396,7 @@ export async function saveFamilyMembers(profileId, members) {
 export async function saveAcademicInfo(profileId, academics) {
   // Delete existing
   await pool.query('DELETE FROM erp.employee_academic_info WHERE profile_id = $1', [profileId]);
-  
+
   // Insert new
   for (const academic of academics) {
     await addAcademicInfo(profileId, academic);
@@ -400,7 +409,7 @@ export async function saveAcademicInfo(profileId, academics) {
 export async function savePreviousEmployment(profileId, employments) {
   // Delete existing
   await pool.query('DELETE FROM erp.employee_previous_employment WHERE profile_id = $1', [profileId]);
-  
+
   // Insert new
   for (const employment of employments) {
     await addPreviousEmployment(profileId, employment);
@@ -424,18 +433,18 @@ export async function completeOnboarding(profileId) {
 export async function getPendingOnboarding() {
   const result = await pool.query(`
     SELECT 
-      p.id,
-      p.full_name,
+      u.id,
+      COALESCE(p.full_name, u.full_name) as full_name,
       u.email,
       p.employee_id,
       p.department,
       p.job_title AS designation,
-      p.onboarding_status,
-      p.created_at
-    FROM erp.profiles p
-    INNER JOIN erp.users u ON p.id = u.id
+      COALESCE(p.onboarding_status, 'pending') as onboarding_status,
+      u.created_at
+    FROM erp.users u
+    LEFT JOIN erp.profiles p ON u.id = p.id
     WHERE p.onboarding_status != 'completed' OR p.onboarding_status IS NULL
-    ORDER BY p.created_at DESC
+    ORDER BY u.created_at DESC
   `);
   return result.rows;
 }

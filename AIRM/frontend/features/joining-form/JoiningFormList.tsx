@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { 
+import {
   Search, FileText, CheckCircle, Clock, AlertCircle,
   Eye, Edit, MoreHorizontal
 } from "lucide-react";
@@ -31,29 +31,25 @@ import {
 import * as joiningFormService from "./services/joiningFormService";
 import type { JoiningFormSummary } from "./types";
 
+import { useProfiles } from "../profiles/hooks/useprofiles";
+
 const JoiningFormList = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [forms, setForms] = useState<JoiningFormSummary[]>([]);
+  const { data: profiles = [], isLoading: loading } = useProfiles();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  useEffect(() => {
-    loadForms();
-  }, []);
-
-  const loadForms = async () => {
-    setLoading(true);
-    try {
-      const data = await joiningFormService.getAllJoiningForms();
-      setForms(data);
-    } catch (error) {
-      console.error("Failed to load forms:", error);
-      toast({ title: "Error", description: "Failed to load joining forms", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const forms = profiles.map(p => ({
+    id: p.id,
+    full_name: p.full_name,
+    email: p.email,
+    employee_id: p.employee_id || null,
+    department: p.department || null,
+    designation: p.job_title || null,
+    join_date: p.join_date || null,
+    onboarding_status: p.onboarding_status || 'pending',
+    created_at: p.created_at
+  }));
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -67,14 +63,18 @@ const JoiningFormList = () => {
   };
 
   const filteredForms = forms.filter(form => {
-    const matchesSearch = 
-      form.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      form.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      form.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      form.department?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+    let matchesSearch = true;
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      matchesSearch =
+        (form.full_name || "").toLowerCase().includes(query) ||
+        (form.email || "").toLowerCase().includes(query) ||
+        (form.employee_id || "").toLowerCase().includes(query) ||
+        (form.department || "").toLowerCase().includes(query);
+    }
+
     const matchesStatus = statusFilter === "all" || form.onboarding_status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 

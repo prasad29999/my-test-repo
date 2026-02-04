@@ -24,12 +24,15 @@ export async function getAllJoiningForms(req, res) {
 export async function getJoiningFormById(req, res) {
   try {
     const { id } = req.params;
+    console.log('[joining-form] getJoiningFormById id:', id);
     const form = await joiningFormService.getJoiningFormById(id);
-    
+    console.log('[joining-form] getJoiningFormById found:', !!form);
+
     if (!form) {
+      console.warn('[joining-form] Form not found for id:', id);
       return res.status(404).json({ success: false, error: 'Joining form not found' });
     }
-    
+
     res.json({ success: true, form });
   } catch (error) {
     console.error('[joining-form] Get form error:', error);

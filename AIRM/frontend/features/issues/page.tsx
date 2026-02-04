@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, CheckCircle2, Clock, Plus, Tag, User, Kanban, BarChart3, List, MessageSquare, Settings2, Check, MoreVertical, Edit, EyeOff, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Plus, Tag, User, Kanban, BarChart3, List, MessageSquare, Settings2, Check, MoreVertical, Edit, EyeOff, Trash2, ChevronLeft, ChevronRight, MoreHorizontal, Search, Circle, ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
@@ -63,12 +63,28 @@ export default function Issues() {
   const [view, setView] = useState<'list' | 'kanban' | 'burnout'>('kanban');
 
   // Custom columns support
-  const [availableColumns, setAvailableColumns] = useState<Array<{ id: string, name: string, color: string, description?: string }>>([
-    { id: 'open', name: 'Open', color: '#10b981' },
-    { id: 'in_progress', name: 'In Progress', color: '#3b82f6' },
-    { id: 'closed', name: 'Closed', color: '#a855f7' },
-  ]);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(['open', 'in_progress', 'closed']);
+  const [availableColumns, setAvailableColumns] = useState<Array<{ id: string, name: string, color: string, description?: string }>>(() => {
+    const saved = localStorage.getItem('kanban_columns');
+    return saved ? JSON.parse(saved) : [
+      { id: 'open', name: 'Open', color: '#10b981' },
+      { id: 'in_progress', name: 'In Progress', color: '#3b82f6' },
+      { id: 'closed', name: 'Closed', color: '#a855f7' },
+    ];
+  });
+
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('kanban_visible_columns');
+    return saved ? JSON.parse(saved) : ['open', 'in_progress', 'closed'];
+  });
+
+  // Persist columns to localStorage
+  useEffect(() => {
+    localStorage.setItem('kanban_columns', JSON.stringify(availableColumns));
+  }, [availableColumns]);
+
+  useEffect(() => {
+    localStorage.setItem('kanban_visible_columns', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
   const [showNewColumnDialog, setShowNewColumnDialog] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [newColumnColor, setNewColumnColor] = useState("#6366f1"); // Default indigo color
@@ -336,141 +352,134 @@ export default function Issues() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-full mx-auto">
-        {/* Header */}
-        <div className="mb-6 flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Issues</h1>
-          {view === 'kanban' && (
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="bg-white">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Column
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => {
-                    setNewIssueStatus('open');
-                    setShowCreateDialog(true);
-                  }}>
-                    Create New Issue
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="bg-white">
-                    <Settings2 className="h-4 w-4 mr-2" />
-                    View Options
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Visible Columns</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {['open', 'in_progress', 'closed'].map(status => (
-                    <DropdownMenuCheckboxItem
-                      key={status}
-                      checked={visibleColumns.includes(status)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setVisibleColumns([...visibleColumns, status]);
-                        } else {
-                          setVisibleColumns(visibleColumns.filter(c => c !== status));
-                        }
-                      }}
-                    >
-                      <span className="capitalize">{status.replace('_', ' ')}</span>
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+    <div className="flex flex-col h-screen overflow-hidden bg-[#f6f8fa]">
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-10 bg-white border-b border-[#d0d7de] shadow-sm">
+        {/* Views Tabs (GitHub Style) */}
+        <div className="flex items-center border-b border-gray-200 w-full px-6">
+          <button
+            onClick={() => setView('kanban')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'kanban' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+          >
+            <Kanban className="h-4 w-4" />
+            Board
+          </button>
+          <button
+            onClick={() => setView('list')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'list' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+          >
+            <List className="h-4 w-4" />
+            Table
+          </button>
+          <button
+            onClick={() => setView('burnout')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'burnout' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            Insights
+          </button>
         </div>
 
-        {/* Filters and Create Button */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <div className="flex bg-gray-100 p-1 rounded-lg">
-                  <button
-                    onClick={() => setView('list')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-                      }`}
-                  >
-                    <List className="h-4 w-4" />
-                    List
-                  </button>
-                  <button
-                    onClick={() => setView('kanban')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-                      }`}
-                  >
-                    <Kanban className="h-4 w-4" />
-                    Kanban board
-                  </button>
-                  <button
-                    onClick={() => setView('burnout')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'burnout' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-                      }`}
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                    Burnout
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-center flex-wrap">
-                <div className="flex-1 min-w-[200px]">
-                  <Label>Status</Label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                </div>
-
-                <div className="flex-1 min-w-[200px]">
-                  <Label>Assignee</Label>
-                  <select
-                    value={filterAssignee}
-                    onChange={(e) => setFilterAssignee(e.target.value)}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="all">All Assignees</option>
-                    {users.map(user => (
-                      <option key={user.user_id} value={user.user_id}>{user.email}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex gap-2 items-end">
-                  <Button onClick={loadIssues}>
-                    Apply Filters
-                  </Button>
-                  {isAdmin && (
-                    <Button onClick={() => setShowCreateDialog(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      New Issue
-                    </Button>
-                  )}
-                </div>
-              </div>
+        {/* Filter & Action Bar */}
+        <div className="flex items-center justify-between gap-3 px-6 py-3 bg-[#f6f8fa]/50 border-b border-[#d0d7de]">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {/* Search Input - Robust Flex Layout */}
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-[#d0d7de] rounded-md bg-white focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 max-w-md flex-1 shadow-sm transition-all">
+              <Search className="h-4 w-4 text-[#656d76] shrink-0" />
+              <input
+                type="text"
+                placeholder="Search or create issue..."
+                className="block w-full border-none outline-none text-sm bg-transparent placeholder-gray-500"
+                onChange={() => loadIssues()}
+              />
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Issues List */}
-        {/* Content View */}
+            {/* Selects - Clean Custom Background Arrows */}
+            <div className="flex items-center gap-2 hidden sm:flex">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="h-8 pl-3 pr-8 text-sm font-medium border border-[#d0d7de] bg-white hover:bg-gray-50 text-[#24292f] rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23656d76%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22/%3E%3C/svg%3E')] bg-[length:10px] bg-[right_10px_center] bg-no-repeat min-w-[90px]"
+              >
+                <option value="all">Status</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="closed">Closed</option>
+              </select>
+
+              <select
+                value={filterAssignee}
+                onChange={(e) => setFilterAssignee(e.target.value)}
+                className="h-8 pl-3 pr-8 text-sm font-medium border border-[#d0d7de] bg-white hover:bg-gray-50 text-[#24292f] rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23656d76%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22/%3E%3C/svg%3E')] bg-[length:10px] bg-[right_10px_center] bg-no-repeat min-w-[100px]"
+              >
+                <option value="all">Assignee</option>
+                {users.map(user => (
+                  <option key={user.user_id} value={user.user_id}>{user.email}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {view === 'kanban' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewColumnDialog(true)}
+                  className="h-8 px-3 text-xs font-semibold bg-white border-[#d0d7de] text-[#24292f] hover:bg-[#f6f8fa] shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  New Column
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-[#656d76] hover:bg-[#f6f8fa]">
+                      <Settings2 className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 shadow-lg border-[#d0d7de]">
+                    <DropdownMenuLabel className="text-xs font-bold text-[#656d76] uppercase tracking-wider">Show Columns</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-[#d0d7de]" />
+                    {availableColumns.map(column => (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        checked={visibleColumns.includes(column.id)}
+                        className="text-sm focus:bg-[#f6f8fa] focus:text-[#24292f]"
+                        onCheckedChange={(checked) => {
+                          if (checked) setVisibleColumns([...visibleColumns, column.id]);
+                          else setVisibleColumns(visibleColumns.filter(c => c !== column.id));
+                        }}
+                      >
+                        {column.name}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
+
+            {isAdmin && (
+              <button
+                onClick={() => setShowCreateDialog(true)}
+                className="h-8 px-4 text-[13px] font-bold rounded-md shadow-sm flex items-center gap-1.5 transition-colors hover:opacity-90 active:scale-95"
+                style={{
+                  backgroundColor: '#2da44e',
+                  color: 'white',
+                  border: '1px solid rgba(27, 31, 36, 0.15)'
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Create Issue</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-hidden">
         {view === 'list' && (
           <Card>
             <CardHeader>
@@ -531,7 +540,7 @@ export default function Issues() {
                             {issue.assignees.length > 0 && (
                               <span className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
-                                {issue.assignees.map(a => a.email).join(', ')}
+                                {issue.assignees.map(a => a.email || 'Unknown').join(', ')}
                               </span>
                             )}
                             <span>
@@ -556,67 +565,70 @@ export default function Issues() {
 
         {view === 'kanban' && (
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="relative -mx-6 px-6">
-              <div className="overflow-x-auto overflow-y-hidden pb-4 kanban-container">
-                <div className="flex gap-4 w-full">
-                  {availableColumns.filter(col => visibleColumns.includes(col.id)).map(column => {
-                    const statusIssues = issues.filter(i => i.status === column.id);
-                    const isCollapsed = collapsedColumns.includes(column.id);
-
-                    if (isCollapsed) {
-                      return (
-                        <div key={column.id} className="bg-gray-50 rounded-lg p-2 w-[52px] flex flex-col shrink-0 border border-gray-200 h-[calc(100vh-240px)] transition-all duration-300 items-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 mb-4 hover:bg-gray-200"
-                            onClick={() => setCollapsedColumns(collapsedColumns.filter(id => id !== column.id))}
-                            title="Expand column"
-                          >
-                            <ChevronRight className="h-4 w-4 text-gray-500" />
-                          </Button>
-                          <div className="flex-1 flex items-center justify-center [writing-mode:vertical-lr] rotate-180">
-                            <h3 className="font-semibold text-sm flex items-center gap-2 text-gray-400 whitespace-nowrap">
-                              <span>{column.name}</span>
-                              <span className="bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full text-xs font-medium [writing-mode:horizontal-tb] rotate-180">
-                                {statusIssues.length}
-                              </span>
-                            </h3>
-                          </div>
-                        </div>
-                      );
+            {/* Horizontal Scroll Container (Board Level) */}
+            <div className="h-full overflow-x-auto overflow-y-hidden">
+              <div className="flex gap-3 h-full p-6 min-w-min">
+                {availableColumns.filter(col => visibleColumns.includes(col.id)).map(column => {
+                  const statusIssues = issues.filter(i => i.status === column.id);
+                  // GitHub-specific color mapping from screenshot with custom column support
+                  const getStatusStyle = (colId: string, customColor?: string) => {
+                    if (colId === 'open') return { color: 'text-[#1a7f37]', icon: AlertCircle, border: 'border-[#1a7f37]', bg: 'bg-[#1a7f37]', customHex: '#1a7f37' };
+                    if (colId === 'in_progress') return { color: 'text-[#9a6700]', icon: Circle, border: 'border-[#9a6700]', bg: 'bg-[#9a6700]', customHex: '#9a6700' };
+                    if (colId === 'closed') return { color: 'text-[#8250df]', icon: CheckCircle2, border: 'border-[#8250df]', bg: 'bg-[#8250df]', customHex: '#8250df' };
+                    // For custom columns, use the provided color
+                    if (customColor) {
+                      return { color: `text-[${customColor}]`, icon: Circle, border: `border-[${customColor}]`, bg: `bg-[${customColor}]`, customHex: customColor };
                     }
+                    return { color: 'text-[#656d76]', icon: Circle, border: 'border-[#d0d7de]', bg: 'bg-[#656d76]', customHex: '#656d76' };
+                  };
 
-                    return (
-                      <div key={column.id} className="bg-gray-50 rounded-lg p-3 w-[calc((100%-32px)/3)] min-w-[320px] flex flex-col shrink-0 border border-gray-200 h-[calc(100vh-240px)] transition-all duration-300">
-                        <div className="flex items-center justify-between mb-3 pb-2">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 hover:bg-gray-200 mr-1"
-                              onClick={() => setCollapsedColumns([...collapsedColumns, column.id])}
-                              title="Collapse column"
+                  const style = getStatusStyle(column.id, column.color);
+                  const StatusIcon = style.icon;
+
+                  // Mock descriptions
+                  const getDescription = (colId: string) => {
+                    if (colId === 'open') return "This item hasn't been started";
+                    if (colId === 'in_progress') return "This is actively being worked on";
+                    if (colId === 'closed') return "This has been completed";
+                    return "";
+                  };
+
+                  return (
+                    <div key={column.id} className="flex flex-col w-[340px] flex-shrink-0 h-full bg-[#f6f8fa] rounded-lg border border-[#d0d7de]">
+                      {/* Column Header - Fixed at top */}
+                      <div className="flex items-start justify-between p-3 border-b border-[#d0d7de] bg-white rounded-t-lg group">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div
+                              className="rounded-full border-[1.5px] w-4 h-4 flex items-center justify-center"
+                              style={{ borderColor: style.customHex }}
                             >
-                              <ChevronLeft className="h-4 w-4 text-gray-500" />
-                            </Button>
-                            <h3 className="font-semibold text-sm flex items-center gap-2 text-gray-700">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: column.color }}></div>
-                              <span>{column.name}</span>
-                              <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs font-medium">
-                                {statusIssues.length}
-                              </span>
-                            </h3>
+                              <div
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: style.customHex }}
+                              />
+                            </div>
+                            <h3 className="font-semibold text-sm text-[#24292f]">{column.name}</h3>
+                            <span className="bg-[rgba(175,184,193,0.2)] text-[#24292f] px-2 py-0.5 rounded-full text-xs font-medium border border-transparent">
+                              {statusIssues.length}
+                            </span>
+                            <div className="flex items-center gap-2 ml-2">
+                              <span className="text-xs text-[#656d76] font-normal">Estimate: 0</span>
+                              <span className="text-xs text-[#656d76] font-normal">•</span>
+                              <span className="text-xs text-[#656d76] font-normal">Assigned: {statusIssues.filter(i => i.assignees.length > 0).length}</span>
+                            </div>
                           </div>
+                          <p className="text-xs text-[#656d76] font-normal pl-6 line-clamp-1">{column.description || getDescription(column.id)}</p>
+                        </div>
+
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-gray-200">
-                                <MoreVertical className="h-4 w-4 text-gray-500" />
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-[#d0d7de]/50 rounded-md text-[#656d76]">
+                                <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Column</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
+                            <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem onClick={() => {
                                 setEditingColumn(column);
                                 setShowEditColumnDialog(true);
@@ -624,226 +636,201 @@ export default function Issues() {
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit details
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setVisibleColumns(visibleColumns.filter(c => c !== column.id));
-                                toast({
-                                  title: "Column Hidden",
-                                  description: `"${column.name}" has been hidden`,
-                                });
-                              }}>
-                                <EyeOff className="h-4 w-4 mr-2" />
-                                Hide from view
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => {
-                                  if (availableColumns.length <= 1) {
-                                    toast({
-                                      title: "Cannot Delete",
-                                      description: "You must have at least one column",
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
-
-                                  setAvailableColumns(availableColumns.filter(c => c.id !== column.id));
-                                  setVisibleColumns(visibleColumns.filter(c => c !== column.id));
-                                  toast({
-                                    title: "Column Deleted",
-                                    description: `"${column.name}" has been deleted`,
-                                  });
-                                }}
                                 className="text-red-600 focus:text-red-600"
+                                onClick={() => {
+                                  if (confirm('Are you sure you want to delete this column?')) {
+                                    setAvailableColumns(availableColumns.filter(c => c.id !== column.id));
+                                  }
+                                }}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
+                                Delete column
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
+                      </div>
 
-                        <Droppable droppableId={column.id}>
-                          {(provided, snapshot) => (
-                            <div
-                              {...provided.droppableProps}
-                              ref={provided.innerRef}
-                              className={`space-y-2 flex-1 overflow-y-auto column-scrollbar transition-colors rounded-md ${snapshot.isDraggingOver ? 'bg-gray-100/50' : ''
-                                }`}
-                            >
-                              {statusIssues.length === 0 && !snapshot.isDraggingOver && (
-                                <div className="text-center py-8 text-gray-400 text-sm">
-                                  No issues
-                                </div>
-                              )}
-
-                              {statusIssues.map((issue, index) => (
-                                <Draggable key={issue.id} draggableId={issue.id.toString()} index={index}>
-                                  {(provided, snapshot) => (
+                      {/* Scrollable Cards Area - Independent vertical scroll */}
+                      <Droppable droppableId={column.id}>
+                        {(provided, snapshot) => (
+                          <div
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
+                            className={`flex-1 overflow-y-auto p-3 space-y-2 column-scrollbar ${snapshot.isDraggingOver ? 'bg-[#ddf4ff]' : ''
+                              }`}
+                          >
+                            {statusIssues.map((issue, index) => (
+                              <Draggable key={issue.id} draggableId={issue.id.toString()} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    style={{ ...provided.draggableProps.style }}
+                                    className="mb-2"
+                                  >
                                     <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      style={{ ...provided.draggableProps.style }}
-                                      className={snapshot.isDragging ? 'opacity-90 rotate-1 z-50' : ''}
+                                      className={`bg-white p-3 rounded-md border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-pointer group select-none relative ${snapshot.isDragging ? 'rotate-2 shadow-xl ring-1 ring-gray-900/5 z-50' : ''}`}
+                                      onClick={() => navigate(`/issues/${issue.id}`)}
                                     >
-                                      <Card className="cursor-pointer hover:shadow-md transition-all hover:border-gray-400 group bg-white" onClick={() => navigate(`/issues/${issue.id}`)}>
-                                        <CardContent className="p-3">
-                                          <div className="flex justify-between items-start mb-2">
-                                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border tracking-wider ${issue.priority === 'urgent' ? 'border-red-200 bg-red-50 text-red-700' :
-                                              issue.priority === 'high' ? 'border-orange-200 bg-orange-50 text-orange-700' :
-                                                issue.priority === 'medium' ? 'border-yellow-200 bg-yellow-50 text-yellow-700' :
-                                                  'border-gray-200 bg-gray-50 text-gray-600'
-                                              }`}>{issue.priority}</span>
-                                          </div>
-                                          <h4 className="font-medium text-sm mb-2 text-gray-900 leading-tight group-hover:text-blue-600 transition-colors">{issue.title}</h4>
-                                          <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                            {issue.labels.map(l => (
-                                              <div key={l.id} className="w-2 h-2 rounded-full ring-1 ring-white" style={{ backgroundColor: l.color }} title={l.name}></div>
-                                            ))}
-                                            <span className="text-xs text-gray-400 ml-auto">#{issue.id}</span>
-                                          </div>
-                                          {parseInt(issue.comments_count as any) > 0 && (
-                                            <div className="flex flex-col gap-1 w-full mt-2 border-t pt-2 max-w-full">
-                                              {issue.recent_comment && (
-                                                <p className="text-xs text-gray-500 truncate italic">"{issue.recent_comment}"</p>
-                                              )}
-                                              <div className="flex items-center gap-1 text-gray-400 text-xs ml-auto">
-                                                <MessageSquare className="h-3 w-3" />
-                                                {issue.comments_count}
-                                              </div>
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className="shrink-0">
+                                          <StatusIcon className="w-4 h-4" style={{ color: style.customHex }} />
+                                        </div>
+                                        <span className="text-xs text-gray-500 font-mono">
+                                          TPF #{issue.id}
+                                        </span>
+
+                                        {/* Menu on card hover */}
+                                        <div className="ml-auto opacity-0 group-hover:opacity-100">
+                                          <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                                        </div>
+                                      </div>
+
+                                      <h4 className="text-sm font-semibold text-[#24292f] leading-snug mb-1">
+                                        {issue.title}
+                                      </h4>
+
+                                      {issue.project_name && (
+                                        <div className="flex items-center gap-1 text-[10px] text-[#656d76] mb-1">
+                                          <Tag className="h-2.5 w-2.5" />
+                                          <span>{issue.project_name}</span>
+                                        </div>
+                                      )}
+
+                                      {(issue.description || issue.recent_comment) ? (
+                                        <p className="text-xs text-[#656d76] mb-3 line-clamp-2">
+                                          {issue.recent_comment || issue.description}
+                                        </p>
+                                      ) : (
+                                        <div className="mb-3" />
+                                      )}
+
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          {/* Labels (dot style) */}
+                                          {issue.labels.length > 0 && (
+                                            <div className="flex -space-x-1">
+                                              {issue.labels.slice(0, 3).map(l => (
+                                                <div
+                                                  key={l.id}
+                                                  className="w-2.5 h-2.5 rounded-full border border-white shadow-sm"
+                                                  style={{ backgroundColor: l.color }}
+                                                  title={l.name}
+                                                />
+                                              ))}
                                             </div>
                                           )}
-                                        </CardContent>
-                                      </Card>
-                                    </div>
-                                  )}
-                                </Draggable>
-                              ))}
-                              {provided.placeholder}
-                            </div>
-                          )}
-                        </Droppable>
 
+                                          {/* Comment Count */}
+                                          {(parseInt(issue.comments_count as any) > 0) && (
+                                            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                                              <MessageSquare className="h-3 w-3" />
+                                              <span>{issue.comments_count}</span>
+                                            </div>
+                                          )}
+                                          {issue.assignees.length > 0 && (
+                                            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium ml-1">
+                                              <User className="h-3 w-3" />
+                                              <span>{issue.assignees.length}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {/* Priority Indicator */}
+                                          {issue.priority === 'urgent' && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
+
+                                          {/* Assignees */}
+                                          {issue.assignees.length > 0 && (
+                                            <div className="flex -space-x-1.5">
+                                              {issue.assignees.map((a, i) => (
+                                                <div
+                                                  key={i}
+                                                  className="w-5 h-5 rounded-full bg-blue-50 border-[1.5px] border-white flex items-center justify-center text-[9px] font-bold text-blue-600 overflow-hidden shadow-sm"
+                                                  title={a.email}
+                                                >
+                                                  {a.email ? a.email[0].toUpperCase() : 'U'}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+
+                      {/* Add Item Footer */}
+                      <div className="p-2">
                         <button
                           onClick={() => {
                             setNewIssueStatus(column.id as any);
                             setShowCreateDialog(true);
                           }}
-                          className="mt-2 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors py-1.5 px-2 hover:bg-gray-100 rounded-md text-sm font-medium w-full text-left border border-transparent hover:border-gray-300"
+                          className="flex items-center gap-2 w-full px-2 py-1.5 text-gray-500 hover:text-gray-900 hover:bg-white rounded-md transition-all text-sm font-medium text-left"
                         >
                           <Plus className="h-4 w-4" />
                           Add item
                         </button>
                       </div>
-                    );
-                  })}
-                  <div className="shrink-0 w-[280px]">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start text-gray-500 hover:bg-gray-100 h-auto py-2 text-sm font-medium border border-dashed border-gray-300 hover:border-gray-400"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          New column
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuItem onClick={() => setShowNewColumnDialog(true)} className="font-medium">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create new column
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Visible columns</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {availableColumns.map(column => (
-                          <DropdownMenuCheckboxItem
-                            key={column.id}
-                            checked={visibleColumns.includes(column.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setVisibleColumns([...visibleColumns, column.id]);
-                              } else {
-                                if (visibleColumns.length > 1) {
-                                  setVisibleColumns(visibleColumns.filter(c => c !== column.id));
-                                } else {
-                                  toast({
-                                    title: "Cannot hide column",
-                                    description: "At least one column must be visible",
-                                    variant: "destructive",
-                                  });
-                                }
-                              }
-                            }}
-                          >
-                            <span>{column.name}</span>
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="text-xs text-gray-500">Hidden columns</DropdownMenuLabel>
-                        {availableColumns.filter(col => !visibleColumns.includes(col.id)).length === 0 && (
-                          <DropdownMenuItem disabled className="text-xs">
-                            No hidden columns
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                    </div>
+                  );
+                })}
+
+                {/* Add Column Button Placeholder */}
+                <div className="w-[340px] flex-shrink-0">
+                  <button
+                    onClick={() => setShowNewColumnDialog(true)}
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 text-[#24292f] hover:bg-[#f3f4f6] rounded-lg text-sm font-bold border-2 border-dashed border-[#d0d7de] hover:border-[#0969da] transition-all bg-white shadow-sm"
+                  >
+                    <Plus className="h-5 w-5 text-[#0969da]" />
+                    <span>Create New Column</span>
+                  </button>
                 </div>
+
+                {/* Spacer for right padding */}
+                <div className="w-4 shrink-0" />
               </div>
-            </div>
-            <style>{`
-              .kanban-container {
-                scrollbar-width: thin;
-                scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+              <style>{`
+              /* Horizontal scrollbar for board */
+              div.overflow-x-auto::-webkit-scrollbar {
+                height: 10px;
               }
-              
-              .kanban-container::-webkit-scrollbar {
-                height: 8px;
-              }
-              
-              .kanban-container::-webkit-scrollbar-track {
+              div.overflow-x-auto::-webkit-scrollbar-track {
                 background: transparent;
-                border-radius: 10px;
+              }
+              div.overflow-x-auto::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 6px;
+              }
+              div.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
               }
               
-              .kanban-container::-webkit-scrollbar-thumb {
-                background-color: rgba(156, 163, 175, 0.5);
-                border-radius: 10px;
-                border: 2px solid transparent;
-                background-clip: content-box;
-              }
-              
-              .kanban-container::-webkit-scrollbar-thumb:hover {
-                background-color: rgba(107, 114, 128, 0.8);
-              }
-              
+              /* Vertical scrollbar for individual columns */
               .column-scrollbar::-webkit-scrollbar {
-                width: 10px;
+                width: 8px;
               }
-              
               .column-scrollbar::-webkit-scrollbar-track {
-                background: #e5e7eb;
-                border-radius: 10px;
-                margin: 4px 0;
+                background: transparent;
               }
-              
               .column-scrollbar::-webkit-scrollbar-thumb {
-                background-color: #9ca3af;
-                border-radius: 10px;
-                border: 2px solid #e5e7eb;
+                background: #cbd5e1;
+                border-radius: 4px;
               }
-              
               .column-scrollbar::-webkit-scrollbar-thumb:hover {
-                background-color: #6b7280;
-              }
-              
-              /* Firefox scrollbar */
-              .column-scrollbar {
-                scrollbar-width: thin;
-                scrollbar-color: #9ca3af #e5e7eb;
+                background: #94a3b8;
               }
             `}</style>
+            </div>
           </DragDropContext>
         )}
 
@@ -915,7 +902,8 @@ export default function Issues() {
             </CardContent>
           </Card>
         )}
-      </div>
+
+      </div> {/* End of Scrollable Content Area */}
 
       {/* Create Issue Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
@@ -1229,6 +1217,6 @@ export default function Issues() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }

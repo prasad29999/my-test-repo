@@ -16,7 +16,7 @@ const getCurrentFinancialYear = () => {
   const today = new Date();
   const currentMonth = today.getMonth(); // 0-11 (0 = January)
   const currentYear = today.getFullYear();
-  
+
   // If current month is January to March (0-2), FY started in previous year
   // If current month is April to December (3-11), FY started in current year
   if (currentMonth < 3) {
@@ -89,6 +89,19 @@ interface AttendanceRecord {
   status: 'present' | 'absent' | 'half_day' | 'on_leave';
 }
 
+const HOLIDAYS = [
+  { date: '2026-01-01', name: "New Year's Day" },
+  { date: '2026-01-12', name: "Makar Sankranti" },
+  { date: '2026-01-26', name: "Republic Day" },
+  { date: '2026-03-19', name: "Ugadi" },
+  { date: '2026-04-03', name: "Good Friday" },
+  { date: '2026-09-14', name: "Ganesh Chaturthi" },
+  { date: '2026-10-02', name: "Gandhi Jayanti" },
+  { date: '2026-10-20', name: "Dussehra" },
+  { date: '2026-11-09', name: "Diwali" },
+  { date: '2026-12-25', name: "Christmas Day" },
+];
+
 interface User {
   id: string;
   email: string;
@@ -98,20 +111,20 @@ interface User {
 export default function LeaveCalendar() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   // Debug - render immediately to check if component mounts
   console.log('🔵 LeaveCalendar component MOUNTED');
-  
+
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [myLeaveRequests, setMyLeaveRequests] = useState<LeaveRequest[]>([]);
   const [allLeaveRequests, setAllLeaveRequests] = useState<LeaveRequest[]>([]);
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('calendar');
-  
+
   // Leave Balance state
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -129,7 +142,7 @@ export default function LeaveCalendar() {
     balance: 0,
     lapse: 0,
   });
-  
+
   // Shift Roster state
   const [shiftRoster, setShiftRoster] = useState<ShiftRoster[]>([]);
   const [shiftWeekStart, setShiftWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -141,13 +154,13 @@ export default function LeaveCalendar() {
     start_time: '11:00',
     end_time: '20:00',
   });
-  
+
   // Attendance state
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [attendanceMonth, setAttendanceMonth] = useState(new Date());
   const [attendanceWeekStart, setAttendanceWeekStart] = useState(null);
   const [attendanceViewMode, setAttendanceViewMode] = useState<'month' | 'week'>('month');
-  
+
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [selectedStartDate, setSelectedStartDate] = useState("");
   const [selectedEndDate, setSelectedEndDate] = useState("");
@@ -162,7 +175,7 @@ export default function LeaveCalendar() {
       try {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         console.log('Leave Calendar - User data:', userData);
-        
+
         if (!userData.id) {
           console.log('Leave Calendar - No user ID, redirecting to auth');
           navigate("/auth");
@@ -172,14 +185,14 @@ export default function LeaveCalendar() {
         setCurrentUser(userData);
         const currentUserResp = await api.auth.getMe() as any;
         console.log('Leave Calendar - Current user response:', currentUserResp);
-        
+
         // Check admin status from API response or localStorage
         const adminStatus = currentUserResp?.user?.role === 'admin' || userData?.role === 'admin';
         setIsAdmin(adminStatus);
-        
+
         await loadMyLeaveRequests(userData.id);
         await loadLeaveBalances();
-        
+
         // Always load all leave requests for admin to see pending approvals
         if (adminStatus) {
           await loadAllLeaveRequests();
@@ -432,7 +445,7 @@ export default function LeaveCalendar() {
         if (isAdmin) {
           await loadAllLeaveRequests();
         }
-    }
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -440,7 +453,7 @@ export default function LeaveCalendar() {
         variant: "destructive",
       });
     } finally {
-    setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -471,11 +484,11 @@ export default function LeaveCalendar() {
 
   const deleteLeaveRequest = async (_requestId: string) => {
     // TODO: Add delete endpoint to API
-      toast({
+    toast({
       title: "Coming Soon",
       description: "Delete functionality will be available soon",
       variant: "default",
-      });
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -506,10 +519,10 @@ export default function LeaveCalendar() {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  
+
   // Get the day of week for the first day (0 = Sunday, 1 = Monday, etc.)
   const startDayOfWeek = monthStart.getDay();
-  
+
   // Create empty cells for days before the first of the month
   const emptyDays = Array(startDayOfWeek).fill(null);
 
@@ -528,7 +541,7 @@ export default function LeaveCalendar() {
     });
 
   const isLeaveDay = (date: Date) => {
-    return leaveDays.some(leaveDay => 
+    return leaveDays.some(leaveDay =>
       format(leaveDay, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
     );
   };
@@ -565,22 +578,20 @@ export default function LeaveCalendar() {
         <div className="mb-6 flex flex-wrap gap-2 border-b">
           <button
             onClick={() => setActiveTab('calendar')}
-            className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'calendar' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'calendar'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <CalendarIcon className="h-4 w-4" />
             Leave Calendar
           </button>
           <button
             onClick={() => setActiveTab('balance')}
-            className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'balance' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'balance'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <BarChart3 className="h-4 w-4" />
             Leave Balance
@@ -588,11 +599,10 @@ export default function LeaveCalendar() {
           {isAdmin && (
             <button
               onClick={() => setActiveTab('shifts')}
-              className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${
-                activeTab === 'shifts' 
-                  ? 'border-blue-500 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'shifts'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               <Clock className="h-4 w-4" />
               Shift Roster
@@ -600,11 +610,10 @@ export default function LeaveCalendar() {
           )}
           <button
             onClick={() => setActiveTab('attendance')}
-            className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'attendance' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`px-4 py-2 font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'attendance'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <ClipboardList className="h-4 w-4" />
             Attendance
@@ -613,182 +622,243 @@ export default function LeaveCalendar() {
 
         {/* Tab Content */}
         {activeTab === 'calendar' && (
-          <div className={`grid grid-cols-1 ${isAdmin ? 'lg:grid-cols-3' : ''} gap-6`}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Calendar View */}
             <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarIcon className="h-5 w-5" />
-                  {format(currentMonth, 'MMMM yyyy')}
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentMonth(new Date())}
-                  >
-                    Today
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-7 gap-2">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="text-center font-semibold text-sm py-2">
-                      {day}
-                    </div>
-                  ))}
-                  {/* Empty cells for days before the first of the month */}
-                  {emptyDays.map((_, index) => (
-                    <div key={`empty-${index}`} className="text-center py-3"></div>
-                  ))}
-                  {monthDays.map(day => {
-                    const isLeave = isLeaveDay(day);
-                    const isPast = isBefore(day, startOfDay(new Date()));
-                    
-                    return (
-                      <div
-                        key={day.toISOString()}
-                        className={`
-                          text-center py-3 rounded-lg border
-                          ${isToday(day) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
-                          ${isLeave ? 'bg-green-100 border-green-300' : ''}
-                          ${!isSameMonth(day, currentMonth) ? 'text-gray-400' : ''}
-                          ${isPast ? 'opacity-50' : ''}
-                        `}
-                      >
-                        <div className="text-sm">{format(day, 'd')}</div>
-                        {isLeave && (
-                          <div className="text-xs text-green-600 font-medium">PTO</div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* My Leave Requests */}
-            <Card className="mt-6">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>My Leave Requests</CardTitle>
-                <Button onClick={() => setShowRequestDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Request Leave
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {myLeaveRequests.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No leave requests yet</p>
-                ) : (
-                  <div className="space-y-3">
-                    {myLeaveRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className={`border rounded-lg p-4 ${getStatusColor(request.status)}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">{getLeaveTypeLabel(request.leave_type)}</h3>
-                              <span className="text-xs uppercase px-2 py-1 rounded border">
-                                {request.status}
-                              </span>
-                            </div>
-                            <p className="text-sm mt-1">
-                              {format(new Date(request.start_date), 'MMM d, yyyy')} - {format(new Date(request.end_date), 'MMM d, yyyy')}
-                            </p>
-                            {request.reason && (
-                              <p className="text-sm mt-2">Reason: {request.reason}</p>
-                            )}
-                            {request.admin_notes && (
-                              <p className="text-sm mt-2 italic">Admin Notes: {request.admin_notes}</p>
-                            )}
-                          </div>
-                          {request.status === 'pending' && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => deleteLeaveRequest(request.id)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+              <Card className="border-none shadow-md overflow-hidden ring-1 ring-gray-200">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarIcon className="h-5 w-5" />
+                    {format(currentMonth, 'MMMM yyyy')}
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentMonth(new Date())}
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
+                    >
+                      Next
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Admin Panel */}
-          {isAdmin && (
-            <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Pending Approvals</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {allLeaveRequests.filter(r => r.status === 'pending').length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No pending requests</p>
+                  <div className="grid grid-cols-7 gap-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="text-center font-semibold text-sm py-2">
+                        {day}
+                      </div>
+                    ))}
+                    {/* Empty cells for days before the first of the month */}
+                    {emptyDays.map((_, index) => (
+                      <div key={`empty-${index}`} className="text-center py-3"></div>
+                    ))}
+                    {monthDays.map(day => {
+                      const isLeave = isLeaveDay(day);
+                      const dayString = format(day, 'yyyy-MM-dd');
+                      const holiday = HOLIDAYS.find(h => h.date === dayString);
+                      const isHoliday = !!holiday;
+                      const isPast = isBefore(day, startOfDay(new Date()));
+
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          className={`
+                          text-center py-2 min-h-[70px] rounded-lg border flex flex-col items-center justify-start
+                          ${isToday(day) ? 'border-blue-500 bg-blue-50' : 'border-gray-100'}
+                          ${isLeave ? 'bg-orange-50 border-orange-200' : ''}
+                          ${isHoliday ? 'bg-green-100 border-green-300 ring-1 ring-green-400/20' : ''}
+                          ${!isSameMonth(day, currentMonth) ? 'opacity-20' : ''}
+                          ${isPast && !isHoliday ? 'opacity-50' : ''}
+                        `}
+                        >
+                          <div className={`text-sm font-semibold mb-1 ${isHoliday ? 'text-green-900' : ''}`}>
+                            {format(day, 'd')}
+                          </div>
+                          {isLeave && (
+                            <div className="text-[10px] text-orange-600 font-bold bg-orange-100 px-1.5 py-0.5 rounded uppercase">PTO</div>
+                          )}
+                          {isHoliday && (
+                            <div className="text-[10px] text-green-700 font-extrabold leading-tight px-1 text-center mt-auto pb-1">
+                              {holiday.name}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+                {/* Legend */}
+                <div className="px-6 pb-4 flex flex-wrap gap-4 text-[11px] text-gray-500 border-t pt-4 bg-gray-50/50 rounded-b-xl">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-green-100 border border-green-300"></div>
+                    <span className="font-semibold text-green-800">Public Holiday</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-orange-100 border border-orange-200"></div>
+                    <span className="font-semibold text-orange-700">Leave (PTO)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-blue-50 border border-blue-500"></div>
+                    <span className="font-semibold text-blue-700">Today</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* My Leave Requests */}
+              <Card className="mt-6">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>My Leave Requests</CardTitle>
+                  <Button onClick={() => setShowRequestDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Request Leave
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {myLeaveRequests.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No leave requests yet</p>
                   ) : (
                     <div className="space-y-3">
-                      {allLeaveRequests
-                        .filter(r => r.status === 'pending')
-                        .map((request) => (
-                          <div key={request.id} className="border rounded-lg p-3">
-                            <p className="font-semibold text-sm">{request.user_email}</p>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {getLeaveTypeLabel(request.leave_type)}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {format(new Date(request.start_date), 'MMM d')} - {format(new Date(request.end_date), 'MMM d, yyyy')}
-                            </p>
-                            {request.reason && (
-                              <p className="text-xs text-gray-600 mt-1">{request.reason}</p>
-                            )}
-                            <div className="flex gap-2 mt-3">
-                              <Button
-                                size="sm"
-                                className="flex-1"
-                                onClick={() => updateLeaveStatus(request.id, 'approved')}
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                className="flex-1"
-                                onClick={() => updateLeaveStatus(request.id, 'rejected')}
-                              >
-                                <X className="h-3 w-3 mr-1" />
-                                Reject
-                              </Button>
+                      {myLeaveRequests.map((request) => (
+                        <div
+                          key={request.id}
+                          className={`border rounded-lg p-4 ${getStatusColor(request.status)}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold">{getLeaveTypeLabel(request.leave_type)}</h3>
+                                <span className="text-xs uppercase px-2 py-1 rounded border">
+                                  {request.status}
+                                </span>
+                              </div>
+                              <p className="text-sm mt-1">
+                                {format(new Date(request.start_date), 'MMM d, yyyy')} - {format(new Date(request.end_date), 'MMM d, yyyy')}
+                              </p>
+                              {request.reason && (
+                                <p className="text-sm mt-2">Reason: {request.reason}</p>
+                              )}
+                              {request.admin_notes && (
+                                <p className="text-sm mt-2 italic">Admin Notes: {request.admin_notes}</p>
+                              )}
                             </div>
+                            {request.status === 'pending' && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => deleteLeaveRequest(request.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
-                        ))}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
             </div>
-          )}
-        </div>
+
+            {/* Sidebar with Holidays & Admin Actions */}
+            <div className="space-y-6">
+              {isAdmin && (
+                <Card className="border-yellow-100 bg-yellow-50/5 shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-yellow-800">
+                      <Clock className="h-4 w-4" />
+                      Pending Approvals
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {allLeaveRequests.filter(r => r.status === 'pending').length === 0 ? (
+                      <p className="text-center text-gray-400 py-6 text-xs italic">No pending requests</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {allLeaveRequests
+                          .filter(r => r.status === 'pending')
+                          .map((request) => (
+                            <div key={request.id} className="border border-yellow-100 rounded-lg p-3 bg-white shadow-sm">
+                              <p className="font-bold text-[13px] text-gray-900 truncate">{request.user_email}</p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-[11px] text-gray-500 font-medium">{getLeaveTypeLabel(request.leave_type)}</p>
+                                <p className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
+                                  {format(new Date(request.start_date), 'MMM d')}
+                                </p>
+                              </div>
+                              <div className="flex gap-2 mt-3">
+                                <Button
+                                  size="sm"
+                                  className="flex-1 h-7 text-[11px] bg-green-600 hover:bg-green-700 font-bold"
+                                  onClick={() => updateLeaveStatus(request.id, 'approved')}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="flex-1 h-7 text-[11px] text-red-600 hover:text-red-700 hover:bg-red-50 font-bold border border-red-100"
+                                  onClick={() => updateLeaveStatus(request.id, 'rejected')}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Upcoming Holidays Card - Visible to all */}
+              <Card className="mt-6 border-green-100 bg-green-50/10 shadow-sm">
+                <CardHeader className="pb-2 border-b border-green-100/50 bg-green-50/20 rounded-t-xl">
+                  <CardTitle className="text-sm font-bold flex items-center justify-between text-green-800">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      Holidays ({format(currentMonth, 'MMMM')})
+                    </div>
+                    <span className="text-[10px] bg-green-200 text-green-800 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">India</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="space-y-2">
+                    {HOLIDAYS.filter(h => h.date.startsWith(format(currentMonth, 'yyyy-MM')))
+                      .sort((a, b) => a.date.localeCompare(b.date))
+                      .map((h, i) => (
+                        <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-green-100 shadow-sm hover:border-green-300 transition-all group">
+                          <div className="flex items-center gap-3">
+                            <div className="flex flex-col items-center justify-center w-9 h-9 rounded-md bg-green-50 border border-green-100 text-green-700">
+                              <span className="text-[9px] font-bold uppercase leading-none">{format(new Date(h.date), 'MMM')}</span>
+                              <span className="text-sm font-black leading-none mt-0.5">{format(new Date(h.date), 'd')}</span>
+                            </div>
+                            <div>
+                              <p className="text-[13px] font-bold text-gray-900 group-hover:text-green-800 transition-colors uppercase tracking-tight">{h.name}</p>
+                              <p className="text-[10px] text-gray-500 font-medium">{format(new Date(h.date), 'EEEE')}</p>
+                            </div>
+                          </div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 ring-2 ring-green-100 group-hover:scale-125 transition-transform"></div>
+                        </div>
+                      ))}
+                    {HOLIDAYS.filter(h => h.date.startsWith(format(currentMonth, 'yyyy-MM'))).length === 0 && (
+                      <p className="text-center text-gray-400 py-6 text-xs italic">No holidays this month</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         )}
 
         {/* Leave Balance Tab */}
@@ -822,7 +892,7 @@ export default function LeaveCalendar() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  {selectedBalanceUserId 
+                  {selectedBalanceUserId
                     ? `${allUsers.find((u: any) => u.id === selectedBalanceUserId)?.full_name || 'User'}'s Leave Balance (${getFinancialYearDisplay()})`
                     : `My Leave Balance (${getFinancialYearDisplay()})`
                   }
@@ -1052,7 +1122,7 @@ export default function LeaveCalendar() {
                       const today = new Date();
                       const start = new Date(today);
                       start.setDate(today.getDate() - today.getDay()); // Sunday
-                       setAttendanceWeekStart(start as any);
+                      setAttendanceWeekStart(start as any);
                     }}
                   >
                     This Week
@@ -1409,8 +1479,8 @@ export default function LeaveCalendar() {
                 value={shiftForm.shift_type}
                 onChange={(e) => {
                   const type = e.target.value;
-                  setShiftForm({ 
-                    ...shiftForm, 
+                  setShiftForm({
+                    ...shiftForm,
                     shift_type: type,
                     start_time: type === 'General Shift' ? '11:00' : '12:00',
                     end_time: type === 'General Shift' ? '20:00' : '21:00'

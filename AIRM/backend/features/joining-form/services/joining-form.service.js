@@ -24,6 +24,7 @@ export async function getAllJoiningForms() {
 export async function getJoiningFormById(profileId) {
   try {
     const form = await joiningFormModel.getJoiningFormById(profileId);
+    console.log('[joining-form-service] Model returned form:', !!form);
     if (!form) return null;
     return transformJoiningFormDetail(form);
   } catch (error) {
