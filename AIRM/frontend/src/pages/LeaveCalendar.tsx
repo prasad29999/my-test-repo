@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar as CalendarIcon, Check, X, Clock, Plus } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isBefore, startOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isBefore, startOfDay, getDay, isSameDay, parseISO } from "date-fns";
 
 
 interface LeaveRequest {
@@ -27,6 +27,21 @@ interface LeaveRequest {
   admin_notes: string | null;
 }
 
+const HOLIDAYS = [
+  { date: '2026-01-01', name: "New Year's Day" },
+  { date: '2026-01-12', name: "Makar Sankranti" },
+  { date: '2026-01-26', name: "Republic Day" },
+  { date: '2026-03-19', name: "Ugadi" },
+  { date: '2026-04-03', name: "Good Friday" },
+  { date: '2026-09-14', name: "Ganesh Chaturthi" },
+  { date: '2026-10-02', name: "Gandhi Jayanti" },
+  { date: '2026-10-20', name: "Dussehra" },
+  { date: '2026-11-09', name: "Diwali" },
+  { date: '2026-12-25', name: "Christmas Day" },
+];
+
+
+
 export default function LeaveCalendar() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -36,7 +51,7 @@ export default function LeaveCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [myLeaveRequests, setMyLeaveRequests] = useState<LeaveRequest[]>([]);
   const [allLeaveRequests, setAllLeaveRequests] = useState<LeaveRequest[]>([]);
-  
+
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [selectedStartDate, setSelectedStartDate] = useState("");
   const [selectedEndDate, setSelectedEndDate] = useState("");
@@ -48,15 +63,15 @@ export default function LeaveCalendar() {
       try {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         if (!userData.id) {
-        navigate("/auth");
-        return;
-      }
+          navigate("/auth");
+          return;
+        }
 
         setCurrentUser(userData);
         // Check user role from localStorage
         const adminStatus = userData.role === 'admin';
         setIsAdmin(adminStatus);
-        
+
         await loadMyLeaveRequests(userData.id);
         if (adminStatus) {
           await loadAllLeaveRequests();
@@ -65,7 +80,7 @@ export default function LeaveCalendar() {
         console.error('Error initializing leave calendar:', error);
         navigate("/auth");
       } finally {
-      setLoading(false);
+        setLoading(false);
       }
     };
 
@@ -135,7 +150,7 @@ export default function LeaveCalendar() {
       setReason("");
       if (currentUser?.id) {
         await loadMyLeaveRequests(currentUser.id);
-    }
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -143,7 +158,7 @@ export default function LeaveCalendar() {
         variant: "destructive",
       });
     } finally {
-    setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -174,11 +189,11 @@ export default function LeaveCalendar() {
 
   const deleteLeaveRequest = async (requestId: string) => {
     // TODO: Add delete endpoint to API
-      toast({
+    toast({
       title: "Coming Soon",
       description: "Delete functionality will be available soon",
       variant: "default",
-      });
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -208,17 +223,17 @@ export default function LeaveCalendar() {
   // Calendar rendering
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  
+
   // Get the start of the calendar grid (includes padding from previous month)
   const calendarStart = startOfMonth(monthStart);
   const startDay = calendarStart.getDay();
   const calendarGridStart = new Date(monthStart);
   calendarGridStart.setDate(monthStart.getDate() - startDay);
-  
+
   // Get all days for the calendar grid (6 weeks * 7 days)
   const calendarGridEnd = new Date(calendarGridStart);
   calendarGridEnd.setDate(calendarGridStart.getDate() + 41);
-  
+
   const monthDays = eachDayOfInterval({ start: calendarGridStart, end: calendarGridEnd });
 
   // Get leave days for calendar highlighting
@@ -234,7 +249,7 @@ export default function LeaveCalendar() {
     });
 
   const isLeaveDay = (date: Date) => {
-    return leaveDays.some(leaveDay => 
+    return leaveDays.some(leaveDay =>
       format(leaveDay, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
     );
   };
@@ -254,8 +269,9 @@ export default function LeaveCalendar() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold">Leave Calendar</h1>
+          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">Holiday System Active v2</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -270,7 +286,11 @@ export default function LeaveCalendar() {
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
+                    onClick={() => {
+                      const newMonth = new Date(currentMonth);
+                      newMonth.setMonth(newMonth.getMonth() - 1);
+                      setCurrentMonth(newMonth);
+                    }}
                   >
                     Previous
                   </Button>
@@ -282,7 +302,11 @@ export default function LeaveCalendar() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
+                    onClick={() => {
+                      const newMonth = new Date(currentMonth);
+                      newMonth.setMonth(newMonth.getMonth() + 1);
+                      setCurrentMonth(newMonth);
+                    }}
                   >
                     Next
                   </Button>
@@ -297,26 +321,54 @@ export default function LeaveCalendar() {
                   ))}
                   {monthDays.map(day => {
                     const isLeave = isLeaveDay(day);
+                    const dayString = format(day, 'yyyy-MM-dd');
+                    const holiday = HOLIDAYS.find(h => h.date === dayString);
+                    const isHoliday = !!holiday;
+                    const isWeekend = getDay(day) === 0 || getDay(day) === 6;
                     const isPast = isBefore(day, startOfDay(new Date()));
-                    
+
                     return (
                       <div
                         key={day.toISOString()}
                         className={`
-                          text-center py-3 rounded-lg border
+                          text-center py-3 rounded-lg border flex flex-col items-center justify-start min-h-[80px]
                           ${isToday(day) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
                           ${isLeave ? 'bg-green-100 border-green-300' : ''}
+                          ${isHoliday ? 'bg-purple-100 border-purple-300' : ''}
                           ${!isSameMonth(day, currentMonth) ? 'text-gray-400' : ''}
-                          ${isPast ? 'opacity-50' : ''}
+                          ${isPast && !isLeave && !isHoliday ? 'opacity-50' : ''}
                         `}
                       >
-                        <div className="text-sm">{format(day, 'd')}</div>
+                        <div className="text-sm font-medium">{format(day, 'd')}</div>
                         {isLeave && (
-                          <div className="text-xs text-green-600 font-medium">PTO</div>
+                          <div className="text-xs text-green-700 font-medium mt-1 bg-green-200 px-1.5 py-0.5 rounded-full">PTO</div>
                         )}
+                        {isHoliday && (
+                          <div className="flex flex-col items-center mt-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mb-1"></div>
+                            <div className="text-[10px] text-purple-700 font-bold leading-tight px-1 text-center">{holiday.name}</div>
+                          </div>
+                        )}
+
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Legend */}
+                <div className="flex gap-4 mt-6 text-sm text-gray-600 justify-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-purple-100 border border-purple-300 rounded"></div>
+                    <span>Holiday</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
+                    <span>Leave</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-50 border border-blue-500 rounded"></div>
+                    <span>Today</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -376,10 +428,34 @@ export default function LeaveCalendar() {
             </Card>
           </div>
 
-          {/* Admin Panel */}
-          {isAdmin && (
-            <div>
-              <Card>
+          {/* Sidebar */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Holidays</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {HOLIDAYS.filter(h => h.date.startsWith(format(currentMonth, 'yyyy-MM')))
+                    .sort((a, b) => a.date.localeCompare(b.date))
+                    .map((h, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded bg-purple-50 border border-purple-200">
+                        <div>
+                          <p className="text-sm font-bold text-purple-900">{h.name}</p>
+                          <p className="text-xs text-purple-700">{format(parseISO(h.date), 'MMM d, yyyy')}</p>
+                        </div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-purple-600 shadow-sm animate-pulse"></div>
+                      </div>
+                    ))}
+                  {HOLIDAYS.filter(h => h.date.startsWith(format(currentMonth, 'yyyy-MM'))).length === 0 && (
+                    <p className="text-center text-gray-500 py-4 text-sm">No holidays this month</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {isAdmin && (
+              <Card className="mt-6">
                 <CardHeader>
                   <CardTitle>Pending Approvals</CardTitle>
                 </CardHeader>
@@ -427,8 +503,9 @@ export default function LeaveCalendar() {
                   )}
                 </CardContent>
               </Card>
-            </div>
-          )}
+            )}
+          </div>
+
         </div>
       </div>
 

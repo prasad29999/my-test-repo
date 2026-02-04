@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, MessageSquare, Tag, User, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, MessageSquare, Tag, User, X, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import logo from "/techiemaya-logo.png";
 
 interface Issue {
@@ -61,9 +63,12 @@ export default function IssueDetail() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [issueLabels, setIssueLabels] = useState<Label[]>([]);
+  const [showLabelDialog, setShowLabelDialog] = useState(false);
+  const [newLabelName, setNewLabelName] = useState("");
+  const [newLabelColor, setNewLabelColor] = useState("#6366f1");
   const [availableLabels, setAvailableLabels] = useState<Label[]>([]);
   const [availableUsers, setAvailableUsers] = useState<Assignee[]>([]);
-  
+
   const [newComment, setNewComment] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -74,75 +79,83 @@ export default function IssueDetail() {
 
   useEffect(() => {
     const initPage = async () => {
-      try {
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        if (!userData.id) {
-        navigate("/auth");
+      if (!id) {
+        navigate("/issues");
         return;
       }
 
-        // Check admin status - always check API to get latest role, fallback to localStorage
-        // API returns: { id, email, full_name, role } directly (not wrapped in 'user')
-        const isAdminFromStorage = userData.role === 'admin';
-        
-        let isAdminFromAPI = false;
-        let apiRole = null;
-        try {
-          const currentUserResp = await api.auth.getMe() as any;
-          console.log('User role check from API:', { 
-            response: currentUserResp,
-            role: currentUserResp?.role || currentUserResp?.user?.role || currentUserResp?.data?.role,
-            storageRole: userData.role
-          });
-          // Check direct role first (API returns user object directly), then nested structures
-          apiRole = currentUserResp?.role || currentUserResp?.user?.role || currentUserResp?.data?.role;
-          isAdminFromAPI = apiRole === 'admin';
-          
-          // Update localStorage with latest role from API
-          if (apiRole && userData.role !== apiRole) {
-            userData.role = apiRole;
-            localStorage.setItem('user', JSON.stringify(userData));
-            console.log('Updated localStorage role to:', apiRole);
-          }
-        } catch (apiError) {
-          console.warn('Could not fetch user from API, using localStorage:', apiError);
+      try {
+        setLoading(true);
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+
+        // Fetch everything in parallel for better performance and to avoid sequential loading
+        const [issueResponse, labelsResponse, usersResponse] = await Promise.all([
+          api.issues.getById(id),
+          api.labels.getAll(),
+          api.users.getWithRoles()
+        ]) as any;
+
+        // Process Issue Data
+        const issueData = issueResponse.issue || issueResponse;
+        if (!issueData || !issueData.id) {
+          throw new Error("Issue not found");
         }
-        
-        const isUserAdmin = isAdminFromStorage || isAdminFromAPI;
-        console.log('Final admin status:', { 
-          isAdminFromStorage, 
-          isAdminFromAPI, 
-          apiRole,
-          isUserAdmin 
-        });
-        setIsAdmin(isUserAdmin);
-      await loadIssueData();
-      await loadLabels();
-      await loadUsers();
-      } catch (error) {
-        console.error('Error initializing issue detail:', error);
-        navigate("/auth");
+
+        setIssue(issueData);
+        setEditTitle(issueData.title);
+        setEditDescription(issueData.description || "");
+        setEditProjectName(issueData.project_name || "");
+        setAssignees((issueData.assignees || []).map((a: any) => ({
+          user_id: a.user_id,
+          email: a.email || 'Unknown'
+        })));
+        setIssueLabels(issueData.labels || []);
+        setComments((issueData.comments || []).map((c: any) => ({
+          ...c,
+          user_email: c.email || c.user_email || 'Unknown'
+        })));
+        setActivities((issueData.activity || issueData.activities || []).map((a: any) => ({
+          ...a,
+          user_email: a.email || a.user_email || 'Unknown'
+        })));
+
+        setAvailableLabels(labelsResponse.labels || labelsResponse || []);
+        setAvailableUsers((usersResponse.users || usersResponse || []).map((u: any) => ({
+          user_id: u.user_id || u.id,
+          email: u.email
+        })));
+
+        setIsAdmin(userData.role === 'admin');
+      } catch (error: any) {
+        console.error("Error loading issue details:", error);
+        if (error.message?.includes('404') || error.message?.includes('not found')) {
+          toast({
+            title: "Error",
+            description: "Issue not found",
+            variant: "destructive",
+          });
+          navigate("/issues");
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to load details",
+            variant: "destructive",
+          });
+        }
       } finally {
-      setLoading(false);
+        setLoading(false);
       }
     };
 
     initPage();
+  }, [id, navigate, toast]);
 
-    // Note: Real-time subscriptions removed - would need to be re-implemented with WebSockets or polling
-    // For now, comments will be loaded on page load and after adding new comments
-  }, [id, navigate]);
 
-  const loadIssueData = async () => {
+  const loadIssueData = async (showLoading = false) => {
     try {
-      if (!id) {
-      navigate("/issues");
-      return;
-    }
+      if (!id) return;
+      if (showLoading) setLoading(true);
 
-      console.log('Loading issue with ID:', id);
-
-      // Load issue
       const issueResponse = await api.issues.getById(id) as any;
       const issueData = issueResponse.issue || issueResponse;
 
@@ -150,84 +163,81 @@ export default function IssueDetail() {
         throw new Error("Issue not found");
       }
 
-      console.log('Issue data loaded:', issueData);
-
-    setIssue(issueData);
-    setEditTitle(issueData.title);
-    setEditDescription(issueData.description || "");
-    setEditProjectName(issueData.project_name || "");
-
-    // Load assignees
-      const assigneesData = issueData.assignees || [];
-      setAssignees(assigneesData.map((a: any) => ({
-            user_id: a.user_id,
+      setIssue(issueData);
+      setEditTitle(issueData.title);
+      setEditDescription(issueData.description || "");
+      setEditProjectName(issueData.project_name || "");
+      setAssignees((issueData.assignees || []).map((a: any) => ({
+        user_id: a.user_id,
         email: a.email || 'Unknown'
       })));
-
-    // Load labels
-      const labelsData = issueData.labels || [];
-      setIssueLabels(labelsData);
-
-      // Load comments - API returns comments with user_email
-      const commentsData = issueData.comments || [];
-      setComments(commentsData.map((c: any) => ({
+      setIssueLabels(issueData.labels || []);
+      setComments((issueData.comments || []).map((c: any) => ({
         ...c,
         user_email: c.email || c.user_email || 'Unknown'
       })));
-
-      // Load activity - API returns activity (not activities)
-      const activityData = issueData.activity || issueData.activities || [];
-      setActivities(activityData.map((a: any) => ({
+      setActivities((issueData.activity || issueData.activities || []).map((a: any) => ({
         ...a,
         user_email: a.email || a.user_email || 'Unknown'
       })));
     } catch (error: any) {
-      console.error("Error loading issue:", error);
-      console.error("Error details:", error);
-      
-      // Only redirect if it's a 404 (not found) error
-      if (error.message?.includes('404') || error.message?.includes('not found') || error.message?.includes('Issue not found')) {
-        toast({
-          title: "Error",
-          description: "Issue not found",
-          variant: "destructive",
-        });
-        navigate("/issues");
-      } else {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to load issue. Please check the console for details.",
-          variant: "destructive",
-        });
-        // Don't redirect on other errors - let user try to refresh or check console
+      console.error("Error reloading issue data:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sync data",
+        variant: "destructive",
+      });
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  const createCustomLabel = async () => {
+    if (!newLabelName) {
+      toast({
+        title: "Error",
+        description: "Label name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const newLabel = await api.labels.create({
+        name: newLabelName,
+        color: newLabelColor,
+        description: ""
+      }) as any;
+
+      toast({
+        title: "Success",
+        description: `Label "${newLabelName}" created successfully`,
+      });
+
+      setNewLabelName("");
+      setShowLabelDialog(false);
+
+      // Refresh labels
+      const allLabels = await api.labels.getAll() as any;
+      setAvailableLabels(allLabels.labels || allLabels || []);
+
+      // Auto-assign the new label to the current issue
+      if (id) {
+        await api.issues.addLabel(id, newLabel.id || newLabel.label?.id);
+        await loadIssueData(false);
       }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create label",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadLabels = async () => {
-    try {
-      const response = await api.labels.getAll() as any;
-      const labelsData = response.labels || response || [];
-      setAvailableLabels(labelsData);
-    } catch (error) {
-      console.error("Error loading labels:", error);
-      setAvailableLabels([]);
-    }
-  };
-
-  const loadUsers = async () => {
-    try {
-      const response = await api.users.getWithRoles() as any;
-      const usersData = response.users || response || [];
-      setAvailableUsers(usersData.map((u: any) => ({
-        user_id: u.user_id || u.id,
-        email: u.email
-      })));
-    } catch (error) {
-      console.error("Error loading users:", error);
-      setAvailableUsers([]);
-    }
-  };
 
   const updateIssueStatus = async (newStatus: 'open' | 'in_progress' | 'closed') => {
     try {
@@ -252,7 +262,7 @@ export default function IssueDetail() {
 
   const saveIssue = async () => {
     if (!id) return;
-    
+
     try {
       await api.issues.update(id, {
         title: editTitle,
@@ -300,10 +310,10 @@ export default function IssueDetail() {
 
   const addLabel = async (labelId: string) => {
     if (!id) return;
-    
+
     try {
       await api.issues.addLabel(id, labelId);
-      
+
       toast({
         title: "Success",
         description: "Label added successfully",
@@ -321,15 +331,15 @@ export default function IssueDetail() {
 
   const removeLabel = async (labelId: string) => {
     if (!id) return;
-    
+
     try {
       await api.issues.removeLabel(id, labelId);
-      
+
       toast({
         title: "Success",
         description: "Label removed successfully",
       });
-      
+
       await loadIssueData();
     } catch (error: any) {
       toast({
@@ -342,15 +352,15 @@ export default function IssueDetail() {
 
   const assignUser = async (userId: string) => {
     if (!id) return;
-    
+
     try {
       await api.issues.assignUser(id, userId);
-      
+
       toast({
         title: "Success",
         description: "User assigned successfully",
       });
-      
+
       await loadIssueData();
     } catch (error: any) {
       toast({
@@ -363,15 +373,15 @@ export default function IssueDetail() {
 
   const assignMultipleUsers = async () => {
     if (!id || selectedUserIds.length === 0) return;
-    
+
     try {
       await api.issues.assignUsers(id, selectedUserIds);
-      
+
       toast({
         title: "Success",
         description: `${selectedUserIds.length} user(s) assigned successfully`,
       });
-      
+
       setSelectedUserIds([]);
       setShowAssigneesDropdown(false);
       await loadIssueData();
@@ -385,8 +395,8 @@ export default function IssueDetail() {
   };
 
   const toggleUserSelection = (userId: string) => {
-    setSelectedUserIds(prev => 
-      prev.includes(userId) 
+    setSelectedUserIds(prev =>
+      prev.includes(userId)
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
     );
@@ -394,15 +404,15 @@ export default function IssueDetail() {
 
   const unassignUser = async (userId: string) => {
     if (!id) return;
-    
+
     try {
       await api.issues.unassignUser(id, userId);
-      
+
       toast({
         title: "Success",
         description: "User unassigned successfully",
       });
-      
+
       await loadIssueData();
     } catch (error: any) {
       toast({
@@ -428,10 +438,101 @@ export default function IssueDetail() {
 
   if (loading || !issue) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading issue...</p>
+      <div className="min-h-screen bg-gray-50 p-6 animate-in fade-in duration-500">
+        <div className="max-w-7xl mx-auto">
+          {/* Header Skeleton */}
+          <div className="flex items-center justify-between mb-6">
+            <Skeleton className="h-10 w-32" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Content Skeleton */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-8 w-3/4" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                  <Skeleton className="h-10 w-24 mt-6" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-40" />
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-1/4" />
+                        <Skeleton className="h-16 w-full" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2 pt-4 border-t">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-10 w-32" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar Skeleton */}
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-6 w-24" />
+                    <Skeleton className="h-4 w-4" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-10 w-full mt-2" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-20" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Skeleton className="h-6 w-16" />
+                    <Skeleton className="h-6 w-20" />
+                    <Skeleton className="h-6 w-14" />
+                  </div>
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -443,7 +544,6 @@ export default function IssueDetail() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <img src={logo} alt="TechieMaya" className="h-40" />
             <Button variant="outline" onClick={() => navigate("/issues")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Issues
@@ -610,7 +710,7 @@ export default function IssueDetail() {
             {/* Assignees */}
             <Card>
               <CardHeader>
-                <CardTitle 
+                <CardTitle
                   className={`flex items-center gap-2 ${isAdmin ? 'cursor-pointer hover:text-blue-600' : ''}`}
                   onClick={() => isAdmin && setShowAssigneesDropdown(!showAssigneesDropdown)}
                 >
@@ -706,10 +806,20 @@ export default function IssueDetail() {
             {/* Labels */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Tag className="h-4 w-4" />
-                  Labels
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    Labels
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setShowLabelDialog(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex flex-wrap gap-2">
@@ -779,7 +889,60 @@ export default function IssueDetail() {
           </div>
         </div>
       </div>
+      <Dialog open={showLabelDialog} onOpenChange={setShowLabelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Custom Label</DialogTitle>
+            <DialogDescription>
+              Create a new label and pick a color for it
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="label-name">Label Name</Label>
+              <Input
+                id="label-name"
+                placeholder="e.g. Frontend, Critical, UI/UX"
+                value={newLabelName}
+                onChange={(e) => setNewLabelName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="label-color">Label Color</Label>
+              <div className="flex gap-3 items-center">
+                <Input
+                  id="label-color"
+                  type="color"
+                  className="w-12 h-10 p-1 rounded cursor-pointer"
+                  value={newLabelColor}
+                  onChange={(e) => setNewLabelColor(e.target.value)}
+                />
+                <Input
+                  type="text"
+                  value={newLabelColor}
+                  onChange={(e) => setNewLabelColor(e.target.value)}
+                  className="flex-1"
+                  placeholder="#000000"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap mt-3">
+                {['#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b'].map(color => (
+                  <button
+                    key={color}
+                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm transition-transform hover:scale-110"
+                    style={{ backgroundColor: color, borderColor: newLabelColor === color ? 'black' : 'white' }}
+                    onClick={() => setNewLabelColor(color)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLabelDialog(false)}>Cancel</Button>
+            <Button onClick={createCustomLabel}>Create & Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

@@ -28,7 +28,7 @@ export async function getAllIssues(userId, isAdmin, filters) {
  */
 export async function getIssueById(issueId) {
   const issue = await issueModel.getIssueById(issueId);
-  
+
   if (!issue) {
     throw new Error('Issue not found');
   }
@@ -59,6 +59,7 @@ export async function createIssue(issueData, userId) {
     status,
     priority,
     project_id,
+    project_name,
     assignee_ids,
     label_ids,
     estimate_hours,
@@ -66,67 +67,89 @@ export async function createIssue(issueData, userId) {
     due_date
   } = issueData;
 
-  // Get project info
-  const project = await issueModel.getGitLabProject(project_id);
-  if (!project) {
-    throw new Error('Project not found');
-  }
-
-  // Get label names for GitLab
-  const labelNames = label_ids ? await issueModel.getLabelsByIds(label_ids) : [];
-
-  // Create issue in GitLab
-  let gitlabIssue;
-  try {
-    gitlabIssue = await gitlabService.createGitLabIssue(project.gitlab_project_id, {
-      title,
-      description,
-      labelNames,
-      assigneeIds: assignee_ids,
-      estimateHours: estimate_hours,
-      dueDate: due_date
-    });
-  } catch (gitlabError) {
-    throw new Error(`Failed to create issue in GitLab: ${gitlabError.response?.data?.message || gitlabError.message}`);
-  }
-
-  // Create issue in local database
-  const issue = await issueModel.createGitLabIssue({
-    gitlab_issue_id: gitlabIssue.id,
-    gitlab_iid: gitlabIssue.iid,
-    project_id: project.gitlab_project_id,
+  // 1. Create issue in local database erp.issues (primary source of truth for UI)
+  const issue = await issueModel.createIssue({
     title,
     description,
     status: status || 'open',
     priority: priority || 'medium',
-    created_by: userId,
-    estimate_hours,
-    start_date,
-    due_date
+    project_name: project_name,
+    created_by: userId
   });
 
-  // Add activity
-  await issueModel.addIssueActivity(issue.id, userId, 'created', {
-    title,
-    gitlab_iid: gitlabIssue.iid
-  });
+  // 2. Handle GitLab integration if project_id is provided
+  if (project_id) {
+    try {
+      // Get project info
+      const project = await issueModel.getGitLabProject(project_id);
+      if (project) {
+        // Get label names for GitLab
+        const labelNames = label_ids ? await issueModel.getLabelsByIds(label_ids) : [];
 
-  // Assign users
-  if (assignee_ids && Array.isArray(assignee_ids)) {
-    await issueModel.assignUsersToIssue(issue.id, assignee_ids, userId);
+        // Create issue in GitLab
+        const gitlabIssue = await gitlabService.createGitLabIssue(project.gitlab_project_id, {
+          title,
+          description,
+          labelNames,
+          assigneeIds: assignee_ids,
+          estimateHours: estimate_hours,
+          dueDate: due_date
+        });
+
+        // Link GitLab info back to local issue
+        await issueModel.updateIssue(issue.id, {
+          gitlab_id: gitlabIssue.id,
+          gitlab_iid: gitlabIssue.iid
+        });
+
+        // Also create entry in erp.gitlab_issues for backward compatibility/mapping
+        try {
+          await issueModel.createGitLabIssue({
+            gitlab_issue_id: gitlabIssue.id,
+            gitlab_iid: gitlabIssue.iid,
+            project_id: project.gitlab_project_id,
+            title,
+            description,
+            status: status || 'open',
+            priority: priority || 'medium',
+            created_by: userId,
+            estimate_hours,
+            start_date,
+            due_date
+          });
+        } catch (err) {
+          console.warn('Failed to insert into erp.gitlab_issues mapping table:', err.message);
+        }
+
+        issue.gitlab_url = gitlabIssue.web_url;
+      }
+    } catch (gitlabError) {
+      console.error('GitLab issue creation failed, continuing with local issue:', gitlabError.message);
+      // We don't throw here so that the local issue still "exists" even if GitLab is down
+    }
   }
 
-  // Add labels
+  // 3. Add activity
+  await issueModel.addIssueActivity(issue.id, userId, 'created', {
+    title,
+    project_name: project_name
+  });
+
+  // 4. Assign users
+  if (assignee_ids && Array.isArray(assignee_ids)) {
+    await issueModel.assignUsers(issue.id, assignee_ids, userId);
+  }
+
+  // 5. Add labels
   if (label_ids && Array.isArray(label_ids)) {
     for (const labelId of label_ids) {
-      await issueModel.addLabelToIssue(issue.id, labelId);
+      await issueModel.addLabel(issue.id, labelId, userId);
     }
   }
 
   return {
     ...issue,
-    gitlab_url: gitlabIssue.web_url,
-    project_name: project.name
+    project_name: project_name || issue.project_name
   };
 }
 
@@ -142,7 +165,7 @@ export async function updateIssue(issueId, updates, userId) {
 
   // Try to get GitLab issue info (optional)
   const gitlabIssue = await issueModel.getGitLabIssue(issueId);
-  
+
   // Update in GitLab if GitLab integration exists
   if (gitlabIssue) {
     try {
@@ -191,7 +214,7 @@ export async function addComment(issueId, userId, comment) {
 
   // Try to get GitLab issue info (optional - issue may not have GitLab association)
   const issueInfo = await issueModel.getGitLabIssueInfo(issueId);
-  
+
   // Post comment to GitLab if issue has GitLab association
   if (issueInfo) {
     try {
@@ -208,14 +231,14 @@ export async function addComment(issueId, userId, comment) {
 
   // Add comment locally
   const commentRecord = await issueModel.addComment(issueId, userId, comment);
-  
+
   if (!commentRecord || !commentRecord.id) {
     console.error('Failed to create comment record:', { issueId, userId, commentLength: comment?.length });
     throw new Error('Failed to create comment');
   }
 
   const commentWithUser = await issueModel.getCommentWithUser(commentRecord.id);
-  
+
   if (!commentWithUser) {
     console.error('Failed to retrieve comment with user info:', { commentId: commentRecord.id });
     throw new Error('Failed to retrieve comment');
@@ -322,7 +345,7 @@ export async function removeLabel(issueId, labelId, userId) {
 
   const label = await issueModel.getLabelById(labelId);
   const removed = await issueModel.removeLabelFromIssue(issueId, labelId);
-  
+
   if (!removed) {
     throw new Error('Label assignment not found');
   }

@@ -1,13 +1,13 @@
 export async function uploadVerificationDocuments(candidateId: string, verificationId: string, files: File[]): Promise<any> {
   const formData = new FormData();
   files.forEach(file => formData.append('documents', file));
-  
+
   // Use API_BASE_URL from environment variable
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   if (!API_BASE_URL) {
     throw new Error('VITE_API_BASE_URL environment variable is required');
   }
-  
+
   const token = localStorage.getItem('auth_token');
   const res = await fetch(`${API_BASE_URL}/api/recruitment/${candidateId}/verification/${verificationId}/upload`, {
     method: 'POST',
@@ -112,6 +112,17 @@ export async function updateInterviewRound(candidateId: string, roundId: string,
   } catch (error) {
     console.error("Failed to update interview round:", error);
     throw error;
+  }
+}
+
+// Delete interview round
+export async function deleteInterviewRound(candidateId: string, roundId: string): Promise<boolean> {
+  try {
+    await api.delete(`${API_BASE}/${candidateId}/interview/${roundId}`);
+    return true;
+  } catch (error) {
+    console.error("Failed to delete interview round:", error);
+    return false;
   }
 }
 

@@ -14,6 +14,14 @@ export async function getAllIssues(filters) {
   let query = `
     SELECT 
       i.*,
+      COUNT(DISTINCT ic.id) as comments_count,
+      (
+        SELECT comment
+        FROM erp.issue_comments
+        WHERE issue_id = i.id
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) as recent_comment,
       json_agg(DISTINCT jsonb_build_object(
         'user_id', ia.user_id
       )) FILTER (WHERE ia.user_id IS NOT NULL) as assignees,
@@ -26,6 +34,7 @@ export async function getAllIssues(filters) {
     LEFT JOIN erp.issue_assignees ia ON i.id = ia.issue_id
     LEFT JOIN erp.issue_labels il ON i.id = il.issue_id
     LEFT JOIN erp.labels l ON il.label_id = l.id
+    LEFT JOIN erp.issue_comments ic ON i.id = ic.issue_id
   `;
 
   const conditions = [];
@@ -86,6 +95,27 @@ export async function getIssueById(issueId) {
     [issueId]
   );
   return result.rows[0] || null;
+}
+
+/**
+ * Create a new issue directly in erp.issues
+ */
+export async function createIssue(issueData) {
+  const { title, description, status, priority, project_name, created_by } = issueData;
+  const result = await pool.query(
+    `INSERT INTO erp.issues (title, description, status, priority, project_name, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      title,
+      description || null,
+      status || 'open',
+      priority || 'medium',
+      project_name || null,
+      created_by
+    ]
+  );
+  return result.rows[0];
 }
 
 /**
@@ -262,7 +292,7 @@ export async function assignUsersToIssue(issueId, assigneeIds, assignedBy) {
   const assigned = [];
   for (const assigneeId of assigneeIds) {
     const assigneeIdStr = String(assigneeId).trim();
-    
+
     // Check if already assigned
     const existing = await pool.query(
       'SELECT id FROM erp.issue_assignees WHERE issue_id = $1 AND user_id = $2',
@@ -389,11 +419,11 @@ export async function addComment(issueId, userId, comment) {
       throw error;
     }
   }
-  
+
   if (!result.rows || result.rows.length === 0) {
     throw new Error('Failed to insert comment');
   }
-  
+
   return result.rows[0];
 }
 
@@ -415,12 +445,12 @@ export async function getCommentWithUser(commentId) {
      WHERE ic.id = $1`,
     [commentId]
   );
-  
+
   if (!result.rows || result.rows.length === 0) {
     console.error('Comment not found with ID:', commentId);
     return null;
   }
-  
+
   return result.rows[0];
 }
 
@@ -438,7 +468,7 @@ export async function getGitLabIssueInfo(issueId) {
         AND table_name = 'gitlab_issues'
       );
     `);
-    
+
     if (!tableCheck.rows[0]?.exists) {
       console.log('GitLab issues table does not exist, skipping GitLab integration');
       return null;
@@ -470,7 +500,7 @@ export async function getGitLabIssue(issueId) {
         AND table_name = 'gitlab_issues'
       );
     `);
-    
+
     if (!tableCheck.rows[0]?.exists) {
       return null;
     }
@@ -548,7 +578,7 @@ export async function updateGitLabIssue(issueId, updates) {
         AND table_name = 'gitlab_issues'
       );
     `);
-    
+
     if (!tableCheck.rows[0]?.exists) {
       return null;
     }

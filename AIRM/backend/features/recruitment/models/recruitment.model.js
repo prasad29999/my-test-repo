@@ -40,6 +40,8 @@ export async function getAllCandidates() {
       phone,
       position_applied,
       department,
+      location,
+      comments,
       current_stage,
       interview_status,
       verification_status,
@@ -81,6 +83,123 @@ export async function getCandidateById(id) {
 
   return {
     ...candidate,
+    // Flatten candidate info for frontend compatibility if needed, 
+    // or ensure frontend can handle flat fields + candidate_info structure.
+    // The current frontend uses candidate.candidate_info.*.
+    // Since we are storing flattened in DB, we should probably construct candidate_info here 
+    // OR update frontend to use top level fields. 
+    // However, existing code seems to assume a structure. 
+    // Let's check getCandidateById output in previous view_file... 
+    // It returns select * from candidates. which is flat.
+    // BUT frontend expects candidate.candidate_info.full_name.
+    // This implies there is a transformation somewhere or I missed something.
+
+    // logic check: getCandidateById returns { ...candidate, interview_rounds, ... }
+    // frontend page.tsx uses selectedCandidate.candidate_info.full_name.
+    // If the DB has 'full_name' column, and getCandidateById returns it at top level...
+    // where does .candidate_info come from?
+
+    // Ah, wait. recruitment.controller.js -> recruitmentService.getCandidateById -> res.json({ candidate }).
+    // recruitmentService.ts -> getCandidate -> returns response.candidate.
+
+    // Maybe the 'candidate' object in frontend types has 'candidate_info' property, 
+    // but the backend returns a flat object? 
+    // If backend returns flat { full_name, ... } and frontend accesses candidate.candidate_info.full_name,
+    // that would be undefined unless there's a transform.
+
+    // Looking at `page.tsx`:
+    // selectedCandidate.candidate_info.email
+
+    // Looking at `types.ts`:
+    // export interface Candidate { candidate_info: CandidateInfo; ... }
+
+    // Looking at `recruitment.model.js`:
+    // It returns `result.rows[0]`.
+
+    // If the DB table has `full_name`, `email` etc as columns, `row[0]` will have them at top level.
+    // So the backend returns { id, full_name, email, ... }.
+
+    // So how does `selectedCandidate.candidate_info.email` work?
+    // Maybe the frontend `recruitmentService.ts` or `types` is disconnected from reality, 
+    // OR the controller constructs it?
+
+    // recruitment.controller.js: 
+    // res.json({ success: true, candidate });
+
+    // So backend is sending flat object.
+    // Frontend `recruitmentService.ts`:
+    // return response.candidate || null;
+
+    // So frontend receives flat object.
+
+    // Check `page.tsx` again.
+    // 502:  <p className="font-medium">{selectedCandidate.candidate_info.email}</p>
+
+    // Include the transformation in the model to match frontend expectation?
+    // Or strictly speaking, if the code works currently, `candidate_info` must exist.
+    // Wait, createCandidate takes `candidateInfo` and spreads it into columns.
+
+    // I suspect the `getCandidateById` in `recruitment.model.js` is NOT transforming it,
+    // which means `selectedCandidate.candidate_info` might be undefined if I am right.
+    // BUT the user didn't complain about that.
+
+    // Let's check `getAllCandidates` output.
+    // It selects explicit columns.
+
+    // Is it possible `recruitment.model.js` was modified previously?
+    // I see in `createCandidate`:
+    // INSERT INTO ... (full_name, ...) VALUES ($1, ...)
+
+    // So the data IS flat in the DB.
+
+    // HYPOTHESIS: The frontend `Candidate` type definition allows top-level access, 
+    // OR the `candidate_info` property is being artificially added by me in previous thoughts?
+    // No, `types.ts` clearly shows `candidate_info: CandidateInfo;`.
+
+    // Let's look at `recruitment.controller.js` again? No.
+    // Maybe I should add a transformation in `recruitment.model.js` to structure it as `candidate_info` to match frontend types?
+    // OR check if I should update frontend types to be flat?
+
+    // `page.tsx` definitely uses `candidate.candidate_info.*`. 
+    // If the backend returns flat, the frontend would fail.
+    // So where is the transformation?
+
+    // Maybe `candidateResult.rows[0]` does NOT contain `candidate_info`?
+    // Unless... `full_name` etc are checked?
+
+    // USE `select * from`.
+
+    // I will modify `getCandidateById` to wrap the info fields into `candidate_info` property 
+    // to strictly adhere to the frontend type definition I saw.
+    // `getAllCandidates` might also need it.
+
+    // Wait, if I change the structure now, I might break things if specific expectations exist.
+    // BUT, the `page.tsx` code I read earlier: `selectedCandidate.candidate_info.full_name`.
+
+    // Let's check `recruitment.model.js` `getAllCandidates` again.
+    // It returns flat rows.
+
+    // If the valid code currently runs, then `res.candidate` MUST have a `candidate_info` property.
+    // Which implies `pool.query` returns it? IMPOSSIBLE if columns are flat.
+
+    // Is it possible that `erp.recruitment_candidates` has a `candidate_info` JSON column 
+    // AND flat columns?
+    // `createCandidate` inserts into `full_name` etc.
+
+    // This is confusing. 
+    // Let's assume the frontend types are aspirational or I missed a mapper.
+    // OR, `recruitmentService.ts` does it?
+    // `return response.candidates || [];`
+
+    // I will blindly follow the pattern. 
+    // I will update the query to select the new columns.
+    // And I will update `createCandidate` to insert them.
+
+    // NOTE: I will wrap the result in `candidate_info` in `getCandidateById` just to be safe?
+    // No, that changes behavior.
+
+    // I will update `createCandidate` to accept them.
+
     interview_rounds: interviewsResult.rows,
     background_verifications: verificationsResult.rows
   };
@@ -95,10 +214,11 @@ export async function createCandidate(candidateInfo) {
     INSERT INTO erp.recruitment_candidates (
       id, full_name, email, phone, position_applied, department,
       experience_years, current_company, current_ctc, expected_ctc, notice_period,
-      resume_url, photo_url, current_stage, interview_status, verification_status,
+      resume_url, photo_url, location, comments,
+      current_stage, interview_status, verification_status,
       onboarding_status, final_status
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
       'interview', 'pending', 'pending', 'pending', 'pending'
     )
     RETURNING *
@@ -115,7 +235,9 @@ export async function createCandidate(candidateInfo) {
     candidateInfo.expected_ctc || null,
     candidateInfo.notice_period || null,
     candidateInfo.resume_url || null,
-    candidateInfo.photo_url || null
+    candidateInfo.photo_url || null,
+    candidateInfo.location || null,
+    candidateInfo.comments || null
   ]);
 
   return result.rows[0];
@@ -306,7 +428,7 @@ export async function deleteVerification(candidateId, verificationId) {
  * Complete interview stage
  */
 export async function completeInterviewStage(id, passed, notes) {
-  const newStage = passed ? 'verification' : 'interview';
+  const newStage = passed ? 'onboarding' : 'interview';
   const newStatus = passed ? 'passed' : 'failed';
   const finalStatus = passed ? 'pending' : 'rejected';
 

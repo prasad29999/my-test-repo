@@ -41,6 +41,8 @@ export interface CandidateInfo {
   notice_period?: string;
   resume_url?: string;
   photo_url?: string;
+  location: string;
+  comments?: string;
 }
 
 export interface Candidate {

@@ -1,9 +1,8 @@
 /**
  * Recruitment Page
- * 3-Stage Employee Onboarding Process
+ * 2-Stage Employee Onboarding Process
  * Stage 1: Technical Round & Interview
- * Stage 2: Background Verification
- * Stage 3: Final Onboarding (Store in Database)
+ * Stage 2: Final Onboarding (Store in Database)
  */
 
 import { useState, useEffect } from "react";
@@ -56,6 +55,7 @@ import {
   Building,
   GraduationCap,
   AlertTriangle,
+  Pencil,
 } from "lucide-react";
 import * as recruitmentService from "./services/recruitmentService";
 import type { Candidate, CandidateSummary, CandidateInfo, InterviewRound, BackgroundVerification } from "./types";
@@ -63,36 +63,36 @@ import type { Candidate, CandidateSummary, CandidateInfo, InterviewRound, Backgr
 import { sendInterviewRoundMail } from "./services/recruitmentService";
 
 const RecruitmentPage = () => {
-    // State for mail sending
-    const [mailSending, setMailSending] = useState<string | null>(null);
-    // State for selected verifications (bulk actions)
-    const [selectedVerifications, setSelectedVerifications] = useState<string[]>([]);
+  // State for mail sending
+  const [mailSending, setMailSending] = useState<string | null>(null);
+  // State for selected verifications (bulk actions)
+  const [selectedVerifications, setSelectedVerifications] = useState<string[]>([]);
 
-    // Handler for sending interview round mail
-    const handleSendInterviewMail = async (candidateId: string, roundId: string) => {
-      setMailSending(roundId);
-      try {
-        await sendInterviewRoundMail(candidateId, roundId);
-        toast({ title: "Success", description: "Interview round mail sent successfully!" });
-      } catch (err) {
-        toast({ title: "Error", description: "Failed to send interview round mail", variant: "destructive" });
-      } finally {
-        setMailSending(null);
-      }
-    };
+  // Handler for sending interview round mail
+  const handleSendInterviewMail = async (candidateId: string, roundId: string) => {
+    setMailSending(roundId);
+    try {
+      await sendInterviewRoundMail(candidateId, roundId);
+      toast({ title: "Success", description: "Interview round mail sent successfully!" });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to send interview round mail", variant: "destructive" });
+    } finally {
+      setMailSending(null);
+    }
+  };
 
-    // Handler for sending verification mail (document upload link)
-    const handleSendVerificationMail = async (candidateId: string, verificationId: string) => {
-      setMailSending(verificationId);
-      try {
-        await recruitmentService.sendVerificationMail(candidateId, verificationId);
-        toast({ title: "Success", description: "Verification mail sent successfully!" });
-      } catch (err) {
-        toast({ title: "Error", description: "Failed to send verification mail", variant: "destructive" });
-      } finally {
-        setMailSending(null);
-      }
-    };
+  // Handler for sending verification mail (document upload link)
+  const handleSendVerificationMail = async (candidateId: string, verificationId: string) => {
+    setMailSending(verificationId);
+    try {
+      await recruitmentService.sendVerificationMail(candidateId, verificationId);
+      toast({ title: "Success", description: "Verification mail sent successfully!" });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to send verification mail", variant: "destructive" });
+    } finally {
+      setMailSending(null);
+    }
+  };
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
@@ -100,14 +100,14 @@ const RecruitmentPage = () => {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
-  
+
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
   const [showOnboardDialog, setShowOnboardDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
-  
+
   // Form states
   const [candidateForm, setCandidateForm] = useState<CandidateInfo>({
     full_name: "",
@@ -120,8 +120,10 @@ const RecruitmentPage = () => {
     current_ctc: "",
     expected_ctc: "",
     notice_period: "",
+    location: "",
+    comments: "",
   });
-  
+
   const [interviewForm, setInterviewForm] = useState<InterviewRound>({
     round_name: "",
     interviewer_name: "",
@@ -131,16 +133,100 @@ const RecruitmentPage = () => {
     feedback: "",
     score: 0,
   });
-  
+
   const [verificationForm, setVerificationForm] = useState<BackgroundVerification>({
     verification_type: "identity",
     verification_name: "",
     status: "pending",
     notes: "",
   });
-  
+
   const [joiningDate, setJoiningDate] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
+
+  // Edit states
+  const [showEditCandidateDialog, setShowEditCandidateDialog] = useState(false);
+  const [showEditRoundDialog, setShowEditRoundDialog] = useState(false);
+  const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
+
+  const handleEditCandidate = () => {
+    if (!selectedCandidate) return;
+    setCandidateForm({
+      full_name: selectedCandidate.candidate_info.full_name,
+      email: selectedCandidate.candidate_info.email,
+      phone: selectedCandidate.candidate_info.phone,
+      position_applied: selectedCandidate.candidate_info.position_applied,
+      department: selectedCandidate.candidate_info.department,
+      experience_years: selectedCandidate.candidate_info.experience_years,
+      current_company: selectedCandidate.candidate_info.current_company || "",
+      current_ctc: selectedCandidate.candidate_info.current_ctc || "",
+      expected_ctc: selectedCandidate.candidate_info.expected_ctc || "",
+      notice_period: selectedCandidate.candidate_info.notice_period || "",
+      location: selectedCandidate.candidate_info.location || "",
+      comments: selectedCandidate.candidate_info.comments || "",
+    } as CandidateInfo);
+    setShowEditCandidateDialog(true);
+  };
+
+  const handleUpdateCandidate = async () => {
+    if (!selectedCandidate || !candidateForm.full_name || !candidateForm.email) {
+      toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await recruitmentService.updateCandidate(selectedCandidate.id, { candidate_info: candidateForm });
+      toast({ title: "Success", description: "Candidate updated successfully" });
+      setShowEditCandidateDialog(false);
+      loadCandidate(selectedCandidate.id);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update candidate", variant: "destructive" });
+    }
+  };
+
+  const handleEditRound = (round: InterviewRound) => {
+    setEditingRoundId(round.id || null);
+    setInterviewForm({
+      round_name: round.round_name,
+      interviewer_name: round.interviewer_name,
+      interview_date: round.interview_date || "",
+      status: round.status,
+      result: round.result,
+      feedback: round.feedback || "",
+      score: round.score || 0,
+    });
+    setShowEditRoundDialog(true);
+  };
+
+  const handleUpdateRound = async () => {
+    if (!selectedCandidate || !editingRoundId || !interviewForm.round_name || !interviewForm.interviewer_name) {
+      toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await recruitmentService.updateInterviewRound(selectedCandidate.id, editingRoundId, interviewForm);
+      toast({ title: "Success", description: "Interview round updated" });
+      setShowEditRoundDialog(false);
+      setEditingRoundId(null);
+      loadCandidate(selectedCandidate.id);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update interview round", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteRound = async (roundId: string) => {
+    if (!selectedCandidate) return;
+    if (!confirm("Are you sure you want to delete this interview round?")) return;
+
+    try {
+      await recruitmentService.deleteInterviewRound(selectedCandidate.id, roundId);
+      toast({ title: "Success", description: "Interview round deleted" });
+      loadCandidate(selectedCandidate.id);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete interview round", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -181,7 +267,7 @@ const RecruitmentPage = () => {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
     }
-    
+
     try {
       await recruitmentService.createCandidate(candidateForm);
       toast({ title: "Success", description: "Candidate added successfully" });
@@ -197,6 +283,8 @@ const RecruitmentPage = () => {
         current_ctc: "",
         expected_ctc: "",
         notice_period: "",
+        location: "",
+        comments: "",
       });
       loadCandidates();
     } catch (error) {
@@ -209,7 +297,7 @@ const RecruitmentPage = () => {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
     }
-    
+
     try {
       await recruitmentService.addInterviewRound(selectedCandidate.id, interviewForm);
       toast({ title: "Success", description: "Interview round added" });
@@ -231,7 +319,7 @@ const RecruitmentPage = () => {
 
   const handleUpdateInterviewResult = async (roundId: string, result: 'passed' | 'failed', feedback: string) => {
     if (!selectedCandidate) return;
-    
+
     try {
       await recruitmentService.updateInterviewRound(selectedCandidate.id, roundId, {
         result,
@@ -247,12 +335,12 @@ const RecruitmentPage = () => {
 
   const handleCompleteInterviewStage = async (passed: boolean) => {
     if (!selectedCandidate) return;
-    
+
     try {
       await recruitmentService.completeInterviewStage(selectedCandidate.id, passed);
-      toast({ 
-        title: passed ? "Interview Stage Passed" : "Candidate Rejected", 
-        description: passed ? "Moving to verification stage" : "Candidate did not pass interview" 
+      toast({
+        title: passed ? "Interview Stage Passed" : "Candidate Rejected",
+        description: passed ? "Moving to onboarding stage" : "Candidate did not pass interview"
       });
       loadCandidate(selectedCandidate.id);
     } catch (error) {
@@ -265,7 +353,7 @@ const RecruitmentPage = () => {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
     }
-    
+
     try {
       await recruitmentService.addVerification(selectedCandidate.id, verificationForm);
       toast({ title: "Success", description: "Verification added" });
@@ -284,7 +372,7 @@ const RecruitmentPage = () => {
 
   const handleUpdateVerificationStatus = async (verificationId: string, status: 'verified' | 'failed', notes: string) => {
     if (!selectedCandidate) return;
-    
+
     try {
       await recruitmentService.updateVerification(selectedCandidate.id, verificationId, {
         status,
@@ -300,12 +388,12 @@ const RecruitmentPage = () => {
 
   const handleCompleteVerificationStage = async (passed: boolean) => {
     if (!selectedCandidate) return;
-    
+
     try {
       await recruitmentService.completeVerificationStage(selectedCandidate.id, passed);
-      toast({ 
-        title: passed ? "Verification Passed" : "Candidate Rejected", 
-        description: passed ? "Ready for onboarding" : "Verification failed" 
+      toast({
+        title: passed ? "Verification Passed" : "Candidate Rejected",
+        description: passed ? "Ready for onboarding" : "Verification failed"
       });
       loadCandidate(selectedCandidate.id);
     } catch (error) {
@@ -318,7 +406,7 @@ const RecruitmentPage = () => {
       toast({ title: "Error", description: "Please select joining date", variant: "destructive" });
       return;
     }
-    
+
     try {
       await recruitmentService.completeOnboarding(selectedCandidate.id, joiningDate, {
         full_name: selectedCandidate.candidate_info.full_name,
@@ -327,9 +415,9 @@ const RecruitmentPage = () => {
         department: selectedCandidate.candidate_info.department,
         designation: selectedCandidate.candidate_info.position_applied,
       });
-      toast({ 
-        title: "🎉 Employee Hired!", 
-        description: `${selectedCandidate.candidate_info.full_name} has been added to the system` 
+      toast({
+        title: "🎉 Employee Hired!",
+        description: `${selectedCandidate.candidate_info.full_name} has been added to the system`
       });
       setShowOnboardDialog(false);
       navigate("/recruitment");
@@ -344,7 +432,7 @@ const RecruitmentPage = () => {
       toast({ title: "Error", description: "Please provide rejection reason", variant: "destructive" });
       return;
     }
-    
+
     try {
       await recruitmentService.rejectCandidate(selectedCandidate.id, rejectionReason);
       toast({ title: "Candidate Rejected", description: "Candidate has been rejected" });
@@ -390,23 +478,21 @@ const RecruitmentPage = () => {
     switch (stage) {
       case 'interview':
         return <Badge className="bg-purple-100 text-purple-800">Stage 1: Interview</Badge>;
-      case 'verification':
-        return <Badge className="bg-orange-100 text-orange-800">Stage 2: Verification</Badge>;
       case 'onboarding':
-        return <Badge className="bg-green-100 text-green-800">Stage 3: Onboarding</Badge>;
+        return <Badge className="bg-green-100 text-green-800">Stage 2: Onboarding</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
     }
   };
 
   const filteredCandidates = candidates.filter(c => {
-    const matchesSearch = 
+    const matchesSearch =
       c.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.position_applied?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesStage = stageFilter === "all" || c.current_stage === stageFilter;
-    
+
     return matchesSearch && matchesStage;
   });
 
@@ -454,12 +540,11 @@ const RecruitmentPage = () => {
             <div className="flex items-center justify-between">
               {/* Stage 1: Interview */}
               <div className={`flex-1 text-center ${selectedCandidate.current_stage === 'interview' ? 'opacity-100' : 'opacity-60'}`}>
-                <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
-                  selectedCandidate.interview_status === 'passed' ? 'bg-green-500 text-white' :
+                <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${selectedCandidate.interview_status === 'passed' ? 'bg-green-500 text-white' :
                   selectedCandidate.interview_status === 'failed' ? 'bg-red-500 text-white' :
-                  selectedCandidate.current_stage === 'interview' ? 'bg-blue-500 text-white' :
-                  'bg-gray-200 text-gray-500'
-                }`}>
+                    selectedCandidate.current_stage === 'interview' ? 'bg-blue-500 text-white' :
+                      'bg-gray-200 text-gray-500'
+                  }`}>
                   <ClipboardCheck className="h-6 w-6" />
                 </div>
                 <p className="mt-2 font-medium">Step 1</p>
@@ -467,37 +552,21 @@ const RecruitmentPage = () => {
                 {getStatusBadge(selectedCandidate.interview_status)}
               </div>
 
-              <ChevronRight className="h-6 w-6 text-gray-400" />
 
-              {/* Stage 2: Verification */}
-              <div className={`flex-1 text-center ${selectedCandidate.current_stage === 'verification' ? 'opacity-100' : 'opacity-60'}`}>
-                <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
-                  selectedCandidate.verification_status === 'passed' ? 'bg-green-500 text-white' :
-                  selectedCandidate.verification_status === 'failed' ? 'bg-red-500 text-white' :
-                  selectedCandidate.current_stage === 'verification' ? 'bg-blue-500 text-white' :
-                  'bg-gray-200 text-gray-500'
-                }`}>
-                  <Shield className="h-6 w-6" />
-                </div>
-                <p className="mt-2 font-medium">Step 2</p>
-                <p className="text-sm text-gray-500">Background Verification</p>
-                {getStatusBadge(selectedCandidate.verification_status)}
-              </div>
 
               <ChevronRight className="h-6 w-6 text-gray-400" />
 
               {/* Stage 3: Onboarding */}
               <div className={`flex-1 text-center ${selectedCandidate.current_stage === 'onboarding' ? 'opacity-100' : 'opacity-60'}`}>
-                <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
-                  selectedCandidate.final_status === 'hired' ? 'bg-green-500 text-white' :
+                <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${selectedCandidate.final_status === 'hired' ? 'bg-green-500 text-white' :
                   selectedCandidate.current_stage === 'onboarding' ? 'bg-blue-500 text-white' :
-                  'bg-gray-200 text-gray-500'
-                }`}>
+                    'bg-gray-200 text-gray-500'
+                  }`}>
                   <UserCheck className="h-6 w-6" />
                 </div>
-                <p className="mt-2 font-medium">Step 3</p>
+                <p className="mt-2 font-medium">Step 2</p>
                 <p className="text-sm text-gray-500">Final Onboarding</p>
-                {selectedCandidate.final_status === 'hired' ? 
+                {selectedCandidate.final_status === 'hired' ?
                   <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Hired</Badge> :
                   getStatusBadge(selectedCandidate.onboarding_status)
                 }
@@ -510,9 +579,15 @@ const RecruitmentPage = () => {
           {/* Candidate Info */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5" />
-                Candidate Information
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Candidate Information
+                </span>
+                <Button size="sm" variant="ghost" onClick={handleEditCandidate}>
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -545,6 +620,16 @@ const RecruitmentPage = () => {
                   <p className="text-gray-500">Notice Period</p>
                   <p className="font-medium">{selectedCandidate.candidate_info.notice_period || '-'}</p>
                 </div>
+                <div>
+                  <p className="text-gray-500">Location</p>
+                  <p className="font-medium">{selectedCandidate.candidate_info.location || '-'}</p>
+                </div>
+                {selectedCandidate.candidate_info.comments && (
+                  <div className="col-span-2">
+                    <p className="text-gray-500">Comments</p>
+                    <p className="font-medium">{selectedCandidate.candidate_info.comments}</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -582,9 +667,17 @@ const RecruitmentPage = () => {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
+                            {/* Edit/Delete Actions */}
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleEditRound(round)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteRound(round.id!)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+
                             {round.result === 'pending' && selectedCandidate.current_stage === 'interview' ? (
                               <>
-                                <Button size="sm" variant="outline" className="text-green-600" 
+                                <Button size="sm" variant="outline" className="text-green-600"
                                   onClick={() => handleUpdateInterviewResult(round.id!, 'passed', '')}>
                                   <CheckCircle className="h-4 w-4" />
                                 </Button>
@@ -615,7 +708,7 @@ const RecruitmentPage = () => {
 // (Cleanup) Remove misplaced code fragments from JSX. Ensure all imports are at the top, and hooks/handlers are inside the component but outside JSX.
                   </div>
                 )}
-                
+
                 {selectedCandidate.current_stage === 'interview' && selectedCandidate.interview_rounds?.length > 0 && (
                   <div className="mt-4 pt-4 border-t flex gap-2">
                     <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleCompleteInterviewStage(true)}>
@@ -625,106 +718,6 @@ const RecruitmentPage = () => {
                     <Button variant="destructive" className="flex-1" onClick={() => handleCompleteInterviewStage(false)}>
                       <XCircle className="h-4 w-4 mr-2" />
                       Fail Interview Stage
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Stage 2: Background Verification */}
-          {(selectedCandidate.current_stage === 'verification' || selectedCandidate.verification_status === 'passed') && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    Background Verification
-                  </span>
-                  {selectedCandidate.current_stage === 'verification' && (
-                    <Button size="sm" onClick={() => setShowVerificationDialog(true)}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Verification
-                    </Button>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {selectedCandidate.background_verifications?.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No verifications added yet</p>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="mb-2 flex items-center gap-2">
-                      <input type="checkbox" id="selectAllVerifications" onChange={e => {
-                        const checked = e.target.checked;
-                        setSelectedVerifications(checked ? selectedCandidate.background_verifications.map(v => v.id).filter((id): id is string => typeof id === 'string') : []);
-                      }} />
-                      <Label htmlFor="selectAllVerifications">Select All</Label>
-                    </div>
-                    {selectedCandidate.background_verifications?.map((verification, index) => (
-                      <div key={verification.id || index} className="p-3 border rounded-lg flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <input type="checkbox" checked={selectedVerifications?.includes(verification.id ?? '')} onChange={e => {
-                              const checked = e.target.checked;
-                               setSelectedVerifications(prev => checked ? [...prev, ...(verification.id ? [verification.id] : [])] : prev.filter(id => id !== verification.id));
-                            }} />
-                            {verification.verification_type === 'identity' && <FileText className="h-4 w-4" />}
-                            {verification.verification_type === 'education' && <GraduationCap className="h-4 w-4" />}
-                            {verification.verification_type === 'employment' && <Building className="h-4 w-4" />}
-                            {verification.verification_type === 'criminal' && <AlertTriangle className="h-4 w-4" />}
-                            <div>
-                              <p className="font-medium">{verification.verification_name}</p>
-                              <p className="text-sm text-gray-500 capitalize">{verification.verification_type} Check</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <Button size="sm" variant="outline" onClick={() => handleSendVerificationMail(selectedCandidate.id, verification.id ?? '')}>
-                              <Eye className="h-4 w-4 mr-1" /> Send Mail
-                            </Button>
-                            {verification.status === 'pending' && selectedCandidate.current_stage === 'verification' ? (
-                              <>
-                                <Button size="sm" variant="outline" className="text-green-600"
-                                  onClick={() => handleUpdateVerificationStatus(verification.id!, 'verified', '')}>
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                                <Button size="sm" variant="outline" className="text-red-600"
-                                  onClick={() => handleUpdateVerificationStatus(verification.id!, 'failed', '')}>
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              getStatusBadge(verification.status)
-                            )}
-                          </div>
-                        </div>
-                        {verification.documents && verification.documents.length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-xs font-semibold mb-1">Uploaded Documents:</p>
-                            <ul className="list-disc ml-4">
-                              {verification.documents.map((doc, i) => (
-                                <li key={i}><a href={doc} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Document {i + 1}</a></li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {verification.notes && (
-                          <p className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">{verification.notes}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {selectedCandidate.current_stage === 'verification' && selectedCandidate.background_verifications?.length > 0 && (
-                  <div className="mt-4 pt-4 border-t flex gap-2">
-                    <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleCompleteVerificationStage(true)}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Pass Verification
-                    </Button>
-                    <Button variant="destructive" className="flex-1" onClick={() => handleCompleteVerificationStage(false)}>
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Fail Verification
                     </Button>
                   </div>
                 )}
@@ -744,7 +737,7 @@ const RecruitmentPage = () => {
               <CardContent>
                 <div className="bg-green-50 p-4 rounded-lg mb-4">
                   <p className="text-green-800 font-medium">🎉 Candidate has passed all stages!</p>
-                  <p className="text-green-600 text-sm">Interview and background verification completed successfully.</p>
+                  <p className="text-green-600 text-sm">Interview completed successfully.</p>
                 </div>
                 <Button className="w-full bg-green-600 hover:bg-green-700" size="lg" onClick={() => setShowOnboardDialog(true)}>
                   <UserCheck className="h-5 w-5 mr-2" />
@@ -782,26 +775,26 @@ const RecruitmentPage = () => {
             <div className="space-y-4 py-4">
               <div>
                 <Label>Round Name *</Label>
-                <Input 
+                <Input
                   placeholder="e.g., Technical Round 1, HR Round"
                   value={interviewForm.round_name}
-                  onChange={(e) => setInterviewForm({...interviewForm, round_name: e.target.value})}
+                  onChange={(e) => setInterviewForm({ ...interviewForm, round_name: e.target.value })}
                 />
               </div>
               <div>
                 <Label>Interviewer Name *</Label>
-                <Input 
+                <Input
                   placeholder="Interviewer name"
                   value={interviewForm.interviewer_name}
-                  onChange={(e) => setInterviewForm({...interviewForm, interviewer_name: e.target.value})}
+                  onChange={(e) => setInterviewForm({ ...interviewForm, interviewer_name: e.target.value })}
                 />
               </div>
               <div>
                 <Label>Interview Date</Label>
-                <Input 
+                <Input
                   type="datetime-local"
                   value={interviewForm.interview_date}
-                  onChange={(e) => setInterviewForm({...interviewForm, interview_date: e.target.value})}
+                  onChange={(e) => setInterviewForm({ ...interviewForm, interview_date: e.target.value })}
                 />
               </div>
             </div>
@@ -822,10 +815,10 @@ const RecruitmentPage = () => {
             <div className="space-y-4 py-4">
               <div>
                 <Label>Verification Type *</Label>
-                <select 
+                <select
                   className="w-full px-3 py-2 border rounded-md"
                   value={verificationForm.verification_type}
-                  onChange={(e) => setVerificationForm({...verificationForm, verification_type: e.target.value as any})}
+                  onChange={(e) => setVerificationForm({ ...verificationForm, verification_type: e.target.value as any })}
                 >
                   <option value="identity">Identity Verification</option>
                   <option value="education">Education Verification</option>
@@ -836,18 +829,18 @@ const RecruitmentPage = () => {
               </div>
               <div>
                 <Label>Verification Name *</Label>
-                <Input 
+                <Input
                   placeholder="e.g., Aadhaar Card, Degree Certificate"
                   value={verificationForm.verification_name}
-                  onChange={(e) => setVerificationForm({...verificationForm, verification_name: e.target.value})}
+                  onChange={(e) => setVerificationForm({ ...verificationForm, verification_name: e.target.value })}
                 />
               </div>
               <div>
                 <Label>Notes</Label>
-                <Textarea 
+                <Textarea
                   placeholder="Additional notes"
                   value={verificationForm.notes}
-                  onChange={(e) => setVerificationForm({...verificationForm, notes: e.target.value})}
+                  onChange={(e) => setVerificationForm({ ...verificationForm, notes: e.target.value })}
                 />
               </div>
             </div>
@@ -873,7 +866,7 @@ const RecruitmentPage = () => {
               </div>
               <div>
                 <Label>Joining Date *</Label>
-                <Input 
+                <Input
                   type="date"
                   value={joiningDate}
                   onChange={(e) => setJoiningDate(e.target.value)}
@@ -900,7 +893,7 @@ const RecruitmentPage = () => {
             <div className="space-y-4 py-4">
               <div>
                 <Label>Rejection Reason *</Label>
-                <Textarea 
+                <Textarea
                   placeholder="Enter the reason for rejection"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
@@ -910,6 +903,110 @@ const RecruitmentPage = () => {
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
               <Button variant="destructive" onClick={handleRejectCandidate}>Reject Candidate</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Candidate Dialog */}
+        <Dialog open={showEditCandidateDialog} onOpenChange={setShowEditCandidateDialog}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Candidate Information</DialogTitle>
+              <DialogDescription>Update candidate details</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div>
+                <Label>Full Name *</Label>
+                <Input value={candidateForm.full_name} onChange={(e) => setCandidateForm({ ...candidateForm, full_name: e.target.value })} />
+              </div>
+              <div>
+                <Label>Email *</Label>
+                <Input value={candidateForm.email} onChange={(e) => setCandidateForm({ ...candidateForm, email: e.target.value })} />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input value={candidateForm.phone} onChange={(e) => setCandidateForm({ ...candidateForm, phone: e.target.value })} />
+              </div>
+              <div>
+                <Label>Position Applied *</Label>
+                <Input value={candidateForm.position_applied} onChange={(e) => setCandidateForm({ ...candidateForm, position_applied: e.target.value })} />
+              </div>
+              <div>
+                <Label>Department</Label>
+                <Input value={candidateForm.department} onChange={(e) => setCandidateForm({ ...candidateForm, department: e.target.value })} />
+              </div>
+              <div>
+                <Label>Experience (Years)</Label>
+                <Input type="number" value={candidateForm.experience_years} onChange={(e) => setCandidateForm({ ...candidateForm, experience_years: parseFloat(e.target.value) })} />
+              </div>
+              <div>
+                <Label>Current Company</Label>
+                <Input value={candidateForm.current_company} onChange={(e) => setCandidateForm({ ...candidateForm, current_company: e.target.value })} />
+              </div>
+              <div>
+                <Label>Current CTC</Label>
+                <Input value={candidateForm.current_ctc} onChange={(e) => setCandidateForm({ ...candidateForm, current_ctc: e.target.value })} />
+              </div>
+              <div>
+                <Label>Expected CTC</Label>
+                <Input value={candidateForm.expected_ctc} onChange={(e) => setCandidateForm({ ...candidateForm, expected_ctc: e.target.value })} />
+              </div>
+              <div>
+                <Label>Notice Period</Label>
+                <Input value={candidateForm.notice_period} onChange={(e) => setCandidateForm({ ...candidateForm, notice_period: e.target.value })} />
+              </div>
+              <div>
+                <Label>Location *</Label>
+                <Input value={candidateForm.location} onChange={(e) => setCandidateForm({ ...candidateForm, location: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>Comments</Label>
+                <Textarea value={candidateForm.comments} onChange={(e) => setCandidateForm({ ...candidateForm, comments: e.target.value })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEditCandidateDialog(false)}>Cancel</Button>
+              <Button onClick={handleUpdateCandidate}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Interview Round Dialog */}
+        <Dialog open={showEditRoundDialog} onOpenChange={setShowEditRoundDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Interview Round</DialogTitle>
+              <DialogDescription>Update interview details and schedule</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Round Name *</Label>
+                <Input
+                  placeholder="e.g., Technical Round 1, HR Round"
+                  value={interviewForm.round_name}
+                  onChange={(e) => setInterviewForm({ ...interviewForm, round_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Interviewer Name *</Label>
+                <Input
+                  placeholder="Interviewer name"
+                  value={interviewForm.interviewer_name}
+                  onChange={(e) => setInterviewForm({ ...interviewForm, interviewer_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Interview Date</Label>
+                <Input
+                  type="datetime-local"
+                  value={interviewForm.interview_date}
+                  onChange={(e) => setInterviewForm({ ...interviewForm, interview_date: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEditRoundDialog(false)}>Cancel</Button>
+              <Button onClick={handleUpdateRound}>Update Round</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1012,7 +1109,7 @@ const RecruitmentPage = () => {
                 </TableRow>
               ) : (
                 filteredCandidates.map((candidate) => (
-                  <TableRow key={candidate.id} className="cursor-pointer hover:bg-gray-50" 
+                  <TableRow key={candidate.id} className="cursor-pointer hover:bg-gray-50"
                     onClick={() => navigate(`/recruitment/${candidate.id}`)}>
                     <TableCell>
                       <div>
@@ -1065,84 +1162,100 @@ const RecruitmentPage = () => {
           <div className="grid grid-cols-2 gap-4 py-4">
             <div>
               <Label>Full Name *</Label>
-              <Input 
+              <Input
                 placeholder="Candidate's full name"
                 value={candidateForm.full_name}
-                onChange={(e) => setCandidateForm({...candidateForm, full_name: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, full_name: e.target.value })}
               />
             </div>
             <div>
               <Label>Email *</Label>
-              <Input 
+              <Input
                 type="email"
                 placeholder="email@example.com"
                 value={candidateForm.email}
-                onChange={(e) => setCandidateForm({...candidateForm, email: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, email: e.target.value })}
               />
             </div>
             <div>
               <Label>Phone</Label>
-              <Input 
+              <Input
                 placeholder="Phone number"
                 value={candidateForm.phone}
-                onChange={(e) => setCandidateForm({...candidateForm, phone: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, phone: e.target.value })}
               />
             </div>
             <div>
               <Label>Position Applied *</Label>
-              <Input 
+              <Input
                 placeholder="e.g., Software Engineer"
                 value={candidateForm.position_applied}
-                onChange={(e) => setCandidateForm({...candidateForm, position_applied: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, position_applied: e.target.value })}
               />
             </div>
             <div>
               <Label>Department</Label>
-              <Input 
+              <Input
                 placeholder="e.g., Engineering"
                 value={candidateForm.department}
-                onChange={(e) => setCandidateForm({...candidateForm, department: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, department: e.target.value })}
               />
             </div>
             <div>
               <Label>Experience (Years)</Label>
-              <Input 
+              <Input
                 type="number"
                 min="0"
                 value={candidateForm.experience_years}
-                onChange={(e) => setCandidateForm({...candidateForm, experience_years: parseInt(e.target.value) || 0})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, experience_years: parseInt(e.target.value) || 0 })}
               />
             </div>
             <div>
               <Label>Current Company</Label>
-              <Input 
+              <Input
                 placeholder="Current employer"
                 value={candidateForm.current_company}
-                onChange={(e) => setCandidateForm({...candidateForm, current_company: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, current_company: e.target.value })}
               />
             </div>
             <div>
               <Label>Current CTC</Label>
-              <Input 
+              <Input
                 placeholder="e.g., 8 LPA"
                 value={candidateForm.current_ctc}
-                onChange={(e) => setCandidateForm({...candidateForm, current_ctc: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, current_ctc: e.target.value })}
               />
             </div>
             <div>
               <Label>Expected CTC</Label>
-              <Input 
+              <Input
                 placeholder="e.g., 12 LPA"
                 value={candidateForm.expected_ctc}
-                onChange={(e) => setCandidateForm({...candidateForm, expected_ctc: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, expected_ctc: e.target.value })}
               />
             </div>
             <div>
               <Label>Notice Period</Label>
-              <Input 
+              <Input
                 placeholder="e.g., 30 days"
                 value={candidateForm.notice_period}
-                onChange={(e) => setCandidateForm({...candidateForm, notice_period: e.target.value})}
+                onChange={(e) => setCandidateForm({ ...candidateForm, notice_period: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Location *</Label>
+              <Input
+                placeholder="e.g., Bangalore"
+                value={candidateForm.location}
+                onChange={(e) => setCandidateForm({ ...candidateForm, location: e.target.value })}
+              />
+            </div>
+            <div className="col-span-2">
+              <Label>Comments</Label>
+              <Textarea
+                placeholder="Additional comments"
+                value={candidateForm.comments}
+                onChange={(e) => setCandidateForm({ ...candidateForm, comments: e.target.value })}
               />
             </div>
           </div>
