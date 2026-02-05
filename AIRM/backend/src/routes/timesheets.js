@@ -40,9 +40,9 @@ router.post('/clock-in', [
     );
 
     if (activeEntry.rows.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Already clocked in',
-        message: 'You already have an active time entry' 
+        message: 'You already have an active time entry'
       });
     }
 
@@ -71,9 +71,9 @@ router.post('/clock-in', [
     });
   } catch (error) {
     console.error('Clock in error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to clock in',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -86,17 +86,17 @@ function getWeekStartMonday(date) {
   // Get local date string (YYYY-MM-DD)
   const localDateStr = date.toLocaleDateString('en-CA');
   const [year, month, day] = localDateStr.split('-').map(Number);
-  
+
   // Create local date object
   const localDate = new Date(year, month - 1, day);
   const dayOfWeek = localDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  
+
   // Calculate Monday: if Sunday (0), go back 6 days; otherwise go back (dayOfWeek - 1) days
   const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   const weekStart = new Date(localDate);
   weekStart.setDate(weekStart.getDate() - daysToMonday);
   weekStart.setHours(0, 0, 0, 0);
-  
+
   // Format as YYYY-MM-DD
   const weekStartYear = weekStart.getFullYear();
   const weekStartMonth = String(weekStart.getMonth() + 1).padStart(2, '0');
@@ -112,7 +112,7 @@ function getWeekEnd(weekStartStr) {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
   weekEnd.setHours(23, 59, 59, 999);
-  
+
   const year = weekEnd.getFullYear();
   const month = String(weekEnd.getMonth() + 1).padStart(2, '0');
   const day = String(weekEnd.getDate()).padStart(2, '0');
@@ -139,9 +139,9 @@ router.post('/clock-out', [
     );
 
     if (activeEntry.rows.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'No active entry',
-        message: 'You are not currently clocked in' 
+        message: 'You are not currently clocked in'
       });
     }
 
@@ -154,7 +154,7 @@ router.post('/clock-out', [
     const pausedMs = (entry.paused_duration || 0) * 60 * 60 * 1000;
     const actualWorkMs = totalMs - pausedMs;
     let totalHours = actualWorkMs / (1000 * 60 * 60);
-    
+
     // Ensure minimum of 0.01 hours (36 seconds) if there's any time difference at all
     // This handles cases where clock-in/out happens very quickly
     if (totalMs > 0 && totalHours < 0.01) {
@@ -174,14 +174,37 @@ router.post('/clock-out', [
       [clockOutTime, totalHours, entry.id]
     );
 
-    // Add comment to issue if provided
-    if (comment && entry.issue_id) {
+    // Add comment and activity to issue if linked
+    if (entry.issue_id) {
+      // Get issue details for estimated hours
+      const issueResult = await pool.query(
+        'SELECT title, estimated_hours FROM erp.issues WHERE id = $1',
+        [entry.issue_id]
+      );
+      const issue = issueResult.rows[0];
+      const estimatedHours = issue ? (issue.estimated_hours || 0) : 0;
+
+      // Construct automated time comment
+      const formattedClockIn = clockInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const formattedClockOut = clockOutTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      let timeComment = `⏱️ **Time Tracked**\n`;
+      timeComment += `- **Session:** ${formattedClockIn} - ${formattedClockOut}\n`;
+      timeComment += `- **Duration:** ${totalHours.toFixed(2)} hours\n`;
+      timeComment += `- **Estimate:** ${parseFloat(estimatedHours).toFixed(2)} hours\n`;
+
+      if (comment) {
+        timeComment += `\n**Note:** ${comment}`;
+      }
+
+      // Add comment
       await pool.query(
         `INSERT INTO erp.issue_comments (issue_id, user_id, comment)
          VALUES ($1, $2, $3)`,
-        [entry.issue_id, userId, comment]
+        [entry.issue_id, userId, timeComment]
       );
 
+      // Add activity
       await pool.query(
         `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
          VALUES ($1, $2, $3, $4)`,
@@ -190,8 +213,9 @@ router.post('/clock-out', [
           userId,
           'work_completed',
           JSON.stringify({
-            comment: comment.substring(0, 100),
-            hours_worked: totalHours,
+            comment: comment || '',
+            duration: totalHours,
+            estimate: estimatedHours
           }),
         ]
       );
@@ -205,15 +229,15 @@ router.post('/clock-out', [
     console.log('Clock in time:', clockInTime.toISOString());
     console.log('Clock out time:', clockOutTime.toISOString());
     console.log('Total hours calculated:', totalHours);
-    
+
     let timesheetUpdateSuccess = false;
     let timesheetError = null;
-    
+
     try {
       // Round to 2 decimal places to avoid floating point issues, but keep even very small values
       const roundedHours = Math.round(totalHours * 100) / 100;
       console.log('Rounded hours:', roundedHours);
-      
+
       // Only add to timesheet if hours > 0 (even if very small like 0.01)
       // But also log if hours are 0 so we can debug
       if (roundedHours <= 0) {
@@ -223,17 +247,17 @@ router.post('/clock-out', [
         console.log('⚠️ This clock-out will NOT appear in timesheet because hours are 0');
       } else {
         console.log('✅ Hours > 0, proceeding with timesheet update...');
-        
+
         // Calculate week start using helper function (simplified and consistent)
         const weekStartStr = getWeekStartMonday(clockOutTime);
         const weekEndStr = getWeekEnd(weekStartStr);
-        
+
         // Get day of week for the clock-out date
         const localDateStr = clockOutTime.toLocaleDateString('en-CA');
         const [year, month, day] = localDateStr.split('-').map(Number);
         const localDate = new Date(year, month - 1, day);
         const dayOfWeek = localDate.getDay();
-        
+
         console.log('=== WEEK CALCULATION ===');
         console.log('Clock out time:', clockOutTime.toISOString());
         console.log('Local date:', localDateStr);
@@ -254,13 +278,13 @@ router.post('/clock-out', [
         };
 
         const dayColumn = dayColumnMap[dayOfWeek] || 'mon_hours';
-        
+
         // Log which day the hours will be added to
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         console.log(`📅 Clock-out day: ${dayNames[dayOfWeek]} (${dayOfWeek}) -> Column: ${dayColumn}`);
         console.log(`📅 Clock-out date: ${clockOutTime.toISOString().split('T')[0]}`);
         console.log(`📅 Week: ${weekStartStr} to ${weekEndStr}`);
-        
+
         // Determine project and task - REWRITTEN for better reliability
         let project = entry.project_name || 'General';
         let task = 'General Work';
@@ -348,7 +372,7 @@ router.post('/clock-out', [
           task,
           source: 'time_clock'
         });
-        
+
         const existingEntry = await pool.query(
           `SELECT id, ${dayColumn} as current_hours, project, task FROM erp.timesheet_entries 
            WHERE timesheet_id = $1 AND project = $2 AND task = $3 AND source = 'time_clock'
@@ -369,14 +393,14 @@ router.post('/clock-out', [
           const entryId = existingEntry.rows[0].id;
           const currentHours = parseFloat(existingEntry.rows[0].current_hours) || 0;
           const newHours = Math.round((currentHours + roundedHours) * 100) / 100;
-          
+
           console.log(`📝 Updating entry ${entryId}:`, {
             dayColumn,
             currentHours,
             adding: roundedHours,
             newHours
           });
-          
+
           const updateResult = await pool.query(
             `UPDATE erp.timesheet_entries 
              SET ${dayColumn} = $1, updated_at = NOW()
@@ -384,7 +408,7 @@ router.post('/clock-out', [
              RETURNING id, ${dayColumn}`,
             [newHours, entryId]
           );
-          
+
           if (updateResult.rows.length > 0) {
             console.log(`✅ Successfully updated entry ${entryId}: ${dayColumn} = ${updateResult.rows[0][dayColumn]}`);
           } else {
@@ -401,9 +425,9 @@ router.post('/clock-out', [
             sat_hours: [0, 0, 0, 0, 0, roundedHours, 0],
             sun_hours: [0, 0, 0, 0, 0, 0, roundedHours],
           };
-          
+
           const hours = hoursArray[dayColumn] || [0, 0, 0, 0, 0, 0, 0];
-          
+
           console.log(`📝 Inserting new entry:`, {
             timesheetId,
             project,
@@ -412,7 +436,7 @@ router.post('/clock-out', [
             hours,
             source: 'time_clock'
           });
-          
+
           const insertResult = await pool.query(
             `INSERT INTO erp.timesheet_entries 
              (timesheet_id, project, task, mon_hours, tue_hours, wed_hours, thu_hours, fri_hours, sat_hours, sun_hours, source, created_at, updated_at)
@@ -420,10 +444,10 @@ router.post('/clock-out', [
              RETURNING id, ${dayColumn}`,
             [timesheetId, project, task, ...hours]
           );
-          
+
           if (insertResult.rows.length > 0) {
             console.log(`✅ Successfully created entry ${insertResult.rows[0].id}: ${dayColumn} = ${insertResult.rows[0][dayColumn]}`);
-            
+
             // Verify the entry was saved
             const verifyResult = await pool.query(
               `SELECT id, project, task, ${dayColumn} FROM erp.timesheet_entries WHERE id = $1`,
@@ -464,9 +488,9 @@ router.post('/clock-out', [
     });
   } catch (error) {
     console.error('Clock out error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to clock out',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -490,9 +514,9 @@ router.post('/pause', [
     );
 
     if (activeEntry.rows.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'No active entry',
-        message: 'You are not currently clocked in' 
+        message: 'You are not currently clocked in'
       });
     }
 
@@ -513,9 +537,9 @@ router.post('/pause', [
     });
   } catch (error) {
     console.error('Pause error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to pause',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -536,9 +560,9 @@ router.post('/resume', async (req, res) => {
     );
 
     if (pausedEntry.rows.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'No paused entry',
-        message: 'You do not have a paused time entry' 
+        message: 'You do not have a paused time entry'
       });
     }
 
@@ -567,9 +591,9 @@ router.post('/resume', async (req, res) => {
     });
   } catch (error) {
     console.error('Resume error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to resume',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -608,9 +632,9 @@ router.get('/current', async (req, res) => {
     res.json({ entry });
   } catch (error) {
     console.error('Get current entry error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get current entry',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -686,9 +710,9 @@ router.get('/entries', async (req, res) => {
     });
   } catch (error) {
     console.error('Get entries error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get entries',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -726,9 +750,9 @@ router.get('/active', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Get active entries error:', error);
     console.error('Error stack:', error.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get active entries',
-      message: error.message || 'Internal server error' 
+      message: error.message || 'Internal server error'
     });
   }
 });
@@ -743,21 +767,21 @@ router.get('/', async (req, res) => {
     console.log('🔵 GET /api/timesheets called');
     console.log('Query params:', req.query);
     console.log('User ID from token:', req.userId);
-    
+
     // Check if current user is admin
     const adminCheck = await pool.query(
       'SELECT role FROM erp.user_roles WHERE user_id = $1 AND role = $2',
       [req.userId, 'admin']
     );
     const isAdmin = adminCheck.rows.length > 0;
-    
+
     // Determine which user's timesheet to fetch
     let targetUserId = req.userId; // Default to own timesheet
     const { week_start, user_id } = req.query;
-    
+
     console.log('🔍 Request query params:', { week_start, user_id, req_userId: req.userId });
     console.log('🔍 Admin check result:', isAdmin);
-    
+
     // If admin and user_id is provided, use that; otherwise use own user_id
     if (isAdmin && user_id) {
       targetUserId = user_id;
@@ -774,7 +798,7 @@ router.get('/', async (req, res) => {
     } else {
       console.log('👤 User viewing own timesheet:', targetUserId);
     }
-    
+
     console.log('✅ Final targetUserId:', targetUserId);
 
     // Build the base query to find all matching timesheets
@@ -799,7 +823,7 @@ router.get('/', async (req, res) => {
       const weekEndDate = new Date(weekStartDate);
       weekEndDate.setDate(weekEndDate.getDate() + 6); // Add 6 days to get Sunday
       const weekEndStr = weekEndDate.toISOString().split('T')[0];
-      
+
       // Use overlap check: timesheet overlaps if its week_start <= requested week_end AND its week_end >= requested week_start
       // This ensures we catch all timesheets that overlap with the requested week
       query += ` AND (
@@ -845,7 +869,7 @@ router.get('/', async (req, res) => {
         ORDER BY created_at ASC`,
         [t.id]
       );
-      
+
       const entries = entriesResult.rows.map(e => ({
         id: e.id,
         project: e.project || '',
@@ -859,9 +883,9 @@ router.get('/', async (req, res) => {
         sun_hours: e.sun_hours || 0,
         source: e.source || 'manual'
       }));
-      
+
       console.log(`  Timesheet ${t.id}: ${entries.length} entries`);
-      
+
       timesheets.push({
         ...t,
         week_start: t.week_start ? new Date(t.week_start).toISOString().split('T')[0] : t.week_start,
@@ -875,7 +899,7 @@ router.get('/', async (req, res) => {
     console.log('Target User ID:', targetUserId);
     console.log('Requested week_start:', week_start);
     console.log('Found timesheets:', timesheets.length);
-    
+
     // Detailed logging for each timesheet
     timesheets.forEach((t, idx) => {
       console.log(`\nTimesheet ${idx + 1}:`, {
@@ -884,13 +908,13 @@ router.get('/', async (req, res) => {
         week_end: t.week_end,
         entries_count: t.entries?.length || 0
       });
-      
+
       // Log each entry, especially time_clock entries
       if (t.entries && t.entries.length > 0) {
         t.entries.forEach((e, eIdx) => {
-          const totalHours = (e.mon_hours || 0) + (e.tue_hours || 0) + (e.wed_hours || 0) + 
-                            (e.thu_hours || 0) + (e.fri_hours || 0) + (e.sat_hours || 0) + 
-                            (e.sun_hours || 0);
+          const totalHours = (e.mon_hours || 0) + (e.tue_hours || 0) + (e.wed_hours || 0) +
+            (e.thu_hours || 0) + (e.fri_hours || 0) + (e.sat_hours || 0) +
+            (e.sun_hours || 0);
           console.log(`  Entry ${eIdx + 1}:`, {
             id: e.id,
             project: e.project,
@@ -912,9 +936,9 @@ router.get('/', async (req, res) => {
         console.log('  No entries found for this timesheet');
       }
     });
-    
+
     // Count time_clock entries specifically
-    const timeClockEntries = timesheets.flatMap(t => 
+    const timeClockEntries = timesheets.flatMap(t =>
       (t.entries || []).filter(e => e.source === 'time_clock')
     );
     console.log(`\nTotal time_clock entries found: ${timeClockEntries.length}`);
@@ -922,12 +946,12 @@ router.get('/', async (req, res) => {
       console.log('Time clock entries:', timeClockEntries.map(e => ({
         project: e.project,
         task: e.task,
-        total: (e.mon_hours || 0) + (e.tue_hours || 0) + (e.wed_hours || 0) + 
-               (e.thu_hours || 0) + (e.fri_hours || 0) + (e.sat_hours || 0) + 
-               (e.sun_hours || 0)
+        total: (e.mon_hours || 0) + (e.tue_hours || 0) + (e.wed_hours || 0) +
+          (e.thu_hours || 0) + (e.fri_hours || 0) + (e.sat_hours || 0) +
+          (e.sun_hours || 0)
       })));
     }
-    
+
     console.log('=== END TIMESHEET QUERY RESULTS ===');
 
     res.json({
@@ -939,9 +963,9 @@ router.get('/', async (req, res) => {
     console.error('Error code:', error.code);
     console.error('Error detail:', error.detail);
     console.error('Error stack:', error.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get timesheets',
-      message: error.message || 'Internal server error' 
+      message: error.message || 'Internal server error'
     });
   }
 });
@@ -969,7 +993,7 @@ router.post('/', [
       [currentUserId, 'admin']
     );
     const isAdmin = adminCheck.rows.length > 0;
-    
+
     // Determine which user's timesheet to save
     let targetUserId = currentUserId; // Default to own timesheet
     if (isAdmin && user_id) {
@@ -1132,9 +1156,9 @@ router.post('/', [
     console.error('Error code:', error.code);
     console.error('Error detail:', error.detail);
     console.error('Error stack:', error.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to save timesheet',
-      message: error.message || 'Internal server error' 
+      message: error.message || 'Internal server error'
     });
   }
 });
@@ -1176,9 +1200,9 @@ router.get('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'Timesheet not found',
-        message: 'The requested timesheet does not exist' 
+        message: 'The requested timesheet does not exist'
       });
     }
 
@@ -1191,9 +1215,9 @@ router.get('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Get timesheet by ID error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get timesheet',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });

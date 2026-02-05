@@ -101,10 +101,10 @@ export async function getIssueById(issueId) {
  * Create a new issue directly in erp.issues
  */
 export async function createIssue(issueData) {
-  const { title, description, status, priority, project_name, created_by } = issueData;
+  const { title, description, status, priority, project_name, created_by, estimated_hours } = issueData;
   const result = await pool.query(
-    `INSERT INTO erp.issues (title, description, status, priority, project_name, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO erp.issues (title, description, status, priority, project_name, created_by, estimated_hours)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
       title,
@@ -112,7 +112,8 @@ export async function createIssue(issueData) {
       status || 'open',
       priority || 'medium',
       project_name || null,
-      created_by
+      created_by,
+      estimated_hours || 0
     ]
   );
   return result.rows[0];
@@ -545,6 +546,10 @@ export async function updateIssue(issueId, updates) {
     updateFields.push(`project_name = $${paramCount++}`);
     values.push(updates.project_name);
   }
+  if (updates.estimated_hours !== undefined) {
+    updateFields.push(`estimated_hours = $${paramCount++}`);
+    values.push(updates.estimated_hours);
+  }
 
   if (updateFields.length === 0) {
     // No updates, just return the existing issue
@@ -622,5 +627,16 @@ export async function checkUserExists(userId) {
     [userId]
   );
   return result.rows.length > 0;
+}
+
+/**
+ * Delete issue
+ */
+export async function deleteIssue(issueId) {
+  const result = await pool.query(
+    'DELETE FROM erp.issues WHERE id = $1 RETURNING *',
+    [issueId]
+  );
+  return result.rows[0] || null;
 }
 

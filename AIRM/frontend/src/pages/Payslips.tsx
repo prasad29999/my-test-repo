@@ -31,6 +31,7 @@ import {
   Clock,
   Building,
   DollarSign,
+  Wand2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -41,6 +42,7 @@ const Payslips = () => {
   const [selectedPayslip, setSelectedPayslip] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [monthFilter, setMonthFilter] = useState<number | ''>('');
   const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear());
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -160,10 +162,16 @@ const Payslips = () => {
           </p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Payslip
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsGenerateOpen(true)}>
+              <Wand2 className="h-4 w-4 mr-2" />
+              Generate from Attendance
+            </Button>
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Payslip
+            </Button>
+          </div>
         )}
       </div>
 
@@ -510,6 +518,18 @@ const Payslips = () => {
         </Dialog>
       )}
 
+      {/* Generate Payslip Dialog (Admin/HR only) */}
+      {isAdmin && (
+        <GeneratePayslipsDialog
+          isOpen={isGenerateOpen}
+          onClose={() => setIsGenerateOpen(false)}
+          onSuccess={() => {
+            setIsGenerateOpen(false);
+            refetch();
+          }}
+        />
+      )}
+
       {/* Create Payslip Dialog (Admin/HR only) */}
       {isAdmin && (
         <CreatePayslipDialog
@@ -522,6 +542,82 @@ const Payslips = () => {
         />
       )}
     </div>
+  );
+};
+
+const GeneratePayslipsDialog = ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) => {
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const mutations = usePayrollMutation(); // Now includes generatePayslips due to SDK update logic (even if TS might be slightly delayed in detecting type, assuming runtime works) 
+  // Note: If usePayrollMutation type isn't updated in this file context, we might assume it returns any.
+  // However, we updated the hook file. 
+
+  // To safe guard type if not yet picked up
+  const generateMutation = (mutations as any).generatePayslips;
+
+  const handleSubmit = async () => {
+    try {
+      await generateMutation.mutateAsync({
+        month,
+        year
+      });
+      toast({
+        title: 'Success',
+        description: 'Payslips generation started successfully',
+      });
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to generate payslips',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Generate Payslips from Attendance</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <p className="text-sm text-gray-500">
+            This will generate draft payslips for all employees based on their attendance for the selected period.
+            Existing locked payslips will be skipped.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Month</Label>
+              <select
+                value={month}
+                onChange={(e) => setMonth(parseInt(e.target.value))}
+                className="w-full p-2 border rounded mt-1"
+              >
+                {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
+                  <option key={i} value={i + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label>Year</Label>
+              <Input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(parseInt(e.target.value))}
+                className="mt-1"
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={generateMutation?.isPending}>
+            {generateMutation?.isPending ? 'Generating...' : 'Generate Payslips'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

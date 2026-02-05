@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Clock, Play, Square, Pause } from "lucide-react";
+import { Clock, Play, Square, Pause, FolderKanban } from "lucide-react";
 
 interface Issue {
   id: number;
@@ -38,6 +38,8 @@ interface TimeEntry {
 const TimeClock = () => {
   const [user, setUser] = useState<any>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [selectedIssueId, setSelectedIssueId] = useState<string>("");
   const [projectName, setProjectName] = useState("");
   const [notes, setNotes] = useState("");
@@ -57,20 +59,23 @@ const TimeClock = () => {
         setInitializing(true);
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         const token = localStorage.getItem('auth_token');
-        
+
         if (!userData.id || !token) {
           // Redirect to auth if not logged in
           window.location.href = '/auth';
           return;
         }
-        
+
         setUser(userData);
         const currentUser = await api.auth.getMe() as any;
         const adminStatus = currentUser?.user?.role === 'admin';
         setIsAdmin(adminStatus);
-        await loadIssues();
-        await loadCurrentEntry();
-        await loadTimeEntries();
+        await Promise.all([
+          loadIssues(),
+          loadProjects(),
+          loadCurrentEntry(),
+          loadTimeEntries()
+        ]);
       } catch (error: any) {
         console.error('Error initializing user:', error);
         // If auth fails, redirect to login
@@ -85,16 +90,27 @@ const TimeClock = () => {
     initUser();
   }, []);
 
+  const loadProjects = async () => {
+    try {
+      const response = await api.projects.getAll() as any;
+      const allProjects = response?.projects || response || [];
+      setProjects(allProjects);
+    } catch (error) {
+      console.error("Error loading projects:", error);
+      setProjects([]);
+    }
+  };
+
   const loadIssues = async () => {
     try {
       const response = await api.issues.getAll() as any;
       const allIssues = response?.issues || response || [];
-      
+
       // Filter open and in-progress issues
-      const activeIssues = allIssues.filter((issue: any) => 
+      const activeIssues = allIssues.filter((issue: any) =>
         issue.status === 'open' || issue.status === 'in_progress'
       );
-      
+
       // Transform to match Issue interface
       const transformedIssues = activeIssues.map((issue: any) => ({
         id: issue.id,
@@ -102,7 +118,7 @@ const TimeClock = () => {
         project_name: issue.project_name,
         status: issue.status,
       }));
-      
+
       setIssues(transformedIssues);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -116,7 +132,7 @@ const TimeClock = () => {
     try {
       const response = await api.timesheets.getCurrent() as any;
       const entry = response?.entry;
-      
+
       if (entry) {
         // Transform API response to TimeEntry format
         setCurrentEntry({
@@ -151,7 +167,7 @@ const TimeClock = () => {
     try {
       const response = await api.timesheets.getEntries({ limit: 10 }) as any;
       const entries = response?.entries || [];
-      
+
       // Transform API response to TimeEntry format
       const transformedEntries = entries.map((entry: any) => ({
         id: entry.id,
@@ -170,7 +186,7 @@ const TimeClock = () => {
         location_timestamp: entry.location_timestamp,
         location_address: entry.location_address,
       }));
-      
+
       setTimeEntries(transformedEntries);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -180,7 +196,7 @@ const TimeClock = () => {
     }
   };
 
-  const getUserLocation = (): Promise<{latitude: number, longitude: number, accuracy?: number} | null> => {
+  const getUserLocation = (): Promise<{ latitude: number, longitude: number, accuracy?: number } | null> => {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
         console.warn("Geolocation is not supported by this browser");
@@ -204,7 +220,7 @@ const TimeClock = () => {
         },
         (error) => {
           let errorMessage = "Unable to get location";
-          
+
           switch (error.code) {
             case error.PERMISSION_DENIED:
               errorMessage = "Location permission denied. Please enable location access in your browser settings.";
@@ -216,15 +232,15 @@ const TimeClock = () => {
               errorMessage = "Location request timed out. Please try again.";
               break;
           }
-          
+
           toast({
             title: "Location Error",
             description: errorMessage,
           });
-          
+
           resolve(null); // Don't block clock in if location fails
         },
-        { 
+        {
           enableHighAccuracy: true,  // Use GPS for better accuracy
           timeout: 10000,             // Wait up to 10 seconds for accurate position
           maximumAge: 0               // Don't use cached position, always get fresh location
@@ -244,24 +260,24 @@ const TimeClock = () => {
           }
         }
       );
-      
+
       if (!response.ok) {
         console.warn("Failed to fetch address");
         return null;
       }
 
       const data = await response.json();
-      
+
       // Build a readable address from the response
       const address = data.address;
       const parts = [];
-      
+
       if (address.road) parts.push(address.road);
       if (address.suburb || address.neighbourhood) parts.push(address.suburb || address.neighbourhood);
       if (address.city || address.town || address.village) parts.push(address.city || address.town || address.village);
       if (address.state) parts.push(address.state);
       if (address.country) parts.push(address.country);
-      
+
       return parts.length > 0 ? parts.join(", ") : data.display_name;
     } catch (error) {
       console.warn("Error fetching address:", error);
@@ -291,7 +307,7 @@ const TimeClock = () => {
 
       // Get user location
       const location = await getUserLocation();
-      
+
       // Get address from coordinates (if location available)
       let locationAddress = null;
       if (location) {
@@ -312,7 +328,7 @@ const TimeClock = () => {
       }) as any;
 
       const entry = response?.entry;
-      
+
       // Transform API response to TimeEntry format
       setCurrentEntry({
         id: entry.id,
@@ -334,14 +350,14 @@ const TimeClock = () => {
       setSelectedIssueId("");
       setProjectName("");
       setNotes("");
-      
+
       // Build location message with accuracy info
       let locationMsg = "";
       if (locationAddress) {
         locationMsg = ` Location: ${locationAddress}`;
         if (location?.accuracy) {
-          const accuracyText = location.accuracy < 50 ? "High accuracy" : 
-                              location.accuracy < 100 ? "Good accuracy" : "Approximate";
+          const accuracyText = location.accuracy < 50 ? "High accuracy" :
+            location.accuracy < 100 ? "Good accuracy" : "Approximate";
           locationMsg += ` (${accuracyText}: ±${Math.round(location.accuracy)}m)`;
         }
       } else if (location) {
@@ -350,7 +366,7 @@ const TimeClock = () => {
           locationMsg += ` (±${Math.round(location.accuracy)}m accuracy)`;
         }
       }
-      
+
       toast({
         title: "Clocked In Successfully",
         description: `Time tracking started!${locationMsg}`,
@@ -385,21 +401,21 @@ const TimeClock = () => {
       setCurrentEntry(null);
       setShowClockOutDialog(false);
       setClockOutComment("");
-      
+
       // Dispatch custom event to notify timesheet page to refresh
       window.dispatchEvent(new CustomEvent('timesheetClockOut', {
         detail: { totalHours, timestamp: Date.now() }
       }));
-      
+
       // Also set localStorage trigger for cross-tab communication
       localStorage.setItem('timesheetRefreshTrigger', Date.now().toString());
-      
+
       toast({
         title: "Clocked Out Successfully",
         description: `${totalHours.toFixed(2)} hours saved to timesheet${comment ? ' with comment' : ''}. Timesheet will refresh automatically.`,
         duration: 5000,
       });
-      
+
       loadTimeEntries();
     } catch (error: any) {
       toast({
@@ -519,18 +535,18 @@ const TimeClock = () => {
           <CardContent>
             {currentEntry ? (
               <div className="space-y-4">
-                <div className={`p-4 rounded-lg border ${
-                  currentEntry.status === 'paused' 
-                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' 
+                <div className={`p-4 rounded-lg border ${currentEntry.status === 'paused'
+                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
                     : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                }`}>
+                  }`}>
                   <p className="text-sm text-muted-foreground">
                     {currentEntry.status === 'paused' ? 'Work Paused' : 'Currently clocked in'}
                   </p>
-                  <p className="text-lg font-semibold">
+                  <p className="text-lg font-semibold flex items-center gap-2">
+                    <FolderKanban className="h-4 w-4 text-blue-600" />
                     {currentEntry.project_name || "Project"}
                   </p>
-                  <p className="text-base">
+                  <p className="text-base font-medium">
                     Issue: {currentEntry.issue ? `#${currentEntry.issue.id} - ${currentEntry.issue.title}` : "No issue selected"}
                   </p>
                   <p className="text-sm text-muted-foreground">
@@ -575,30 +591,64 @@ const TimeClock = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Select Issue <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    className="w-full p-2 border rounded-md bg-background"
-                    value={selectedIssueId}
-                    onChange={(e) => {
-                      const issueId = e.target.value;
-                      setSelectedIssueId(issueId);
-                      // Auto-populate project name from selected issue
-                      const selectedIssue = issues.find(i => String(i.id) === issueId);
-                      if (selectedIssue?.project_name) {
-                        setProjectName(selectedIssue.project_name);
-                      }
-                    }}
-                  >
-                    <option value="">Select an issue...</option>
-                    {issues.map((issue) => (
-                      <option key={issue.id} value={issue.id}>
-                        #{issue.id} - {issue.title}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">
+                      Select Project <span className="text-red-500">*</span>
+                    </Label>
+                    <select
+                      className="w-full p-2 border rounded-md bg-background focus:ring-1 focus:ring-blue-500 outline-none"
+                      value={selectedProjectId}
+                      onChange={(e) => {
+                        const projId = e.target.value;
+                        setSelectedProjectId(projId);
+                        setSelectedIssueId(""); // Reset issue selection
+
+                        const selectedProj = projects.find(p => String(p.id) === projId);
+                        if (selectedProj) {
+                          setProjectName(selectedProj.name);
+                        } else {
+                          setProjectName("");
+                        }
+                      }}
+                    >
+                      <option value="all">Select a project...</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">
+                      Select Issue <span className="text-red-500">*</span>
+                    </Label>
+                    <select
+                      className="w-full p-2 border rounded-md bg-background focus:ring-1 focus:ring-blue-500 outline-none"
+                      value={selectedIssueId}
+                      onChange={(e) => {
+                        const issueId = e.target.value;
+                        setSelectedIssueId(issueId);
+
+                        const selectedIssue = issues.find(i => String(i.id) === issueId);
+                        if (selectedIssue?.project_name) {
+                          setProjectName(selectedIssue.project_name);
+                          const proj = projects.find(p => p.name === selectedIssue.project_name);
+                          if (proj) setSelectedProjectId(String(proj.id));
+                        }
+                      }}
+                    >
+                      <option value="">Select an issue...</option>
+                      {issues
+                        .filter(issue => selectedProjectId === 'all' || issue.project_name === projectName)
+                        .map((issue) => (
+                          <option key={issue.id} value={issue.id}>
+                            #{issue.id} - {issue.title}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">
@@ -639,24 +689,22 @@ const TimeClock = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-2 h-2 rounded-full ${
-                            entry.status === "clocked_in"
+                          className={`w-2 h-2 rounded-full ${entry.status === "clocked_in"
                               ? "bg-green-500"
                               : entry.status === "paused"
-                              ? "bg-amber-500"
-                              : "bg-gray-400"
-                          }`}
+                                ? "bg-amber-500"
+                                : "bg-gray-400"
+                            }`}
                         />
-                        <h3 className="font-semibold">
+                        <h3 className="font-semibold text-gray-900">
                           {entry.issue ? `#${entry.issue.id} - ${entry.issue.title}` : "No issue"}
                         </h3>
-                        {entry.status === "paused" && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
-                            Paused
-                          </span>
-                        )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5 text-xs text-blue-600 font-medium mt-0.5 ml-4">
+                        <FolderKanban className="h-3 w-3" />
+                        <span>{entry.project_name || "No Project"}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground ml-4">
                         {format(new Date(entry.clock_in), "PPp")}
                         {entry.clock_out &&
                           ` - ${format(new Date(entry.clock_out), "PPp")}`}
@@ -688,11 +736,10 @@ const TimeClock = () => {
                           {entry.total_hours}h
                         </p>
                       ) : (
-                        <p className={`text-sm ${
-                          entry.status === "paused"
+                        <p className={`text-sm ${entry.status === "paused"
                             ? "text-amber-600 dark:text-amber-400"
                             : "text-green-600 dark:text-green-400"
-                        }`}>
+                          }`}>
                           {entry.status === "paused" ? "Paused" : "In Progress"}
                         </p>
                       )}
@@ -789,7 +836,7 @@ const TimeClock = () => {
                 className="min-h-[120px]"
               />
               <p className="text-xs text-muted-foreground">
-                {currentEntry?.issue 
+                {currentEntry?.issue
                   ? "This comment will be added to the issue and helps track your progress."
                   : "This summary will be saved with your time entry."}
               </p>

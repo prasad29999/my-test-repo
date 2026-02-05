@@ -55,7 +55,7 @@ export async function getTimesheets(userId, weekStart) {
     const weekEndDate = new Date(weekStartDate);
     weekEndDate.setDate(weekEndDate.getDate() + 6);
     const weekEndStr = weekEndDate.toISOString().split('T')[0];
-    
+
     query += ` AND (
       CAST(t.week_start AS DATE) = CAST($2 AS DATE) OR
       (CAST(t.week_start AS DATE) <= CAST($3 AS DATE) AND CAST(t.week_end AS DATE) >= CAST($2 AS DATE))
@@ -236,7 +236,7 @@ export async function createTimesheetEntryForDay(timesheetId, project, task, day
  */
 export async function getIssueDetails(issueId) {
   const result = await pool.query(
-    `SELECT title, project_name FROM erp.issues WHERE id = $1`,
+    `SELECT title, project_name, estimated_hours FROM erp.issues WHERE id = $1`,
     [issueId]
   );
   return result.rows[0] || null;
@@ -246,21 +246,39 @@ export async function getIssueDetails(issueId) {
  * Add comment to issue
  */
 export async function addIssueComment(issueId, userId, comment) {
-  await pool.query(
-    `INSERT INTO erp.issue_comments (id, issue_id, user_id, comment)
-     VALUES (gen_random_uuid(), $1, $2, $3)`,
-    [issueId, userId, comment]
-  );
+  try {
+    await pool.query(
+      `INSERT INTO erp.issue_comments (id, issue_id, user_id, comment)
+       VALUES (gen_random_uuid(), $1, $2, $3)`,
+      [issueId, userId, comment]
+    );
+  } catch (err) {
+    // Fallback if gen_random_uuid() is not available
+    await pool.query(
+      `INSERT INTO erp.issue_comments (issue_id, user_id, comment)
+       VALUES ($1, $2, $3)`,
+      [issueId, userId, comment]
+    );
+  }
 }
 
 /**
  * Add issue activity
  */
 export async function addIssueActivity(issueId, userId, action, details) {
-  await pool.query(
-    `INSERT INTO erp.issue_activity (id, issue_id, user_id, action, details)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
-    [issueId, userId, action, JSON.stringify(details)]
-  );
+  try {
+    await pool.query(
+      `INSERT INTO erp.issue_activity (id, issue_id, user_id, action, details)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
+      [issueId, userId, action, JSON.stringify(details)]
+    );
+  } catch (err) {
+    // Fallback
+    await pool.query(
+      `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+       VALUES ($1, $2, $3, $4)`,
+      [issueId, userId, action, JSON.stringify(details)]
+    );
+  }
 }
 

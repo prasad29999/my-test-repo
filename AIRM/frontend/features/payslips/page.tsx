@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from '@/hooks/use-toast';
 import { usePayslips, usePayslip, usePayrollMutation } from '../payroll-pf';
 import type { Payslip } from '@/sdk/features/payroll-pf';
+import { useProfiles } from '../profiles/hooks/useprofiles';
 import {
   FileText,
   Download,
@@ -26,6 +27,7 @@ import {
   CheckCircle,
   Clock,
   DollarSign,
+  Wand2,
 } from 'lucide-react';
 import { generatePayslipPDF } from '../payroll-pf/utils/payslip-pdf-generator';
 
@@ -35,6 +37,7 @@ const Payslips = () => {
   const [selectedPayslip, setSelectedPayslip] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingPayslip, setEditingPayslip] = useState<Payslip | null>(null);
   const [monthFilter, setMonthFilter] = useState<number | ''>('');
@@ -163,10 +166,16 @@ const Payslips = () => {
           </p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Payslip
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsGenerateOpen(true)}>
+              <Wand2 className="h-4 w-4 mr-2" />
+              Generate from Attendance
+            </Button>
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Payslip
+            </Button>
+          </div>
         )}
       </div>
 
@@ -522,7 +531,7 @@ const Payslips = () => {
                       <Download className="h-4 w-4 mr-2" />
                       Download PDF
                     </Button>
-                    
+
                     {payslipDetail.payslip.document_url && (
                       <Button
                         variant="outline"
@@ -537,7 +546,7 @@ const Payslips = () => {
                         View Document
                       </Button>
                     )}
-                    
+
                     {isAdmin && payslipDetail.payslip.status === 'generated' && (
                       <Button
                         onClick={() => handleRelease(payslipDetail.payslip.id)}
@@ -603,6 +612,18 @@ const Payslips = () => {
         </Dialog>
       )}
 
+      {/* Generate Payslip Dialog (Admin/HR only) */}
+      {isAdmin && (
+        <GeneratePayslipsDialog
+          isOpen={isGenerateOpen}
+          onClose={() => setIsGenerateOpen(false)}
+          onSuccess={() => {
+            setIsGenerateOpen(false);
+            refetch();
+          }}
+        />
+      )}
+
       {/* Create Payslip Dialog (Admin/HR only) */}
       {isAdmin && (
         <CreatePayslipDialog
@@ -640,6 +661,101 @@ const Payslips = () => {
         />
       )}
     </div>
+  );
+
+};
+
+const GeneratePayslipsDialog = ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) => {
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
+  const mutations = usePayrollMutation();
+  const { data: profiles = [] } = useProfiles();
+
+  // To safe guard type if not yet picked up
+  const generateMutation = (mutations as any).generatePayslips;
+
+  const handleSubmit = async () => {
+    try {
+      await generateMutation.mutateAsync({
+        month,
+        year,
+        ...(selectedEmployee !== 'all' && { user_id: selectedEmployee })
+      });
+      toast({
+        title: 'Success',
+        description: 'Payslips generation started successfully',
+      });
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to generate payslips',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Generate Payslips from Attendance</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <p className="text-sm text-gray-500">
+            This will generate draft payslips based on attendance for the selected period.
+            Existing locked payslips will be skipped.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label>Employee</Label>
+              <select
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+                className="w-full p-2 border rounded mt-1"
+              >
+                <option value="all">All Employees</option>
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.full_name} ({profile.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Month</Label>
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(parseInt(e.target.value))}
+                  className="w-full p-2 border rounded mt-1"
+                >
+                  {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
+                    <option key={i} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label>Year</Label>
+                <Input
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(parseInt(e.target.value))}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={generateMutation?.isPending}>
+            {generateMutation?.isPending ? 'Generating...' : 'Generate Payslips'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -1001,16 +1117,16 @@ const CreatePayslipDialog = ({ isOpen, onClose, onSuccess }: { isOpen: boolean; 
 /**
  * Edit Payslip Dialog Component
  */
-const EditPayslipDialog = ({ 
-  isOpen, 
-  payslip, 
-  onClose, 
-  onSuccess 
-}: { 
-  isOpen: boolean; 
-  payslip: Payslip; 
-  onClose: () => void; 
-  onSuccess: () => void 
+const EditPayslipDialog = ({
+  isOpen,
+  payslip,
+  onClose,
+  onSuccess
+}: {
+  isOpen: boolean;
+  payslip: Payslip;
+  onClose: () => void;
+  onSuccess: () => void
 }) => {
   const [payslipForm, setPayslipForm] = useState({
     user_id: payslip.user_id || '',

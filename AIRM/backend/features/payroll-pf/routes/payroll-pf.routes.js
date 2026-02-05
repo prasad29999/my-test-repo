@@ -34,6 +34,12 @@ router.get('/payslips/:id', payslipController.getPayslipById);
 router.post('/payslips', payslipController.upsertPayslip);
 
 /**
+ * POST /api/payroll-pf/payslips/generate
+ * Generate payslips from attendance (HR/Admin only)
+ */
+router.post('/payslips/generate', payslipController.generatePayslips);
+
+/**
  * PUT /api/payroll-pf/payslips/:id
  * Update payslip (HR/Admin only)
  */

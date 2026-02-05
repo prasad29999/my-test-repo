@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
-import { Users as UsersIcon, Shield, User as UserIcon, RefreshCw } from "lucide-react";
+import { Users as UsersIcon, Shield, User as UserIcon, RefreshCw, Plus } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -24,25 +24,25 @@ const Users = () => {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         if (userData.id) {
           setCurrentUser(userData);
-          
+
           // Check admin status from localStorage first (faster)
           const isAdminFromStorage = userData.role === 'admin';
-          
+
           // Also try to get from API as fallback
           try {
-          const currentUserResp = await api.auth.getMe() as any;
-            const isAdminFromAPI = currentUserResp?.user?.role === 'admin' || 
-                                   currentUserResp?.role === 'admin' ||
-                                   currentUserResp?.data?.role === 'admin';
+            const currentUserResp = await api.auth.getMe() as any;
+            const isAdminFromAPI = currentUserResp?.user?.role === 'admin' ||
+              currentUserResp?.role === 'admin' ||
+              currentUserResp?.data?.role === 'admin';
             setIsAdmin(isAdminFromStorage || isAdminFromAPI);
           } catch (apiError) {
             // If API fails, use localStorage value
             console.warn('Could not fetch user from API, using localStorage:', apiError);
             setIsAdmin(isAdminFromStorage);
           }
-          
+
           await loadUsers();
-      }
+        }
       } catch (error) {
         console.error('Error initializing users:', error);
         // Fallback: check localStorage role
@@ -66,7 +66,7 @@ const Users = () => {
           role: user.role || 'user',
           created_at: user.created_at,
         }));
-        
+
         setUsers(userProfiles);
       } else {
         setUsers([]);
@@ -110,7 +110,7 @@ const Users = () => {
     setLoading(true);
     try {
       const newRole = currentRole === "admin" ? "user" : "admin";
-      
+
       await api.users.updateRole(userId, newRole);
 
       toast({
@@ -148,8 +148,12 @@ const Users = () => {
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">User Management</h1>
+        <div className="flex items-center justify-between mb-6 mr-12">
+          <h1 className="text-2xl font-bold">Employee Management</h1>
+          <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4" />
+            Add Employee
+          </Button>
         </div>
 
         <Card>
@@ -157,7 +161,7 @@ const Users = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <UsersIcon className="h-5 w-5" />
-                All Users
+                All Employees
               </CardTitle>
               <Button
                 variant="outline"
@@ -191,11 +195,10 @@ const Users = () => {
                         )}
                         <h3 className="font-semibold">{user.email}</h3>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            user.role === "admin"
-                              ? "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200"
-                              : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                          }`}
+                          className={`text-xs px-2 py-0.5 rounded-full ${user.role === "admin"
+                            ? "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                            }`}
                         >
                           {user.role}
                         </span>

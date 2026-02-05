@@ -10,18 +10,7 @@ import * as gitlabService from './gitlab.service.js';
  * Get all projects
  */
 export async function getAllProjects() {
-  const projects = await projectModel.getAllProjects();
-  
-  return projects.map((row, index) => ({
-    id: index + 1, // Temporary ID
-    name: row.name,
-    description: `Project containing ${row.issue_count} issues`,
-    visibility: 'private',
-    issue_count: parseInt(row.issue_count),
-    open_issues: parseInt(row.open_issues),
-    closed_issues: parseInt(row.closed_issues),
-    created_at: row.created_at
-  }));
+  return await projectModel.getAllProjects();
 }
 
 /**
@@ -29,13 +18,13 @@ export async function getAllProjects() {
  */
 export async function getProjectById(id) {
   const project = await projectModel.getProjectById(id);
-  
+
   if (!project) {
     throw new Error('Project not found');
   }
 
   return {
-    id: parseInt(id),
+    id: !isNaN(parseInt(id)) && String(id).match(/^\d+$/) ? parseInt(id) : id,
     name: project.name,
     description: project.description,
     visibility: 'private',
@@ -51,7 +40,7 @@ export async function getProjectById(id) {
  */
 export async function createProject(name, description, userId) {
   const issue = await projectModel.createProject(name, description, userId);
-  
+
   return {
     id: issue.id,
     name: name,
@@ -69,7 +58,7 @@ export async function createProject(name, description, userId) {
  */
 export async function updateProject(id, updates) {
   const project = await projectModel.getGitLabProject(id);
-  
+
   if (!project) {
     throw new Error('Project not found');
   }
@@ -85,7 +74,7 @@ export async function updateProject(id, updates) {
 
   // Update in local database
   const updatedProject = await projectModel.updateGitLabProject(id, updates);
-  
+
   return updatedProject || project;
 }
 
@@ -93,23 +82,41 @@ export async function updateProject(id, updates) {
  * Delete project
  */
 export async function deleteProject(id) {
-  const project = await projectModel.getGitLabProject(id);
-  
+  // 1. Try numeric ID (GitLab project) first
+  if (!isNaN(parseInt(id)) && String(id).match(/^\d+$/)) {
+    const gitlabProject = await projectModel.getGitLabProject(id);
+
+    if (gitlabProject) {
+      const projectName = gitlabProject.name;
+
+      // Delete from GitLab (optional but recommended)
+      try {
+        await gitlabService.deleteGitLabProject(gitlabProject.gitlab_project_id);
+      } catch (gitlabError) {
+        console.warn('Could not delete from GitLab:', gitlabError.response?.data?.message || gitlabError.message);
+      }
+
+      // Also delete local mirrored issues by name to be sure
+      await projectModel.deleteProjectByName(projectName);
+
+      // Delete local database gitlab_projects record (this handles gitlab_issues in pg model)
+      await projectModel.deleteGitLabProject(id);
+
+      return { name: projectName };
+    }
+  }
+
+  // 2. If not a GitLab project, it could be a local project name or issue ID
+  // Use getProjectById to resolve the project name regardless of ID type
+  const project = await projectModel.getProjectById(id);
+
   if (!project) {
     throw new Error('Project not found');
   }
 
-  // Delete from GitLab (optional)
-  try {
-    await gitlabService.deleteGitLabProject(project.gitlab_project_id);
-  } catch (gitlabError) {
-    console.warn('Could not delete from GitLab:', gitlabError.response?.data?.message);
-    // Continue with local deletion
-  }
+  // Delete all issues associated with this project name
+  await projectModel.deleteProjectByName(project.name);
 
-  // Delete from local database
-  await projectModel.deleteGitLabProject(id);
-  
   return { name: project.name };
 }
 
@@ -118,7 +125,7 @@ export async function deleteProject(id) {
  */
 export async function getProjectMembers(id) {
   const project = await projectModel.getGitLabProject(id);
-  
+
   if (!project) {
     throw new Error('Project not found');
   }
@@ -135,7 +142,7 @@ export async function getProjectMembers(id) {
  */
 export async function addProjectMember(id, userId, accessLevel) {
   const project = await projectModel.getGitLabProject(id);
-  
+
   if (!project) {
     throw new Error('Project not found');
   }

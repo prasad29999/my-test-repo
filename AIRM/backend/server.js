@@ -83,7 +83,7 @@ app.use(
         if (host.endsWith('.up.railway.app')) {
           return callback(null, true);
         }
-      } catch {}
+      } catch { }
 
       // In development, allow localhost (but warn)
       if (process.env.NODE_ENV === 'development') {
@@ -180,6 +180,8 @@ const loadRoutes = async () => {
     git: await safeImport('./features/git/routes/git.routes.js'),
     monitoring: await safeImport('./features/monitoring/routes/monitoring.routes.js'),
   };
+
+  console.log('🔍 Feature routes loaded:', Object.keys(featureRoutes).filter(k => featureRoutes[k]));
 
   // Register feature routes FIRST (prefer feature routes over legacy if both exist)
   if (featureRoutes.timesheet) {
@@ -305,6 +307,7 @@ const loadRoutes = async () => {
     app.get('*', (req, res, next) => {
       // Don't serve HTML for API routes
       if (req.path.startsWith('/api/')) {
+        console.log(`❌ 404 Catch-all reached for: ${req.method} ${req.path}`);
         return res.status(404).json({ error: 'API route not found' });
       }
       res.sendFile(path.join(frontendDist, 'index.html'));

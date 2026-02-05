@@ -26,7 +26,7 @@ const gitlabApi = axios.create({
  */
 export async function createGitLabIssue(gitlabProjectId, issueData) {
   const { title, description, labelNames, assigneeIds, estimateHours, dueDate } = issueData;
-  
+
   const gitlabIssueData = {
     title: title,
     description: description || '',
@@ -64,5 +64,12 @@ export async function postCommentToGitLab(gitlabProjectId, gitlabIid, comment) {
   await gitlabApi.post(`/projects/${gitlabProjectId}/issues/${gitlabIid}/notes`, {
     body: comment
   });
+}
+
+/**
+ * Delete issue in GitLab
+ */
+export async function deleteGitLabIssue(gitlabProjectId, gitlabIid) {
+  await gitlabApi.delete(`/projects/${gitlabProjectId}/issues/${gitlabIid}`);
 }
 

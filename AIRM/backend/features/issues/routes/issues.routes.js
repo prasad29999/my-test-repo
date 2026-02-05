@@ -77,4 +77,28 @@ router.post('/:id/labels', requireAdmin, issuesController.addLabel);
  */
 router.delete('/:id/labels/:label_id', requireAdmin, issuesController.removeLabel);
 
+/**
+ * Delete issue (Admin only)
+ * DELETE /api/issues/:id
+ */
+router.delete('/:id', requireAdmin, issuesController.deleteIssue);
+
+/**
+ * Log manual time
+ * POST /api/issues/:id/log-time
+ */
+router.post('/:id/log-time', [
+  body('duration').isFloat({ min: 0 }),
+  body('comment').optional().trim(),
+], issuesController.logTime);
+
+/**
+ * Update activity (edit time)
+ * PUT /api/issues/:id/activity/:activityId
+ */
+router.put('/:id/activity/:activityId', [
+  body('duration').optional().isFloat({ min: 0 }),
+  body('comment').optional().trim(),
+], issuesController.updateActivity);
+
 export default router;

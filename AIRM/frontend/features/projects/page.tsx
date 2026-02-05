@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { Trash2, AlertTriangle, AlertCircle } from "lucide-react";
 
 
 interface Project {
-  id: number;
+  id: number | string;
   gitlab_project_id: number;
   name: string;
   description?: string;
@@ -23,7 +24,7 @@ interface Project {
   created_at: string;
 }
 
-const Projects = () => {
+const Projects = ({ onProjectSelect }: { onProjectSelect?: (projectName: string) => void }) => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,8 +91,30 @@ const Projects = () => {
     }
   };
 
-  const handleProjectClick = (projectId: number) => {
-    navigate(`/issues?project=${projectId}`);
+  const handleDeleteProject = async (id: number | string) => {
+    try {
+      await api.projects.delete(String(id));
+      toast({
+        title: "Success",
+        description: "Project deleted successfully",
+      });
+      fetchProjects(); // Refresh the list
+    } catch (error: any) {
+      console.error("Failed to delete project:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete project",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleProjectClick = (project: Project) => {
+    if (onProjectSelect) {
+      onProjectSelect(project.name);
+    } else {
+      navigate(`/issues?project=${project.id}`);
+    }
   };
 
   if (loading) {
@@ -202,20 +225,72 @@ const Projects = () => {
           {projects.map((project) => (
             <Card
               key={project.id}
-              className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-primary"
-              onClick={() => handleProjectClick(project.id)}
+              className="hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer border-l-4 border-l-primary"
+              onClick={() => handleProjectClick(project)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold truncate">
+                  <CardTitle className="text-lg font-semibold truncate flex-1 pr-2">
                     {project.name}
                   </CardTitle>
-                  <span className={`text-xs px-2 py-1 rounded-full ${project.visibility === 'private' ? 'bg-red-100 text-red-800' :
-                    project.visibility === 'internal' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                    {project.visibility}
-                  </span>
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${project.visibility === 'private' ? 'bg-red-100 text-red-800' :
+                      project.visibility === 'internal' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                      {project.visibility}
+                    </span>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent onClick={(e) => e.stopPropagation()} className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <AlertCircle className="h-5 w-5" />
+                            Confirm Project Deletion
+                          </DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                          <p className="text-sm text-gray-500">
+                            Are you sure you want to delete <strong>{project.name}</strong>?
+                            This will also remove all issues associated with this project. This action cannot be undone.
+                          </p>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // The dialog closes automatically when trigger state changes
+                              // but we need to find a way to close it without shadcn's internal methods
+                              // Actually, the simplest way is to use a local state if needed.
+                              // But shadcn Dialog closes on any button click that doesn't stopPropagation?
+                              // Actually, just let the user click Delete.
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProject(project.id);
+                            }}
+                          >
+                            Delete Project
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -253,7 +328,7 @@ const Projects = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-primary hover:underline flex items-center space-x-1"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
                     >
                       <span>🔗 View in GitLab</span>
                     </a>

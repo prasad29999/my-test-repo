@@ -94,7 +94,7 @@ export async function upsertPayslip(req, res) {
 
     // Validate UUID format for user_id and employee_id
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    
+
     // Ensure user_id is provided and is a valid UUID
     if (!req.body.user_id) {
       return res.status(400).json({
@@ -122,7 +122,7 @@ export async function upsertPayslip(req, res) {
 
     const adminStatus = isAdmin || isHR;
     console.log('[payroll-pf] Controller - isAdmin:', isAdmin, 'isHR:', isHR, 'adminStatus:', adminStatus, 'payslipId:', req.body.id);
-    
+
     const payslipData = {
       ...req.body,
       created_by: userId,
@@ -145,7 +145,7 @@ export async function upsertPayslip(req, res) {
     });
   } catch (error) {
     console.error('[payroll-pf] Upsert payslip error:', error);
-    
+
     // Check if it's a UUID validation error from PostgreSQL
     if (error.message && error.message.includes('invalid input syntax for type uuid')) {
       return res.status(400).json({
@@ -225,3 +225,44 @@ export async function lockPayslip(req, res) {
   }
 }
 
+
+/**
+ * Generate payslips based on attendance
+ */
+export async function generatePayslips(req, res) {
+  try {
+    const userId = req.userId;
+    const isAdmin = req.isAdmin;
+    const isHR = req.isHR;
+
+    // Only Admin/HR can generate
+    if (!isAdmin && !isHR) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Only HR or Admin can generate payslips'
+      });
+    }
+
+    const { month, year, user_id } = req.body;
+
+    if (!month || !year) {
+      return res.status(400).json({
+        error: 'Missing parameters',
+        message: 'month and year are required'
+      });
+    }
+
+    const results = await payslipService.generatePayslipsFromAttendance(month, year, userId, user_id);
+
+    res.json({
+      message: `Generated ${results.length} payslips successfully`,
+      payslips: results
+    });
+  } catch (error) {
+    console.error('[payroll-pf] Generate payslips error:', error);
+    res.status(500).json({
+      error: 'Failed to generate payslips',
+      message: error.message || 'Internal server error'
+    });
+  }
+}

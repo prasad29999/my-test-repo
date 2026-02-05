@@ -47,7 +47,7 @@ async function apiRequest<T>(
   const token = getToken();
   // All backend endpoints are mounted under /api
   const fullUrl = `${API_BASE_URL}/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  
+
   const response = await fetch(fullUrl, {
     ...options,
     cache: 'no-store',
@@ -93,7 +93,7 @@ export async function getPayslips(filters?: {
   if (filters?.status) queryParams.append('status', filters.status);
   if (filters?.department) queryParams.append('department', filters.department);
   if (filters?.upcoming_only) queryParams.append('upcoming_only', 'true');
-  
+
   const query = queryParams.toString();
   return apiRequest<GetPayslipsResponse>(`/payroll-pf/payslips${query ? `?${query}` : ''}`);
 }
@@ -136,6 +136,16 @@ export async function lockPayslip(id: string): Promise<UpsertPayslipResponse> {
 }
 
 /**
+ * Generate payslips from attendance
+ */
+export async function generatePayslips(data: { month: number; year: number }): Promise<any> {
+  return apiRequest<any>('/payroll-pf/payslips/generate', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
  * Get PF details
  */
 export async function getPfDetails(userId?: string): Promise<GetPfDetailsResponse> {
@@ -167,7 +177,7 @@ export async function getPfContributions(filters?: {
   if (filters?.user_id) queryParams.append('user_id', filters.user_id);
   if (filters?.month) queryParams.append('month', String(filters.month));
   if (filters?.year) queryParams.append('year', String(filters.year));
-  
+
   const query = queryParams.toString();
   return apiRequest<GetPfContributionsResponse>(`/payroll-pf/pf-contributions${query ? `?${query}` : ''}`);
 }
@@ -192,7 +202,7 @@ export async function getPfDocuments(filters?: {
   const queryParams = new URLSearchParams();
   if (filters?.user_id) queryParams.append('user_id', filters.user_id);
   if (filters?.document_type) queryParams.append('document_type', filters.document_type);
-  
+
   const query = queryParams.toString();
   return apiRequest<GetPfDocumentsResponse>(`/payroll-pf/pf-documents${query ? `?${query}` : ''}`);
 }
@@ -221,7 +231,7 @@ export async function getPayrollAuditLog(filters?: {
   if (filters?.action) queryParams.append('action', filters.action);
   if (filters?.entity_type) queryParams.append('entity_type', filters.entity_type);
   if (filters?.limit) queryParams.append('limit', String(filters.limit));
-  
+
   const query = queryParams.toString();
   return apiRequest<GetPayrollAuditLogResponse>(`/payroll-pf/audit-log${query ? `?${query}` : ''}`);
 }

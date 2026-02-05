@@ -17,6 +17,7 @@ import {
   createPfContribution,
   getPfDocuments,
   addPfDocument,
+  generatePayslips,
 } from '../services/payroll-pfService';
 import type {
   Payslip,
@@ -189,10 +190,18 @@ export function usePayrollMutation() {
     },
   });
 
+  const generatePayslipsMutation = useMutation({
+    mutationFn: (data: { month: number; year: number }) => generatePayslips(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payslips'] });
+    },
+  });
+
   return {
     upsertPayslip: payslipMutation,
     releasePayslip: releaseMutation,
     lockPayslip: lockMutation,
+    generatePayslips: generatePayslipsMutation,
     upsertPfDetails: pfDetailsMutation,
     createPfContribution: pfContributionMutation,
     addPfDocument: pfDocumentMutation,

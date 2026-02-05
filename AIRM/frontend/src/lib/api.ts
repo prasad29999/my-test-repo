@@ -23,14 +23,14 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const token = getToken();
   const fullUrl = `${API_BASE_URL}/api${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
-  
+
   console.log(`📡 API Request: ${options.method || 'GET'} ${fullUrl}`);
   if (token) {
     console.log('📡 Auth token present:', token.substring(0, 20) + '...');
   } else {
     console.warn('⚠️ No auth token found!');
   }
-  
+
   const doFetch = async (url: string) =>
     fetch(url, {
       ...options,
@@ -102,19 +102,19 @@ export const api = {
   // Auth
   auth: {
     sendMagicLink: (email: string) =>
-      apiRequest('/auth/send-magic-link', { 
-        method: 'POST', 
-        body: JSON.stringify({ email }) 
+      apiRequest('/auth/send-magic-link', {
+        method: 'POST',
+        body: JSON.stringify({ email })
       }),
-    
+
     verifyMagicLink: (token: string) =>
-      apiRequest('/auth/verify-magic-link', { 
-        method: 'POST', 
-        body: JSON.stringify({ token }) 
+      apiRequest('/auth/verify-magic-link', {
+        method: 'POST',
+        body: JSON.stringify({ token })
       }),
-    
+
     getMe: () => apiRequest('/auth/me'),
-    
+
     updateProfile: (data: { full_name?: string }) =>
       apiRequest('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
   },
@@ -122,23 +122,23 @@ export const api = {
   // Projects
   projects: {
     getAll: () => apiRequest('/projects'),
-    
+
     getById: (id: string) => apiRequest(`/projects/${id}`),
-    
+
     create: (data: {
       name: string;
       description?: string;
       visibility?: 'private' | 'internal' | 'public';
     }) => apiRequest('/projects', { method: 'POST', body: JSON.stringify(data) }),
-    
+
     update: (id: string, data: any) =>
       apiRequest(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    
+
     delete: (id: string) =>
       apiRequest(`/projects/${id}`, { method: 'DELETE' }),
-    
+
     getMembers: (id: string) => apiRequest(`/projects/${id}/members`),
-    
+
     addMember: (id: string, data: { user_id: string; access_level?: number }) =>
       apiRequest(`/projects/${id}/members`, { method: 'POST', body: JSON.stringify(data) }),
   },
@@ -149,47 +149,64 @@ export const api = {
       const query = new URLSearchParams(params as any).toString();
       return apiRequest(`/issues?${query}`);
     },
-    
+
     getById: (id: string) => apiRequest(`/issues/${id}`),
-    
+
     create: (data: any) =>
       apiRequest('/issues', { method: 'POST', body: JSON.stringify(data) }),
-    
+
     update: (id: string, data: any) =>
       apiRequest(`/issues/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    
+
     addComment: (id: string, comment: string) =>
       apiRequest(`/issues/${id}/comments`, {
         method: 'POST',
         body: JSON.stringify({ comment }),
       }),
-    
+
     assignUser: (id: string, user_id: string) =>
       apiRequest(`/issues/${id}/assign`, {
         method: 'POST',
         body: JSON.stringify({ user_id }),
       }),
-    
+
     assignUsers: (id: string, user_ids: string[]) =>
       apiRequest(`/issues/${id}/assign`, {
         method: 'POST',
         body: JSON.stringify({ user_ids }),
       }),
-    
+
     unassignUser: (id: string, user_id: string) =>
       apiRequest(`/issues/${id}/assign/${user_id}`, {
         method: 'DELETE',
       }),
-    
+
     addLabel: (id: string, label_id: string) =>
       apiRequest(`/issues/${id}/labels`, {
         method: 'POST',
         body: JSON.stringify({ label_id }),
       }),
-    
+
     removeLabel: (id: string, label_id: string) =>
       apiRequest(`/issues/${id}/labels/${label_id}`, {
         method: 'DELETE',
+      }),
+
+    delete: (id: string) =>
+      apiRequest(`/issues/${id}`, {
+        method: 'DELETE'
+      }),
+
+    logTime: (id: string, data: { duration: number; comment?: string }) =>
+      apiRequest(`/issues/${id}/log-time`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    updateActivity: (issueId: string, activityId: string, data: { duration?: number; comment?: string }) =>
+      apiRequest(`/issues/${issueId}/activity/${activityId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
       }),
   },
 
@@ -197,23 +214,23 @@ export const api = {
   timesheets: {
     clockIn: (data: any) =>
       apiRequest('/timesheets/clock-in', { method: 'POST', body: JSON.stringify(data) }),
-    
+
     clockOut: (data?: { comment?: string }) =>
       apiRequest('/timesheets/clock-out', { method: 'POST', body: JSON.stringify(data || {}) }),
-    
+
     pause: (data?: { reason?: string }) =>
       apiRequest('/timesheets/pause', { method: 'POST', body: JSON.stringify(data || {}) }),
-    
+
     resume: () =>
       apiRequest('/timesheets/resume', { method: 'POST' }),
-    
+
     getCurrent: () => apiRequest('/timesheets/current'),
-    
+
     getEntries: (params?: any) => {
       const query = new URLSearchParams(params).toString();
       return apiRequest(`/timesheets/entries?${query}`);
     },
-    
+
     getTimesheets: (params?: { week_start?: string; user_id?: string }) => {
       const query = new URLSearchParams(params as any).toString();
       const url = `/timesheets${query ? `?${query}` : ''}`;
@@ -221,9 +238,9 @@ export const api = {
       console.log('🌐 With params:', params);
       return apiRequest(url);
     },
-    
+
     getActive: () => apiRequest('/timesheets/active'),
-    
+
     save: (data: { week_start: string; entries: any[] }) =>
       apiRequest('/timesheets', {
         method: 'POST',
@@ -234,21 +251,21 @@ export const api = {
   // Users
   users: {
     getAll: () => apiRequest('/users'),
-    
+
     getWithRoles: () => apiRequest('/users/with-roles'),
-    
+
     updateRole: (id: string, role: string) =>
       apiRequest(`/users/${id}/role`, {
         method: 'PUT',
         body: JSON.stringify({ role }),
       }),
-    
+
     create: (data: { email: string; full_name?: string; role?: string }) =>
       apiRequest('/users', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    
+
     delete: (id: string) =>
       apiRequest(`/users/${id}`, {
         method: 'DELETE',
@@ -258,9 +275,9 @@ export const api = {
   // Profiles
   profiles: {
     getAll: () => apiRequest('/profiles'),
-    
+
     getById: (id: string) => apiRequest(`/profiles/${id}`),
-    
+
     update: (id: string, data: {
       phone?: string;
       skills?: string[];
@@ -297,23 +314,23 @@ export const api = {
       const query = unreadOnly ? '?unread_only=true' : '';
       return apiRequest(`/notifications${query}`);
     },
-    
+
     markRead: (id: string) =>
       apiRequest(`/notifications/${id}/read`, { method: 'PUT' }),
-    
+
     markAllRead: () =>
       apiRequest('/notifications/read-all', { method: 'PUT' }),
-    
+
     getUnreadCount: () => apiRequest('/notifications/unread-count'),
   },
 
   // Leave
   leave: {
     getAll: () => apiRequest('/leave'),
-    
+
     create: (data: any) =>
       apiRequest('/leave', { method: 'POST', body: JSON.stringify(data) }),
-    
+
     updateStatus: (id: string, status: string, admin_notes?: string) =>
       apiRequest(`/leave/${id}/status`, {
         method: 'PUT',
@@ -325,10 +342,10 @@ export const api = {
   leaveCalendar: {
     // Leave Balances
     getBalances: () => apiRequest('/leave-calendar/balances'),
-    
-    getBalancesForUser: (userId: string) => 
+
+    getBalancesForUser: (userId: string) =>
       apiRequest(`/leave-calendar/balances/${userId}`),
-    
+
     updateBalance: (data: {
       user_id: string;
       leave_type: string;
@@ -338,30 +355,30 @@ export const api = {
       balance: number;
       lapse: number;
       lapse_date?: string;
-    }) => apiRequest('/leave-calendar/balances', { 
-      method: 'PUT', 
-      body: JSON.stringify(data) 
+    }) => apiRequest('/leave-calendar/balances', {
+      method: 'PUT',
+      body: JSON.stringify(data)
     }),
 
     // Shift Roster
     getShifts: (start_date: string, end_date: string) =>
       apiRequest(`/leave-calendar/shifts?start_date=${start_date}&end_date=${end_date}`),
-    
+
     updateShift: (data: {
       user_id: string;
       date: string;
       shift_type: string;
       start_time: string;
       end_time: string;
-    }) => apiRequest('/leave-calendar/shifts', { 
-      method: 'POST', 
-      body: JSON.stringify(data) 
+    }) => apiRequest('/leave-calendar/shifts', {
+      method: 'POST',
+      body: JSON.stringify(data)
     }),
 
     // Attendance
     getAttendance: (start_date: string, end_date: string) =>
       apiRequest(`/leave-calendar/attendance?start_date=${start_date}&end_date=${end_date}`),
-    
+
     updateAttendance: (data: {
       user_id: string;
       date: string;
@@ -369,16 +386,16 @@ export const api = {
       clock_in?: string;
       clock_out?: string;
       total_hours?: number;
-    }) => apiRequest('/leave-calendar/attendance', { 
-      method: 'POST', 
-      body: JSON.stringify(data) 
+    }) => apiRequest('/leave-calendar/attendance', {
+      method: 'POST',
+      body: JSON.stringify(data)
     }),
   },
 
   // Labels
   labels: {
     getAll: () => apiRequest('/labels'),
-    
+
     create: (data: any) =>
       apiRequest('/labels', { method: 'POST', body: JSON.stringify(data) }),
   },
@@ -386,17 +403,17 @@ export const api = {
   // Git
   git: {
     getCommits: () => apiRequest('/git/commits'),
-    
+
     getIssues: () => apiRequest('/git/issues'),
-    
+
     getCommit: (sha: string) => apiRequest(`/git/commits/${sha}`),
-    
+
     getIssue: (id: string) => apiRequest(`/git/issues/${id}`),
-    
+
     syncUsers: () => apiRequest('/git/sync-users', { method: 'POST' }),
-    
+
     syncIssues: () => apiRequest('/git/sync-issues', { method: 'POST' }),
-    
+
     getUsers: () => apiRequest('/git/users'),
   },
 };

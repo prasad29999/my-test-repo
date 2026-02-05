@@ -61,9 +61,9 @@ export async function getShiftRoster(startDate, endDate) {
  * Update shift roster
  */
 export async function updateShiftRoster(shiftData) {
-    const { user_id, date, shift_type, start_time, end_time } = shiftData;
-    const result = await pool.query(
-        `INSERT INTO erp.shift_roster (user_id, date, shift_type, start_time, end_time)
+  const { user_id, date, shift_type, start_time, end_time } = shiftData;
+  const result = await pool.query(
+    `INSERT INTO erp.shift_roster (user_id, date, shift_type, start_time, end_time)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (user_id, date)
      DO UPDATE SET
@@ -72,9 +72,9 @@ export async function updateShiftRoster(shiftData) {
        end_time = EXCLUDED.end_time,
        updated_at = NOW()
      RETURNING *`,
-        [user_id, date, shift_type, start_time, end_time]
-    );
-    return result.rows[0];
+    [user_id, date, shift_type, start_time, end_time]
+  );
+  return result.rows[0];
 }
 
 /**
@@ -93,8 +93,6 @@ export async function getAttendance(startDate, endDate) {
   const userRows = await pool.query(`
     SELECT u.id, u.email, u.full_name
     FROM erp.users u
-    JOIN erp.profiles p ON u.id = p.id
-    WHERE p.join_date IS NOT NULL
   `);
   const users = userRows.rows;
 
@@ -126,7 +124,7 @@ export async function getAttendance(startDate, endDate) {
   );
   const attendanceMap = {};
   for (const row of attendanceRows.rows) {
-    attendanceMap[`${row.user_id}_${row.date.toISOString().slice(0,10)}`] = row;
+    attendanceMap[`${row.user_id}_${row.date.toISOString().slice(0, 10)}`] = row;
   }
 
   // Get all approved leave requests in the range
@@ -140,7 +138,7 @@ export async function getAttendance(startDate, endDate) {
     let d = new Date(row.start_date);
     const end = new Date(row.end_date);
     while (d <= end) {
-      leaveDates.push(d.toISOString().slice(0,10));
+      leaveDates.push(d.toISOString().slice(0, 10));
       d = new Date(d.getTime() + 86400000);
     }
     for (const ld of leaveDates) {
@@ -152,7 +150,7 @@ export async function getAttendance(startDate, endDate) {
   const result = [];
   for (const user of users) {
     for (const date of dates) {
-      const key = `${user.id}_${date.toISOString().slice(0,10)}`;
+      const key = `${user.id}_${date.toISOString().slice(0, 10)}`;
       if (attendanceMap[key]) {
         // Ensure real records have an id (from db or fallback)
         result.push({
@@ -286,7 +284,7 @@ export async function updateLeaveRequestStatus(id, status, reviewedBy, adminNote
  * Get leave history for a user
  */
 export async function getLeaveHistory(userId) {
-    const query = `
+  const query = `
     SELECT 
       id,
       start_date,
@@ -301,15 +299,15 @@ export async function getLeaveHistory(userId) {
     WHERE user_id = $1
     ORDER BY start_date DESC
   `;
-    const result = await pool.query(query, [userId]);
-    return result.rows;
+  const result = await pool.query(query, [userId]);
+  return result.rows;
 }
 
 /**
  * Get monthly attendance report (Admin only)
  */
 export async function getMonthlyAttendanceReport(month, year) {
-    const query = `
+  const query = `
     SELECT
       u.id as user_id,
       u.full_name,
@@ -331,15 +329,15 @@ export async function getMonthlyAttendanceReport(month, year) {
     LEFT JOIN erp.leave_requests lr ON u.id = lr.user_id AND d.date BETWEEN lr.start_date AND lr.end_date AND lr.status = 'approved'
     ORDER BY u.id, d.date;
   `;
-    const result = await pool.query(query, [month, year]);
-    return result.rows;
+  const result = await pool.query(query, [month, year]);
+  return result.rows;
 }
 
 /**
  * Get shift-wise attendance analysis (Admin only)
  */
 export async function getShiftWiseAttendanceAnalysis(startDate, endDate) {
-    const query = `
+  const query = `
     SELECT
       sr.shift_type,
       sr.date,
@@ -351,7 +349,7 @@ export async function getShiftWiseAttendanceAnalysis(startDate, endDate) {
     GROUP BY sr.date, sr.shift_type
     ORDER BY sr.date, sr.shift_type;
   `;
-    const result = await pool.query(query, [startDate, endDate]);
-    return result.rows;
+  const result = await pool.query(query, [startDate, endDate]);
+  return result.rows;
 }
 

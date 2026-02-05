@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
+import { Notifications } from '@/components/Notifications';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,10 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, CheckCircle2, Clock, Plus, Tag, User, Kanban, BarChart3, List, MessageSquare, Settings2, Check, MoreVertical, Edit, EyeOff, Trash2, ChevronLeft, ChevronRight, MoreHorizontal, Search, Circle, ChevronDown } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Plus, Tag, User, Kanban, BarChart3, List, MessageSquare, Settings2, Check, MoreVertical, Edit, EyeOff, Trash2, ChevronLeft, ChevronRight, MoreHorizontal, Search, Circle, ChevronDown, FolderKanban, ExternalLink, Copy, Archive, Inbox, ArrowRight, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuShortcut } from "@/components/ui/dropdown-menu";
 
 
 interface Issue {
@@ -27,6 +28,7 @@ interface Issue {
   labels: Array<{ id: string; name: string; color: string }>;
   comments_count: number;
   recent_comment?: string;
+  estimated_hours?: number;
 }
 
 interface Label {
@@ -41,7 +43,7 @@ interface UserProfile {
   email: string;
 }
 
-export default function Issues() {
+export default function Issues({ initialProject = 'all' }: { initialProject?: string }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -50,6 +52,7 @@ export default function Issues() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newIssueTitle, setNewIssueTitle] = useState("");
@@ -57,9 +60,15 @@ export default function Issues() {
   const [newIssueProjectName, setNewIssueProjectName] = useState("");
   const [newIssuePriority, setNewIssuePriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
   const [newIssueStatus, setNewIssueStatus] = useState<'open' | 'in_progress' | 'closed'>('open');
+  const [newIssueEstimatedHours, setNewIssueEstimatedHours] = useState<string>("0");
+  const [newIssueLabels, setNewIssueLabels] = useState<string[]>([]);
+  const [labelSearch, setLabelSearch] = useState("");
+  const [customLabelName, setCustomLabelName] = useState("");
+  const [customLabelColor, setCustomLabelColor] = useState("#6366f1");
 
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterAssignee, setFilterAssignee] = useState<string>('all');
+  const [filterProject, setFilterProject] = useState<string>('all');
   const [view, setView] = useState<'list' | 'kanban' | 'burnout'>('kanban');
 
   // Custom columns support
@@ -114,7 +123,8 @@ export default function Issues() {
           loadLabels(),
           loadUsers(),
           loadIssues(),
-          api.auth.getMe()
+          api.auth.getMe(),
+          loadProjects()
         ]) as any;
 
         const currentUserData = results[3];
@@ -151,6 +161,16 @@ export default function Issues() {
     }
   };
 
+  const loadProjects = async () => {
+    try {
+      const response = await api.projects.getAll() as any;
+      setProjects(response.projects || response || []);
+    } catch (error) {
+      console.error("Error loading projects:", error);
+      setProjects([]);
+    }
+  };
+
   const loadIssues = async () => {
     try {
       const params: any = {};
@@ -159,6 +179,9 @@ export default function Issues() {
       }
       if (filterAssignee !== 'all') {
         params.assignee = filterAssignee;
+      }
+      if (filterProject !== 'all') {
+        params.project = filterProject;
       }
 
       const response = await api.issues.getAll(params) as any;
@@ -182,6 +205,25 @@ export default function Issues() {
       setIssues([]);
     }
   };
+
+  useEffect(() => {
+    loadIssues();
+  }, [filterStatus, filterAssignee, filterProject]);
+
+  useEffect(() => {
+    if (initialProject && initialProject !== filterProject) {
+      setFilterProject(initialProject);
+      if (initialProject !== 'all') {
+        setNewIssueProjectName(initialProject);
+      }
+    }
+  }, [initialProject]);
+
+  useEffect(() => {
+    if (filterProject !== 'all') {
+      setNewIssueProjectName(filterProject);
+    }
+  }, [filterProject]);
 
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -246,13 +288,22 @@ export default function Issues() {
     setLoading(true);
 
     try {
-      const response = await api.issues.create({
+      // First create the issue
+      const issue = await api.issues.create({
         title: newIssueTitle,
         description: newIssueDescription,
         project_name: newIssueProjectName,
         priority: newIssuePriority,
-        status: newIssueStatus
+        status: newIssueStatus,
+        estimated_hours: parseFloat(newIssueEstimatedHours) || 0
       }) as any;
+
+      // Then add labels if any
+      if (newIssueLabels.length > 0) {
+        await Promise.all(newIssueLabels.map(labelId =>
+          api.issues.addLabel(String(issue.id), labelId)
+        ));
+      }
 
       toast({
         title: "Success",
@@ -265,6 +316,8 @@ export default function Issues() {
       setNewIssueProjectName("");
       setNewIssuePriority('medium');
       setNewIssueStatus('open');
+      setNewIssueEstimatedHours("0");
+      setNewIssueLabels([]);
       await loadIssues();
     } catch (error: any) {
       toast({
@@ -275,6 +328,108 @@ export default function Issues() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleLabel = (labelId: string) => {
+    setNewIssueLabels(prev =>
+      prev.includes(labelId)
+        ? prev.filter(id => id !== labelId)
+        : [...prev, labelId]
+    );
+  };
+
+  const handleCreateLabel = async () => {
+    if (!customLabelName.trim()) return;
+    try {
+      const newLabel = await api.labels.create({
+        name: customLabelName,
+        color: customLabelColor,
+        description: ""
+      }) as any;
+
+      const newLabelId = newLabel.id || newLabel.label?.id;
+
+      // Refresh labels list
+      await loadLabels();
+
+      // Auto-select the new label
+      if (newLabelId) {
+        setNewIssueLabels(prev => [...prev, newLabelId]);
+      }
+
+      setCustomLabelName("");
+      setCustomLabelColor("#6366f1");
+      toast({
+        title: "Success",
+        description: "Label created",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to create label",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteIssue = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this issue?")) return;
+    try {
+      await api.issues.delete(String(id));
+      toast({
+        title: "Success",
+        description: "Issue deleted successfully",
+      });
+      loadIssues();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete issue",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleArchiveIssue = async (id: number) => {
+    try {
+      await api.issues.update(String(id), { status: 'archived' });
+      toast({
+        title: "Success",
+        description: "Issue archived successfully",
+      });
+      loadIssues();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to archive issue",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMoveIssue = async (id: number, newStatus: string) => {
+    try {
+      await api.issues.update(String(id), { status: newStatus });
+      toast({
+        title: "Success",
+        description: `Issue moved to ${newStatus.replace('_', ' ')}`,
+      });
+      loadIssues();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to move issue",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const copyToClipboard = (text: string, title: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: title,
+      description: "Copied to clipboard",
+    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -349,35 +504,50 @@ export default function Issues() {
       </div>
     );
   }
-
-
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f6f8fa]">
+    <div className="flex flex-col h-full overflow-hidden bg-[#f6f8fa]">
       {/* Sticky Header Section */}
       <div className="sticky top-0 z-10 bg-white border-b border-[#d0d7de] shadow-sm">
+        {/* Project Context Title */}
+        {filterProject !== 'all' && (
+          <div className="px-6 pt-4 pb-2 bg-white">
+            <h2 className="text-xl font-bold text-[#24292f] flex items-center gap-2">
+              <FolderKanban className="h-5 w-5 text-blue-600" />
+              {filterProject}
+            </h2>
+          </div>
+        )}
         {/* Views Tabs (GitHub Style) */}
-        <div className="flex items-center border-b border-gray-200 w-full px-6">
-          <button
-            onClick={() => setView('kanban')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'kanban' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-          >
-            <Kanban className="h-4 w-4" />
-            Board
-          </button>
-          <button
-            onClick={() => setView('list')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'list' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-          >
-            <List className="h-4 w-4" />
-            Table
-          </button>
-          <button
-            onClick={() => setView('burnout')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'burnout' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-          >
-            <BarChart3 className="h-4 w-4" />
-            Insights
-          </button>
+        <div className="flex items-center justify-between border-b border-gray-200 w-full px-6">
+          <div className="flex items-center">
+            <button
+              onClick={() => setView('kanban')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'kanban' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              <Kanban className="h-4 w-4" />
+              Board
+            </button>
+            <button
+              onClick={() => setView('list')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'list' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              <List className="h-4 w-4" />
+              Table
+            </button>
+            <button
+              onClick={() => setView('burnout')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${view === 'burnout' ? 'border-[#fd8c73] text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              <BarChart3 className="h-4 w-4" />
+              Insights
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center bg-[#e8f1ff] px-2.5 py-0.5 rounded-full min-w-[24px]">
+              <span className="text-[#0969da] text-xs font-bold">{issues.length}</span>
+            </div>
+            <span className="text-sm text-[#656d76]">Issues found</span>
+          </div>
         </div>
 
         {/* Filter & Action Bar */}
@@ -415,6 +585,17 @@ export default function Issues() {
                 <option value="all">Assignee</option>
                 {users.map(user => (
                   <option key={user.user_id} value={user.user_id}>{user.email}</option>
+                ))}
+              </select>
+
+              <select
+                value={filterProject}
+                onChange={(e) => setFilterProject(e.target.value)}
+                className="h-8 pl-3 pr-8 text-sm font-medium border border-[#d0d7de] bg-white hover:bg-gray-50 text-[#24292f] rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23656d76%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22/%3E%3C/svg%3E')] bg-[length:10px] bg-[right_10px_center] bg-no-repeat min-w-[100px]"
+              >
+                <option value="all">Project</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.name}>{project.name}</option>
                 ))}
               </select>
             </div>
@@ -554,6 +735,58 @@ export default function Issues() {
                             )}
                           </div>
                         </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={() => window.open(`/issues/${issue.id}`, '_blank')}>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Open in new tab
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => copyToClipboard(`${window.location.origin}/issues/${issue.id}`, "Link Copied")}>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy link
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                <ArrowRight className="h-4 w-4 mr-2" />
+                                Move to column
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                {availableColumns.map(col => (
+                                  <DropdownMenuItem
+                                    key={col.id}
+                                    disabled={issue.status === col.id}
+                                    onClick={() => handleMoveIssue(issue.id, col.id)}
+                                  >
+                                    {col.name}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleArchiveIssue(issue.id)}>
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                              onClick={() => handleDeleteIssue(issue.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete issue
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ))}
@@ -608,12 +841,13 @@ export default function Issues() {
                                 style={{ backgroundColor: style.customHex }}
                               />
                             </div>
-                            <h3 className="font-semibold text-sm text-[#24292f]">{column.name}</h3>
-                            <span className="bg-[rgba(175,184,193,0.2)] text-[#24292f] px-2 py-0.5 rounded-full text-xs font-medium border border-transparent">
-                              {statusIssues.length}
-                            </span>
+                            <h3 className="font-semibold text-sm text-[#24292f] mr-2">{column.name}</h3>
+                            <div className="flex items-center bg-[#e8f1ff] px-2.5 py-0.5 rounded-full">
+                              <span className="text-[#0969da] text-xs font-semibold">{statusIssues.length}</span>
+                            </div>
+                            <span className="text-xs text-[#656d76] ml-2">issues</span>
                             <div className="flex items-center gap-2 ml-2">
-                              <span className="text-xs text-[#656d76] font-normal">Estimate: 0</span>
+                              <span className="text-xs text-[#656d76] font-normal">Estimate: {statusIssues.reduce((sum, i) => sum + (i.estimated_hours || 0), 0)}h</span>
                               <span className="text-xs text-[#656d76] font-normal">•</span>
                               <span className="text-xs text-[#656d76] font-normal">Assigned: {statusIssues.filter(i => i.assignees.length > 0).length}</span>
                             </div>
@@ -672,44 +906,95 @@ export default function Issues() {
                                     className="mb-2"
                                   >
                                     <div
-                                      className={`bg-white p-3 rounded-md border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-pointer group select-none relative ${snapshot.isDragging ? 'rotate-2 shadow-xl ring-1 ring-gray-900/5 z-50' : ''}`}
+                                      className={`bg-white p-3 rounded-md border border-[#d0d7de] shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-pointer group select-none relative ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-blue-500/20 z-50' : ''}`}
                                       onClick={() => navigate(`/issues/${issue.id}`)}
                                     >
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <div className="shrink-0">
-                                          <StatusIcon className="w-4 h-4" style={{ color: style.customHex }} />
+                                      {/* ID and Status Icons Row */}
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="shrink-0">
+                                            <StatusIcon className="w-3.5 h-3.5" style={{ color: style.customHex }} />
+                                          </div>
+                                          <span className="text-[11px] font-semibold text-gray-500 tracking-tight">
+                                            {issue.project_name ? issue.project_name.replace(/\s+/g, '_') : 'TPF'} #{issue.id}
+                                          </span>
                                         </div>
-                                        <span className="text-xs text-gray-500 font-mono">
-                                          TPF #{issue.id}
-                                        </span>
 
-                                        {/* Menu on card hover */}
-                                        <div className="ml-auto opacity-0 group-hover:opacity-100">
-                                          <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                                        <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                          {issue.priority === 'urgent' && <AlertCircle className="h-3 w-3 text-red-500" />}
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 hover:bg-gray-100 rounded-md"
+                                                onClick={(e) => e.stopPropagation()}
+                                              >
+                                                <MoreHorizontal className="h-3.5 w-3.5 text-gray-400" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-56" onClick={(e) => e.stopPropagation()}>
+                                              <DropdownMenuItem onClick={() => window.open(`/issues/${issue.id}`, '_blank')}>
+                                                <ExternalLink className="h-4 w-4 mr-2" />
+                                                Open in new tab
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => copyToClipboard(`${window.location.origin}/issues/${issue.id}`, "Link Copied")}>
+                                                <Copy className="h-4 w-4 mr-2" />
+                                                Copy link
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => copyToClipboard(`${window.location.origin}/project-management?project=${issue.project_name}&issue=${issue.id}`, "Project Link Copied")}>
+                                                <Copy className="h-4 w-4 mr-2" />
+                                                Copy link in project
+                                              </DropdownMenuItem>
+
+                                              <DropdownMenuSeparator />
+
+                                              <DropdownMenuSub>
+                                                <DropdownMenuSubTrigger>
+                                                  <ArrowRight className="h-4 w-4 mr-2" />
+                                                  Move to column
+                                                </DropdownMenuSubTrigger>
+                                                <DropdownMenuSubContent>
+                                                  {availableColumns.map(col => (
+                                                    <DropdownMenuItem
+                                                      key={col.id}
+                                                      disabled={issue.status === col.id}
+                                                      onClick={() => handleMoveIssue(issue.id, col.id)}
+                                                    >
+                                                      {col.name}
+                                                    </DropdownMenuItem>
+                                                  ))}
+                                                </DropdownMenuSubContent>
+                                              </DropdownMenuSub>
+
+                                              <DropdownMenuSeparator />
+
+                                              <DropdownMenuItem onClick={() => handleArchiveIssue(issue.id)}>
+                                                <Archive className="h-4 w-4 mr-2" />
+                                                Archive
+                                                <DropdownMenuShortcut>E</DropdownMenuShortcut>
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                onClick={() => handleDeleteIssue(issue.id)}
+                                              >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Delete from project
+                                                <DropdownMenuShortcut>Del</DropdownMenuShortcut>
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
                                         </div>
                                       </div>
 
-                                      <h4 className="text-sm font-semibold text-[#24292f] leading-snug mb-1">
+                                      {/* Title */}
+                                      <h4 className="text-[13px] font-bold text-[#24292f] leading-tight mb-2 group-hover:text-blue-600 transition-colors">
                                         {issue.title}
                                       </h4>
 
-                                      {issue.project_name && (
-                                        <div className="flex items-center gap-1 text-[10px] text-[#656d76] mb-1">
-                                          <Tag className="h-2.5 w-2.5" />
-                                          <span>{issue.project_name}</span>
-                                        </div>
-                                      )}
-
-                                      {(issue.description || issue.recent_comment) ? (
-                                        <p className="text-xs text-[#656d76] mb-3 line-clamp-2">
-                                          {issue.recent_comment || issue.description}
-                                        </p>
-                                      ) : (
-                                        <div className="mb-3" />
-                                      )}
-
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
+                                      {/* Card Meta Content */}
+                                      <div className="flex items-center justify-between mt-3">
+                                        <div className="flex items-center gap-2.5">
                                           {/* Labels (dot style) */}
                                           {issue.labels.length > 0 && (
                                             <div className="flex -space-x-1">
@@ -724,39 +1009,42 @@ export default function Issues() {
                                             </div>
                                           )}
 
-                                          {/* Comment Count */}
-                                          {(parseInt(issue.comments_count as any) > 0) && (
-                                            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
-                                              <MessageSquare className="h-3 w-3" />
-                                              <span>{issue.comments_count}</span>
-                                            </div>
-                                          )}
-                                          {issue.assignees.length > 0 && (
-                                            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium ml-1">
-                                              <User className="h-3 w-3" />
-                                              <span>{issue.assignees.length}</span>
-                                            </div>
-                                          )}
+                                          {/* Indicators */}
+                                          <div className="flex items-center gap-2">
+                                            {(parseInt(issue.comments_count as any) > 0) && (
+                                              <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                                                <MessageSquare className="h-3 w-3" />
+                                                <span>{issue.comments_count}</span>
+                                              </div>
+                                            )}
+                                            {issue.estimated_hours && issue.estimated_hours > 0 && (
+                                              <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                                                <Clock className="h-3 w-3 text-blue-500/70" />
+                                                <span className="text-blue-600/80">{issue.estimated_hours}h</span>
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                          {/* Priority Indicator */}
-                                          {issue.priority === 'urgent' && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
 
-                                          {/* Assignees */}
-                                          {issue.assignees.length > 0 && (
-                                            <div className="flex -space-x-1.5">
-                                              {issue.assignees.map((a, i) => (
-                                                <div
-                                                  key={i}
-                                                  className="w-5 h-5 rounded-full bg-blue-50 border-[1.5px] border-white flex items-center justify-center text-[9px] font-bold text-blue-600 overflow-hidden shadow-sm"
-                                                  title={a.email}
-                                                >
-                                                  {a.email ? a.email[0].toUpperCase() : 'U'}
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
+                                        {/* Assignees */}
+                                        {issue.assignees.length > 0 && (
+                                          <div className="flex -space-x-1.5">
+                                            {issue.assignees.slice(0, 3).map((a, i) => (
+                                              <div
+                                                key={i}
+                                                className="w-5 h-5 rounded-full bg-blue-50 border-[1.5px] border-white flex items-center justify-center text-[9px] font-bold text-blue-600 overflow-hidden shadow-sm"
+                                                title={a.email}
+                                              >
+                                                {a.email ? a.email[0].toUpperCase() : 'U'}
+                                              </div>
+                                            ))}
+                                            {issue.assignees.length > 3 && (
+                                              <div className="w-5 h-5 rounded-full bg-gray-100 border-[1.5px] border-white flex items-center justify-center text-[8px] font-bold text-gray-600 shadow-sm">
+                                                +{issue.assignees.length - 3}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -935,13 +1223,20 @@ export default function Issues() {
               />
             </div>
             <div>
-              <Label htmlFor="project">Project Name</Label>
-              <Input
+              <Label htmlFor="project">Project *</Label>
+              <select
                 id="project"
                 value={newIssueProjectName}
                 onChange={(e) => setNewIssueProjectName(e.target.value)}
-                placeholder="e.g., VCP Automation"
-              />
+                className="w-full p-2 border rounded focus:ring-1 focus:ring-blue-500 outline-none"
+              >
+                <option value="">Select a project</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.name}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <Label htmlFor="priority">Priority</Label>
@@ -949,13 +1244,137 @@ export default function Issues() {
                 id="priority"
                 value={newIssuePriority}
                 onChange={(e) => setNewIssuePriority(e.target.value as any)}
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border rounded focus:ring-1 focus:ring-blue-500 outline-none"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
                 <option value="urgent">Urgent</option>
               </select>
+            </div>
+            <div>
+              <Label>Labels</Label>
+              <div className="mt-1 space-y-3">
+                {/* Selected Labels */}
+                <div className="flex flex-wrap gap-2">
+                  {newIssueLabels.map(labelId => {
+                    const label = labels.find(l => l.id === labelId);
+                    if (!label) return null;
+                    return (
+                      <span
+                        key={label.id}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-white"
+                        style={{ backgroundColor: label.color }}
+                      >
+                        {label.name}
+                        <button
+                          onClick={() => toggleLabel(label.id)}
+                          className="hover:bg-white/20 rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* Label Selector */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 text-xs">
+                      <Tag className="h-3.5 w-3.5 mr-1.5" />
+                      Add Label
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[200px]">
+                    <div className="p-2">
+                      <Input
+                        placeholder="Search labels..."
+                        className="h-8 text-xs"
+                        value={labelSearch}
+                        onChange={(e) => setLabelSearch(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    <DropdownMenuSeparator />
+                    <div className="max-h-[200px] overflow-y-auto">
+                      {labels
+                        .filter(l => l.name.toLowerCase().includes(labelSearch.toLowerCase()))
+                        .map(label => (
+                          <DropdownMenuCheckboxItem
+                            key={label.id}
+                            checked={newIssueLabels.includes(label.id)}
+                            onCheckedChange={() => toggleLabel(label.id)}
+                            className="flex items-center gap-2"
+                          >
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: label.color }}
+                            />
+                            {label.name}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      {labels.length === 0 && (
+                        <div className="p-2 text-xs text-center text-gray-500">
+                          No labels found
+                        </div>
+                      )}
+                    </div>
+                    <DropdownMenuSeparator />
+                    <div className="p-2">
+                      <p className="text-xs font-semibold mb-2 text-gray-500">Create New Label</p>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Label name"
+                          value={customLabelName}
+                          onChange={(e) => setCustomLabelName(e.target.value)}
+                          className="h-7 text-xs"
+                        />
+                        <div className="flex gap-1.5 flex-wrap">
+                          {[
+                            '#ef4444', '#f97316', '#f59e0b', '#84cc16',
+                            '#10b981', '#06b6d4', '#3b82f6', '#6366f1',
+                            '#8b5cf6', '#d946ef', '#f43f5e', '#64748b'
+                          ].map(color => (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => setCustomLabelColor(color)}
+                              className={`w-4 h-4 rounded-full transition-transform hover:scale-110 ${customLabelColor === color ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full h-7 text-xs mt-1"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleCreateLabel();
+                          }}
+                          disabled={!customLabelName.trim()}
+                        >
+                          Create
+                        </Button>
+                      </div>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="estimated_hours">Estimated Hours</Label>
+              <Input
+                id="estimated_hours"
+                type="number"
+                step="0.1"
+                min="0"
+                value={newIssueEstimatedHours}
+                onChange={(e) => setNewIssueEstimatedHours(e.target.value)}
+                placeholder="e.g. 2.5"
+                className="mt-1"
+              />
             </div>
           </div>
           <DialogFooter>

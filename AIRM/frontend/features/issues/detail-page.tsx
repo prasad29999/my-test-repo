@@ -7,10 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, MessageSquare, Tag, User, X, Plus } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, MessageSquare, Tag, User, X, Plus, Edit2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import logo from "/techiemaya-logo.png";
 
 interface Issue {
   id: number;
@@ -22,6 +21,7 @@ interface Issue {
   created_at: string;
   created_by: string | null;
   updated_at: string;
+  estimated_hours?: number;
 }
 
 interface Comment {
@@ -52,6 +52,7 @@ interface Assignee {
   email: string;
 }
 
+
 export default function IssueDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -68,14 +69,23 @@ export default function IssueDetail() {
   const [newLabelColor, setNewLabelColor] = useState("#6366f1");
   const [availableLabels, setAvailableLabels] = useState<Label[]>([]);
   const [availableUsers, setAvailableUsers] = useState<Assignee[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
 
   const [newComment, setNewComment] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editProjectName, setEditProjectName] = useState("");
+  const [editEstimatedHours, setEditEstimatedHours] = useState<string>("0");
   const [showAssigneesDropdown, setShowAssigneesDropdown] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [showEstimateDialog, setShowEstimateDialog] = useState(false);
+  const [showLogTimeDialog, setShowLogTimeDialog] = useState(false);
+  const [logDuration, setLogDuration] = useState("1");
+  const [logComment, setLogComment] = useState("");
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [editLogDuration, setEditLogDuration] = useState("0");
+  const [editLogComment, setEditLogComment] = useState("");
 
   useEffect(() => {
     const initPage = async () => {
@@ -87,47 +97,12 @@ export default function IssueDetail() {
       try {
         setLoading(true);
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        setIsAdmin(userData?.role === 'admin');
 
-        // Fetch everything in parallel for better performance and to avoid sequential loading
-        const [issueResponse, labelsResponse, usersResponse] = await Promise.all([
-          api.issues.getById(id),
-          api.labels.getAll(),
-          api.users.getWithRoles()
-        ]) as any;
-
-        // Process Issue Data
-        const issueData = issueResponse.issue || issueResponse;
-        if (!issueData || !issueData.id) {
-          throw new Error("Issue not found");
-        }
-
-        setIssue(issueData);
-        setEditTitle(issueData.title);
-        setEditDescription(issueData.description || "");
-        setEditProjectName(issueData.project_name || "");
-        setAssignees((issueData.assignees || []).map((a: any) => ({
-          user_id: a.user_id,
-          email: a.email || 'Unknown'
-        })));
-        setIssueLabels(issueData.labels || []);
-        setComments((issueData.comments || []).map((c: any) => ({
-          ...c,
-          user_email: c.email || c.user_email || 'Unknown'
-        })));
-        setActivities((issueData.activity || issueData.activities || []).map((a: any) => ({
-          ...a,
-          user_email: a.email || a.user_email || 'Unknown'
-        })));
-
-        setAvailableLabels(labelsResponse.labels || labelsResponse || []);
-        setAvailableUsers((usersResponse.users || usersResponse || []).map((u: any) => ({
-          user_id: u.user_id || u.id,
-          email: u.email
-        })));
-
-        setIsAdmin(userData.role === 'admin');
+        // Fetch everything in parallel
+        await loadIssueData();
       } catch (error: any) {
-        console.error("Error loading issue details:", error);
+        console.error('Error initializing page:', error);
         if (error.message?.includes('404') || error.message?.includes('not found')) {
           toast({
             title: "Error",
@@ -150,28 +125,24 @@ export default function IssueDetail() {
     initPage();
   }, [id, navigate, toast]);
 
-
-  const loadIssueData = async (showLoading = false) => {
+  const loadIssueData = async () => {
     try {
       if (!id) return;
-      if (showLoading) setLoading(true);
 
-      const issueResponse = await api.issues.getById(id) as any;
+      const [issueResponse, labelsResponse, usersResponse, projectsResponse] = await Promise.all([
+        api.issues.getById(id),
+        api.labels.getAll(),
+        api.users.getWithRoles(),
+        api.projects.getAll()
+      ]) as any;
+
       const issueData = issueResponse.issue || issueResponse;
 
-      if (!issueData || !issueData.id) {
-        throw new Error("Issue not found");
-      }
-
       setIssue(issueData);
-      setEditTitle(issueData.title);
+      setEditTitle(issueData.title || "");
       setEditDescription(issueData.description || "");
       setEditProjectName(issueData.project_name || "");
-      setAssignees((issueData.assignees || []).map((a: any) => ({
-        user_id: a.user_id,
-        email: a.email || 'Unknown'
-      })));
-      setIssueLabels(issueData.labels || []);
+      setEditEstimatedHours(String(issueData.estimated_hours || 0));
       setComments((issueData.comments || []).map((c: any) => ({
         ...c,
         user_email: c.email || c.user_email || 'Unknown'
@@ -180,20 +151,29 @@ export default function IssueDetail() {
         ...a,
         user_email: a.email || a.user_email || 'Unknown'
       })));
+      setIssueLabels(issueData.labels || []);
+      setAssignees((issueData.assignees || []).map((a: any) => ({
+        user_id: a.user_id,
+        email: a.email || 'Unknown'
+      })));
+      setAvailableLabels(labelsResponse.labels || labelsResponse || []);
+      setAvailableUsers((usersResponse.users || usersResponse || []).map((u: any) => ({
+        user_id: u.user_id || u.id,
+        email: u.email
+      })));
+      setProjects(projectsResponse.projects || projectsResponse || []);
     } catch (error: any) {
-      console.error("Error reloading issue data:", error);
+      console.error("Error loading issue data:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to sync data",
         variant: "destructive",
       });
-    } finally {
-      if (showLoading) setLoading(false);
     }
   };
 
   const createCustomLabel = async () => {
-    if (!newLabelName) {
+    if (!newLabelName.trim()) {
       toast({
         title: "Error",
         description: "Label name is required",
@@ -225,7 +205,7 @@ export default function IssueDetail() {
       // Auto-assign the new label to the current issue
       if (id) {
         await api.issues.addLabel(id, newLabel.id || newLabel.label?.id);
-        await loadIssueData(false);
+        await loadIssueData();
       }
     } catch (error: any) {
       toast({
@@ -238,10 +218,10 @@ export default function IssueDetail() {
     }
   };
 
-
   const updateIssueStatus = async (newStatus: 'open' | 'in_progress' | 'closed') => {
+    if (!id) return;
     try {
-      await api.issues.update(id!, {
+      await api.issues.update(id, {
         status: newStatus,
         ...(newStatus === 'closed' ? { closed_at: new Date().toISOString() } : {})
       });
@@ -268,6 +248,7 @@ export default function IssueDetail() {
         title: editTitle,
         description: editDescription,
         project_name: editProjectName,
+        estimated_hours: parseFloat(editEstimatedHours) || 0
       });
 
       toast({
@@ -275,6 +256,7 @@ export default function IssueDetail() {
         description: "Issue updated successfully",
       });
       setIsEditing(false);
+      setShowEstimateDialog(false);
       await loadIssueData();
     } catch (error: any) {
       toast({
@@ -303,6 +285,58 @@ export default function IssueDetail() {
       toast({
         title: "Error",
         description: error.message || "Failed to add comment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const logManualTime = async () => {
+    if (!id || parseFloat(logDuration) < 0) return;
+
+    try {
+      await api.issues.logTime(id, {
+        duration: Math.round(parseFloat(logDuration)),
+        comment: logComment
+      });
+
+      toast({
+        title: "Success",
+        description: "Time logged successfully",
+      });
+
+      setShowLogTimeDialog(false);
+      setLogDuration("1"); // Reset to default 1 hour
+      setLogComment("");
+      await loadIssueData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to log time",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateTimeEntry = async () => {
+    if (!id || !editingActivity) return;
+
+    try {
+      await api.issues.updateActivity(id, editingActivity.id, {
+        duration: Math.round(parseFloat(editLogDuration)),
+        comment: editLogComment
+      });
+
+      toast({
+        title: "Success",
+        description: "Time entry updated successfully",
+      });
+
+      setEditingActivity(null);
+      await loadIssueData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update entry",
         variant: "destructive",
       });
     }
@@ -539,12 +573,12 @@ export default function IssueDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 px-6 py-4 text-[#24292f]">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigate(-1)}>
+            <Button variant="outline" onClick={() => navigate(-1)} className="h-9 px-3 text-sm font-semibold border-[#d0d7de] text-[#24292f] hover:bg-[#f6f8fa] shadow-sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Issues
             </Button>
@@ -587,10 +621,30 @@ export default function IssueDetail() {
                       />
                     </div>
                     <div>
-                      <Label>Project Name</Label>
-                      <Input
+                      <Label>Project</Label>
+                      <select
                         value={editProjectName}
                         onChange={(e) => setEditProjectName(e.target.value)}
+                        className="w-full p-2 border rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                      >
+                        <option value="">Select a project</option>
+                        {projects.map(project => (
+                          <option key={project.id} value={project.name}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-500 font-medium mb-1.5 block">Estimated Hours</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={editEstimatedHours}
+                        onChange={(e) => setEditEstimatedHours(e.target.value)}
+                        className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-100 transition-all rounded-lg"
+                        placeholder="e.g. 2"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -654,20 +708,35 @@ export default function IssueDetail() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {activities.map((activity) => (
-                    <div key={activity.id} className="flex gap-2 text-sm">
-                      <span className="text-gray-500">
-                        {new Date(activity.created_at).toLocaleString()}
-                      </span>
-                      <span className="font-semibold">{activity.user_email}</span>
-                      <span>{activity.action}</span>
-                      {activity.details && (
-                        <span className="text-gray-600">
-                          {JSON.stringify(activity.details)}
+                  {activities.map((activity) => {
+                    const isTimeEntry = activity.action === 'work_recorded' || activity.action === 'work_completed';
+                    const details = typeof activity.details === 'string' ? JSON.parse(activity.details) : activity.details;
+
+                    return (
+                      <div key={activity.id} className="flex gap-2 text-sm items-start border-b border-gray-100 pb-2">
+                        <span className="text-gray-500 whitespace-nowrap">
+                          {new Date(activity.created_at).toLocaleString()}
                         </span>
-                      )}
-                    </div>
-                  ))}
+                        <div className="flex-1">
+                          <span className="font-semibold mr-1">{activity.user_email}</span>
+                          <span className={`${isTimeEntry ? 'text-blue-600 font-medium' : ''}`}>
+                            {activity.action === 'work_completed' || activity.action === 'work_recorded' ? 'logged time' : activity.action}
+                          </span>
+                          {activity.details && (
+                            <div className="text-gray-600 mt-1 bg-gray-50 p-2 rounded">
+                              {isTimeEntry ? (
+                                <span>
+                                  <strong>{parseFloat(details?.duration || details?.hours_worked || 0).toFixed(2)}h</strong> - {details?.comment || details?.note || 'No comment'}
+                                </span>
+                              ) : (
+                                <span>{typeof activity.details === 'string' ? activity.details : JSON.stringify(activity.details)}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -861,34 +930,112 @@ export default function IssueDetail() {
               </CardContent>
             </Card>
 
-            {/* Metadata */}
+            {/* Time Tracking Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Time Tracking
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Estimated</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-semibold">{parseFloat(issue.estimated_hours as any || 0).toFixed(2)}h</p>
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowEstimateDialog(true)}>
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Completed</p>
+                    <p className="text-lg font-semibold text-blue-600">
+                      {activities
+                        .filter(a => a.action === 'work_recorded' || a.action === 'work_completed')
+                        .reduce((sum, a) => {
+                          const details = typeof a.details === 'string' ? JSON.parse(a.details) : a.details;
+                          return sum + (parseFloat(details?.duration || details?.hours_worked || 0));
+                        }, 0).toFixed(2)}h
+                    </p>
+                  </div>
+                </div>
+
+                {/* Visual Progress Bar */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span>Progress</span>
+                    <span>
+                      {Math.round((activities
+                        .filter(a => a.action === 'work_recorded' || a.action === 'work_completed')
+                        .reduce((sum, a) => {
+                          const details = typeof a.details === 'string' ? JSON.parse(a.details) : a.details;
+                          return sum + (parseFloat(details?.duration || details?.hours_worked || 0));
+                        }, 0) / (parseFloat(issue.estimated_hours as any || 0) || 1)) * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-500"
+                      style={{
+                        width: `${Math.min(100, (activities
+                          .filter(a => a.action === 'work_recorded' || a.action === 'work_completed')
+                          .reduce((sum, a) => {
+                            const details = typeof a.details === 'string' ? JSON.parse(a.details) : a.details;
+                            return sum + (parseFloat(details?.duration || details?.hours_worked || 0));
+                          }, 0) / (parseFloat(issue.estimated_hours as any || 0) || 1)) * 100)}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Details Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <div>
-                  <span className="font-semibold">Priority:</span>{' '}
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-500">Priority:</span>
                   <span className="capitalize">{issue.priority}</span>
                 </div>
-                {issue.project_name && (
-                  <div>
-                    <span className="font-semibold">Project:</span> {issue.project_name}
-                  </div>
-                )}
-                <div>
-                  <span className="font-semibold">Created:</span>{' '}
-                  {new Date(issue.created_at).toLocaleString()}
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-500">Project:</span>
+                  <span>{issue.project_name || "None"}</span>
                 </div>
-                <div>
-                  <span className="font-semibold">Updated:</span>{' '}
-                  {new Date(issue.updated_at).toLocaleString()}
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-500">Estimate:</span>
+                  <div className="flex items-center gap-1">
+                    <span>{parseFloat(issue.estimated_hours as any || 0).toFixed(2)}h</span>
+                    {isAdmin && (
+                      <button onClick={() => setShowEstimateDialog(true)} className="text-blue-600 hover:text-blue-800">
+                        <Edit2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="pt-2 border-t mt-2">
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Created:</span>
+                    <span>{new Date(issue.created_at).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Updated:</span>
+                    <span>{new Date(issue.updated_at).toLocaleString()}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Label Dialog */}
       <Dialog open={showLabelDialog} onOpenChange={setShowLabelDialog}>
         <DialogContent>
           <DialogHeader>
@@ -940,6 +1087,114 @@ export default function IssueDetail() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLabelDialog(false)}>Cancel</Button>
             <Button onClick={createCustomLabel}>Create & Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Estimate Dialog */}
+      <Dialog open={showEstimateDialog} onOpenChange={setShowEstimateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Time Estimate</DialogTitle>
+            <DialogDescription>
+              Update the estimated hours for this task
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="estimate-hours" className="text-gray-500 font-medium">Estimated Hours</Label>
+              <Input
+                id="estimate-hours"
+                type="number"
+                step="1"
+                min="0"
+                value={editEstimatedHours}
+                onChange={(e) => setEditEstimatedHours(e.target.value)}
+                className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-100 transition-all rounded-lg"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEstimateDialog(false)}>Cancel</Button>
+            <Button onClick={saveIssue}>Update Estimate</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Log Manual Time Dialog */}
+      <Dialog open={showLogTimeDialog} onOpenChange={setShowLogTimeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log Work Time</DialogTitle>
+            <DialogDescription>
+              Record manual work hours for this task
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="log-duration" className="text-gray-500 font-medium">Duration (Hours)</Label>
+              <Input
+                id="log-duration"
+                type="number"
+                step="1"
+                min="0"
+                value={logDuration}
+                onChange={(e) => setLogDuration(e.target.value)}
+                className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-100 transition-all rounded-lg"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="log-comment">Work Description</Label>
+              <Textarea
+                id="log-comment"
+                placeholder="What did you work on?"
+                value={logComment}
+                onChange={(e) => setLogComment(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLogTimeDialog(false)}>Cancel</Button>
+            <Button onClick={logManualTime}>Log Time</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Time Entry Dialog */}
+      <Dialog open={!!editingActivity} onOpenChange={(open) => !open && setEditingActivity(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Time Record</DialogTitle>
+            <DialogDescription>
+              Adjust previously recorded work hours
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-log-duration" className="text-gray-500 font-medium">Duration (Hours)</Label>
+              <Input
+                id="edit-log-duration"
+                type="number"
+                step="1"
+                min="0"
+                value={editLogDuration}
+                onChange={(e) => setEditLogDuration(e.target.value)}
+                className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-100 transition-all rounded-lg"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-log-comment">Work Description</Label>
+              <Textarea
+                id="edit-log-comment"
+                placeholder="What did you work on?"
+                value={editLogComment}
+                onChange={(e) => setEditLogComment(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingActivity(null)}>Cancel</Button>
+            <Button onClick={updateTimeEntry}>Update Entry</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

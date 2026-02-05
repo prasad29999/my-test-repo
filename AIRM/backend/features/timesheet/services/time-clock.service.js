@@ -40,14 +40,14 @@ export async function clockIn(userId, clockInData) {
  */
 export async function clockOut(userId, comment) {
   console.log('🔴 Clock-out service called for user:', userId);
-  
+
   // Get active entry
   const activeEntry = await timeClockModel.getActiveEntry(userId);
   if (!activeEntry) {
     console.log('⚠️ No active entry found for user:', userId);
     throw new Error('No active entry');
   }
-  
+
   console.log('✅ Found active entry:', activeEntry.id);
 
   const clockOutTime = new Date();
@@ -65,13 +65,40 @@ export async function clockOut(userId, comment) {
   const updatedEntry = await timeClockModel.updateClockOut(activeEntry.id, clockOutTime, totalHours);
   console.log('✅ Clock-out updated successfully');
 
-  // Add comment to issue if provided
-  if (comment && activeEntry.issue_id) {
-    console.log('💬 Adding comment to issue:', activeEntry.issue_id);
-    await timesheetModel.addIssueComment(activeEntry.issue_id, userId, comment);
+  // Get issue details if available to get estimated hours
+  let estimatedHours = 0;
+  if (activeEntry.issue_id) {
+    try {
+      const issue = await timesheetModel.getIssueDetails(activeEntry.issue_id);
+      if (issue) {
+        estimatedHours = issue.estimated_hours || 0;
+      }
+    } catch (err) {
+      console.warn('Could not fetch issue details:', err.message);
+    }
+  }
+
+  // Add automated time tracking comment
+  if (activeEntry.issue_id) {
+    console.log('💬 Adding automated time comment to issue:', activeEntry.issue_id);
+
+    const formattedClockIn = clockInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const formattedClockOut = clockOutTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    let timeComment = `⏱️ **Time Tracked**\n`;
+    timeComment += `- **Session:** ${formattedClockIn} - ${formattedClockOut}\n`;
+    timeComment += `- **Duration:** ${totalHours.toFixed(2)} hours\n`;
+    timeComment += `- **Estimate:** ${parseFloat(estimatedHours).toFixed(2)} hours\n`;
+
+    if (comment) {
+      timeComment += `\n**Note:** ${comment}`;
+    }
+
+    await timesheetModel.addIssueComment(activeEntry.issue_id, userId, timeComment);
     await timesheetModel.addIssueActivity(activeEntry.issue_id, userId, 'work_completed', {
-      comment: comment.substring(0, 100),
-      hours_worked: totalHours,
+      duration: totalHours,
+      estimate: estimatedHours,
+      note: comment
     });
   }
 
@@ -82,7 +109,7 @@ export async function clockOut(userId, comment) {
     if (totalHours > 0) {
       const weekStartStr = utils.getWeekStartMonday(clockOutTime);
       const weekEndStr = utils.getWeekEnd(weekStartStr);
-      
+
       const localDateStr = clockOutTime.toLocaleDateString('en-CA');
       const [year, month, day] = localDateStr.split('-').map(Number);
       const localDate = new Date(year, month - 1, day);
@@ -110,7 +137,7 @@ export async function clockOut(userId, comment) {
       // Get or create timesheet
       let timesheet = await timesheetModel.getTimesheetByWeek(userId, weekStartStr);
       let timesheetId;
-      
+
       if (timesheet) {
         timesheetId = timesheet.id;
       } else {
@@ -119,7 +146,7 @@ export async function clockOut(userId, comment) {
 
       // Find or create entry
       const existingEntry = await timesheetModel.getOrCreateTimeClockEntry(timesheetId, project, task);
-      
+
       if (existingEntry) {
         const currentHours = parseFloat(existingEntry[dayColumn]) || 0;
         const newHours = Math.round((currentHours + totalHours) * 100) / 100;
@@ -127,7 +154,7 @@ export async function clockOut(userId, comment) {
       } else {
         await timesheetModel.createTimesheetEntryForDay(timesheetId, project, task, dayColumn, totalHours);
       }
-      
+
       timesheetUpdateSuccess = true;
     }
   } catch (error) {
@@ -196,7 +223,7 @@ export async function getCurrentEntry(userId) {
  */
 export async function getTimeClockEntries(userId, isAdmin, filters) {
   const entries = await timeClockModel.getTimeClockEntries(userId, isAdmin, filters);
-  
+
   return entries.map(entry => ({
     ...entry,
     issue: entry.issue_id ? {
@@ -212,7 +239,7 @@ export async function getTimeClockEntries(userId, isAdmin, filters) {
  */
 export async function getAllActiveEntries() {
   const entries = await timeClockModel.getAllActiveEntries();
-  
+
   return entries.map(entry => ({
     ...entry,
     issue: entry.issue_id ? {

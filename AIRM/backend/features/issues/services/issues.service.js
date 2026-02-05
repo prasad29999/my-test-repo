@@ -358,3 +358,35 @@ export async function removeLabel(issueId, labelId, userId) {
   return { message: 'Label removed successfully' };
 }
 
+/**
+ * Delete issue
+ */
+export async function deleteIssue(issueId, userId) {
+  // Verify issue exists
+  const issue = await issueModel.getIssueById(issueId);
+  if (!issue) {
+    throw new Error('Issue not found');
+  }
+
+  // Try to get GitLab issue info (optional)
+  const gitlabIssue = await issueModel.getGitLabIssue(issueId);
+
+  // Delete from GitLab if integrated
+  if (gitlabIssue) {
+    try {
+      await gitlabService.deleteGitLabIssue(
+        gitlabIssue.gitlab_project_id,
+        gitlabIssue.gitlab_iid
+      );
+    } catch (gitlabError) {
+      console.error('GitLab issue deletion failed:', gitlabError.message);
+    }
+  }
+
+  // Add activity before deleting (optional - might not persist if parent is deleted)
+  // Actually, delete from local DB
+  const deletedIssue = await issueModel.deleteIssue(issueId);
+
+  return deletedIssue;
+}
+
