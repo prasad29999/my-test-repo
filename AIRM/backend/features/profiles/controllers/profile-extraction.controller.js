@@ -497,10 +497,12 @@ export async function uploadBatchProfiles(req, res) {
         // Find user by email or employee_id
         let targetUserId = null;
 
-        if (profileData.Official_Email) {
+        if (profileData.Official_Email || profileData.Personal_Email) {
+          const emailToUse = profileData.Official_Email || profileData.Personal_Email;
+
           const userCheck = await pool.query(
             'SELECT id FROM erp.users WHERE email = $1',
-            [profileData.Official_Email]
+            [emailToUse]
           );
 
           if (userCheck.rows.length > 0) {
@@ -509,15 +511,16 @@ export async function uploadBatchProfiles(req, res) {
             // Create new user if not exists
             const newUser = await pool.query(
               'INSERT INTO erp.users (id, email, full_name, created_at, updated_at) VALUES (uuid_generate_v4(), $1, $2, now(), now()) RETURNING id',
-              [profileData.Official_Email, profileData.Full_Name || '']
+              [emailToUse, profileData.Full_Name || '']
             );
             targetUserId = newUser.rows[0].id;
           }
         } else {
+          const availableHeaders = Object.keys(profileData._raw).join(', ');
           results.push({
             success: false,
             email: profileData.Official_Email,
-            error: 'Missing email - email is required to create or identify user'
+            error: `Missing email - email is required to create or identify user. Checked columns for email: Email, Official Email, Personal Email, etc. Found headers: ${availableHeaders}`
           });
           continue;
         }
@@ -609,7 +612,7 @@ export async function uploadBatchProfiles(req, res) {
             mappedProfile.uan_number || null,
             mappedProfile.current_address || null,
             mappedProfile.permanent_address || null,
-            mappedProfile.languages_known ? (typeof mappedProfile.languages_known === 'string' ? [mappedProfile.languages_known] : mappedProfile.languages_known) : null,
+            mappedProfile.languages_known ? JSON.stringify(typeof mappedProfile.languages_known === 'string' ? [mappedProfile.languages_known] : mappedProfile.languages_known) : null,
             mappedProfile.blood_group || null,
             mappedProfile.emergency_contact || null,
             mappedProfile.gender || null
@@ -689,6 +692,9 @@ export async function uploadBatchProfiles(req, res) {
  */
 async function saveToEmployeeTable(profileId, rawRow) {
   if (!rawRow) return;
+
+  // Clear existing entry to avoid duplicates
+  await pool.query('DELETE FROM erp.employee WHERE profile_id = $1', [profileId]);
 
   const getVal = (keys) => {
     if (!Array.isArray(keys)) keys = [keys];

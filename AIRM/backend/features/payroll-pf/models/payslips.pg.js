@@ -68,7 +68,7 @@ export async function getPayslips(filters = {}) {
     oneYearLater.setFullYear(currentYear + 1);
     const oneYearLaterYear = oneYearLater.getFullYear();
     const oneYearLaterMonth = oneYearLater.getMonth() + 1;
-    
+
     // Include payslips from current month/year to one year later (inclusive)
     // This covers: current month to end of current year, all months in between years, and up to target month in target year
     query += ` AND (
@@ -117,6 +117,7 @@ export async function upsertPayslip(payslipData) {
     employee_id,
     month,
     year,
+    base_salary,
     basic_pay,
     hra,
     special_allowance,
@@ -141,91 +142,105 @@ export async function upsertPayslip(payslipData) {
     company_address,
     issue_date,
     created_by,
+    lop_days,
+    lop_deduction,
+    paid_days,
+    attendance_summary,
     allowAdminOverride = false
   } = payslipData;
 
   // Generate UUID for new payslips if not provided
   const payslipId = id || null;
-  
+
   // Build the INSERT query - include id only if provided, otherwise let database generate it
-  const insertColumns = payslipId 
-    ? `id, user_id, employee_id, month, year,
+  const insertColumns = payslipId
+    ? `id, user_id, employee_id, month, year, base_salary,
        basic_pay, hra, special_allowance, bonus, incentives, other_earnings, total_earnings,
        pf_employee, pf_employer, esi_employee, esi_employer, professional_tax, tds, other_deductions, total_deductions,
        net_pay, payslip_id, document_url, status, is_locked,
-       company_name, company_address, issue_date, created_by, updated_at`
-    : `user_id, employee_id, month, year,
+       company_name, company_address, issue_date, created_by, lop_days, lop_deduction, paid_days, attendance_summary, updated_at`
+    : `user_id, employee_id, month, year, base_salary,
        basic_pay, hra, special_allowance, bonus, incentives, other_earnings, total_earnings,
        pf_employee, pf_employer, esi_employee, esi_employer, professional_tax, tds, other_deductions, total_deductions,
        net_pay, payslip_id, document_url, status, is_locked,
-       company_name, company_address, issue_date, created_by, updated_at`;
+       company_name, company_address, issue_date, created_by, lop_days, lop_deduction, paid_days, attendance_summary, updated_at`;
 
   const insertValues = payslipId
-    ? `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, NOW()`
-    : `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, NOW()`;
+    ? `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, NOW()`
+    : `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, NOW()`;
 
   const params = payslipId
     ? [
-        payslipId,
-        user_id,
-        employee_id || null,
-        month,
-        year,
-        basic_pay || 0,
-        hra || 0,
-        special_allowance || 0,
-        bonus || 0,
-        incentives || 0,
-        other_earnings || 0,
-        total_earnings || 0,
-        pf_employee || 0,
-        pf_employer || 0,
-        esi_employee || 0,
-        esi_employer || 0,
-        professional_tax || 0,
-        tds || 0,
-        other_deductions || 0,
-        total_deductions || 0,
-        net_pay || 0,
-        payslip_id || null,
-        document_url || null,
-        status || 'pending',
-        is_locked || false,
-        company_name || null,
-        company_address || null,
-        issue_date || null,
-        created_by || null
-      ]
+      payslipId,
+      user_id,
+      employee_id || null,
+      month,
+      year,
+      base_salary || 0,
+      basic_pay || 0,
+      hra || 0,
+      special_allowance || 0,
+      bonus || 0,
+      incentives || 0,
+      other_earnings || 0,
+      total_earnings || 0,
+      pf_employee || 0,
+      pf_employer || 0,
+      esi_employee || 0,
+      esi_employer || 0,
+      professional_tax || 0,
+      tds || 0,
+      other_deductions || 0,
+      total_deductions || 0,
+      net_pay || 0,
+      payslip_id || null,
+      document_url || null,
+      status || 'pending',
+      is_locked || false,
+      company_name || null,
+      company_address || null,
+      issue_date || null,
+      created_by || null,
+      lop_days || 0,
+      lop_deduction || 0,
+      paid_days || 0,
+      attendance_summary ? JSON.stringify(attendance_summary) : '{}'
+    ]
     : [
-        user_id,
-        employee_id || null,
-        month,
-        year,
-        basic_pay || 0,
-        hra || 0,
-        special_allowance || 0,
-        bonus || 0,
-        incentives || 0,
-        other_earnings || 0,
-        total_earnings || 0,
-        pf_employee || 0,
-        pf_employer || 0,
-        esi_employee || 0,
-        esi_employer || 0,
-        professional_tax || 0,
-        tds || 0,
-        other_deductions || 0,
-        total_deductions || 0,
-        net_pay || 0,
-        payslip_id || null,
-        document_url || null,
-        status || 'pending',
-        is_locked || false,
-        company_name || null,
-        company_address || null,
-        issue_date || null,
-        created_by || null
-      ];
+      user_id,
+      employee_id || null,
+      month,
+      year,
+      base_salary || 0,
+      basic_pay || 0,
+      hra || 0,
+      special_allowance || 0,
+      bonus || 0,
+      incentives || 0,
+      other_earnings || 0,
+      total_earnings || 0,
+      pf_employee || 0,
+      pf_employer || 0,
+      esi_employee || 0,
+      esi_employer || 0,
+      professional_tax || 0,
+      tds || 0,
+      other_deductions || 0,
+      total_deductions || 0,
+      net_pay || 0,
+      payslip_id || null,
+      document_url || null,
+      status || 'pending',
+      is_locked || false,
+      company_name || null,
+      Company_address || null,
+      issue_date || null,
+      created_by || null,
+      lop_days || 0,
+      lop_deduction || 0,
+      paid_days || 0,
+      attendance_summary ? JSON.stringify(attendance_summary) : '{}'
+    ];
 
   // If ID is provided, use UPDATE instead of INSERT to handle locked payslips properly
   if (payslipId) {
@@ -239,7 +254,7 @@ export async function upsertPayslip(payslipData) {
       console.log('[payroll-pf] Blocked update: payslip is locked and allowAdminOverride is', allowAdminOverride);
       throw new Error('Cannot update a locked payslip');
     }
-    
+
     if (existing.rows.length > 0 && existing.rows[0].is_locked && allowAdminOverride) {
       console.log('[payroll-pf] Admin override: allowing update of locked payslip', payslipId);
     }
@@ -251,28 +266,33 @@ export async function upsertPayslip(payslipData) {
         employee_id = $3,
         month = $4,
         year = $5,
-        basic_pay = $6,
-        hra = $7,
-        special_allowance = $8,
-        bonus = $9,
-        incentives = $10,
-        other_earnings = $11,
-        total_earnings = $12,
-        pf_employee = $13,
-        pf_employer = $14,
-        esi_employee = $15,
-        esi_employer = $16,
-        professional_tax = $17,
-        tds = $18,
-        other_deductions = $19,
-        total_deductions = $20,
-        net_pay = $21,
-        payslip_id = COALESCE($22, payslip_id),
-        document_url = COALESCE($23, document_url),
-        status = CASE WHEN is_locked THEN status ELSE COALESCE($24, status) END,
-        company_name = COALESCE($25, company_name),
-        company_address = COALESCE($26, company_address),
-        issue_date = COALESCE($27, issue_date),
+        base_salary = $6,
+        basic_pay = $7,
+        hra = $8,
+        special_allowance = $9,
+        bonus = $10,
+        incentives = $11,
+        other_earnings = $12,
+        total_earnings = $13,
+        pf_employee = $14,
+        pf_employer = $15,
+        esi_employee = $16,
+        esi_employer = $17,
+        professional_tax = $18,
+        tds = $19,
+        other_deductions = $20,
+        total_deductions = $21,
+        net_pay = $22,
+        payslip_id = COALESCE($23, payslip_id),
+        document_url = COALESCE($24, document_url),
+        status = CASE WHEN is_locked THEN status ELSE COALESCE($25, status) END,
+        company_name = COALESCE($26, company_name),
+        company_address = COALESCE($27, company_address),
+        issue_date = COALESCE($28, issue_date),
+        lop_days = $29,
+        lop_deduction = $30,
+        paid_days = $31,
+        attendance_summary = $32,
         updated_at = NOW()
       WHERE id = $1
       RETURNING *`,
@@ -282,6 +302,7 @@ export async function upsertPayslip(payslipData) {
         employee_id || null,
         month,
         year,
+        base_salary || 0,
         basic_pay || 0,
         hra || 0,
         special_allowance || 0,
@@ -304,6 +325,10 @@ export async function upsertPayslip(payslipData) {
         company_name || null,
         company_address || null,
         issue_date || null,
+        lop_days || 0,
+        lop_deduction || 0,
+        paid_days || 0,
+        attendance_summary ? JSON.stringify(attendance_summary) : '{}',
       ]
     );
     return result.rows[0];
@@ -314,6 +339,7 @@ export async function upsertPayslip(payslipData) {
     `INSERT INTO erp.payslips (${insertColumns})
     VALUES (${insertValues})
     ON CONFLICT (user_id, month, year) DO UPDATE SET
+      base_salary = EXCLUDED.base_salary,
       basic_pay = EXCLUDED.basic_pay,
       hra = EXCLUDED.hra,
       special_allowance = EXCLUDED.special_allowance,
@@ -336,6 +362,10 @@ export async function upsertPayslip(payslipData) {
       company_name = COALESCE(EXCLUDED.company_name, payslips.company_name),
       company_address = COALESCE(EXCLUDED.company_address, payslips.company_address),
       issue_date = COALESCE(EXCLUDED.issue_date, payslips.issue_date),
+      lop_days = EXCLUDED.lop_days,
+      lop_deduction = EXCLUDED.lop_deduction,
+      paid_days = EXCLUDED.paid_days,
+      attendance_summary = EXCLUDED.attendance_summary,
       updated_at = NOW()
     RETURNING *`,
     params

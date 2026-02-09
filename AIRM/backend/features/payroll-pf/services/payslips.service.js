@@ -23,6 +23,7 @@ function transformPayslip(payslip) {
     full_name: payslip.full_name,
     month: payslip.month,
     year: payslip.year,
+    base_salary: parseFloat(payslip.base_salary || 0),
     basic_pay: parseFloat(payslip.basic_pay || 0),
     hra: parseFloat(payslip.hra || 0),
     special_allowance: parseFloat(payslip.special_allowance || 0),
@@ -39,6 +40,10 @@ function transformPayslip(payslip) {
     other_deductions: parseFloat(payslip.other_deductions || 0),
     total_deductions: parseFloat(payslip.total_deductions || 0),
     net_pay: parseFloat(payslip.net_pay || 0),
+    lop_days: parseFloat(payslip.lop_days || 0),
+    lop_deduction: parseFloat(payslip.lop_deduction || 0),
+    paid_days: parseFloat(payslip.paid_days || 0),
+    attendance_summary: payslip.attendance_summary || {},
     payslip_id: payslip.payslip_id,
     document_url: payslip.document_url,
     status: payslip.status,
@@ -231,7 +236,12 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
           full_name: record.full_name,
           email: record.email,
           paid_days: 0,
-          lop_days: 0
+          lop_days: 0,
+          leave_days_taken: 0, // Track leave days separately for LOP calculation
+          present_days: 0,
+          half_days: 0,
+          absent_days: 0,
+          week_off_days: 0
         };
       }
 
@@ -242,25 +252,30 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
 
       if (record.status === 'present') {
         stats.paid_days += 1;
+        stats.present_days += 1;
       } else if (record.status === 'half_day') {
         stats.paid_days += 0.5;
         stats.lop_days += 0.5;
+        stats.half_days += 1;
       } else if (record.status === 'on_leave') {
-        // Check leave type from record if available, else assume paid
-        if (record.leave_type === 'Unpaid Leave') {
-          stats.lop_days += 1;
-        } else {
-          stats.paid_days += 1;
-        }
+        // Track all leave days for LOP calculation
+        stats.leave_days_taken += 1;
+        stats.paid_days += 1; // Initially count as paid, will adjust for LOP later
       } else if (record.status === 'absent') {
         stats.lop_days += 1;
+        stats.absent_days += 1;
+      } else if (record.status === 'week_off') {
+        stats.paid_days += 1;
+        stats.week_off_days += 1;
       } else {
         // No status (NULL)
         if (isWeekend) {
           stats.paid_days += 1; // Assume paid weekend
+          stats.week_off_days += 1;
         } else {
           // If it's a weekday and no record, treat as absent for generation purposes
           stats.lop_days += 1;
+          stats.absent_days += 1;
         }
       }
     });
@@ -277,9 +292,37 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
         continue;
       }
       const stats = userStats[userId];
+
+      // Fetch Leave Balances for LOP calculation
+      const leaveBalances = await leaveService.getLeaveBalances(userId);
+
+      // Calculate monthly leave entitlement: 15 days/year = 1.25 days/month
+      const monthlyLeaveEntitlement = 1.25;
+
+      // Find Privilege Leave balance (this is the paid leave)
+      const privilegeLeave = leaveBalances.find(lb =>
+        lb.leave_type === 'Privilege Leave' || lb.leave_type === 'Paid Leave'
+      );
+
+      // Calculate LOP days: leave taken in excess of available balance
+      let lopDaysFromLeave = 0;
+      if (stats.leave_days_taken > 0) {
+        const availableLeave = privilegeLeave ? parseFloat(privilegeLeave.balance || 0) : monthlyLeaveEntitlement;
+
+        // If leave taken exceeds available balance + monthly entitlement, mark as LOP
+        if (stats.leave_days_taken > monthlyLeaveEntitlement) {
+          lopDaysFromLeave = stats.leave_days_taken - Math.max(monthlyLeaveEntitlement, availableLeave);
+          if (lopDaysFromLeave > 0) {
+            // Adjust paid_days and lop_days
+            stats.paid_days -= lopDaysFromLeave;
+            stats.lop_days += lopDaysFromLeave;
+          }
+        }
+      }
+
       const totalDays = stats.paid_days + stats.lop_days;
 
-      // Fetch Base Salary (PF Base)
+      // Fetch Base Salary (from PF details or use default)
       const pfDetails = await pfModel.getPfDetails(userId);
       const baseSalary = pfDetails?.pf_base_salary ? parseFloat(pfDetails.pf_base_salary) : 15000; // Default 15k if missing
 
@@ -288,8 +331,7 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
       const stdHRA = baseSalary * 0.40;
       const stdGross = stdBasic + stdHRA;
 
-      // Proration Ratio
-      // Ensure ratio implies standard calendar days (e.g. 30/31)
+      // Proration Ratio based on paid days
       const ratio = stats.paid_days / daysInMonth;
 
       // Actual Earnings
@@ -301,7 +343,11 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
       const pf = Math.round(actBasic * 0.12);
       const esi = Math.round(actGross * 0.0075);
       const pt = actGross > 15000 ? 200 : 0;
-      const totalDeductions = pf + esi + pt;
+
+      // Calculate LOP deduction (amount deducted from salary)
+      const lopDeduction = Math.round((stdGross / daysInMonth) * stats.lop_days);
+
+      const totalDeductions = pf + esi + pt + lopDeduction;
 
       const netPay = actGross - totalDeductions;
 
@@ -310,6 +356,7 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
         user_id: userId,
         month: parseInt(month),
         year: parseInt(year),
+        base_salary: baseSalary, // Store base salary for editing
         basic_pay: actBasic,
         hra: actHRA,
         special_allowance: 0,
@@ -323,12 +370,25 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
         esi_employer: Math.round(actGross * 0.0325),
         professional_tax: pt,
         tds: 0,
-        other_deductions: 0,
+        other_deductions: lopDeduction,
+        lop_days: stats.lop_days, // Track LOP days
+        lop_deduction: lopDeduction, // Track LOP amount
+        paid_days: stats.paid_days, // Track paid days
         total_deductions: totalDeductions,
         net_pay: netPay,
         status: 'draft',
         created_by: generatedBy,
-        isAdmin: true
+        isAdmin: true,
+        // Additional metadata for transparency
+        attendance_summary: {
+          present: stats.present_days,
+          half_day: stats.half_days,
+          absent: stats.absent_days,
+          leave: stats.leave_days_taken,
+          week_off: stats.week_off_days,
+          lop_from_leave: lopDaysFromLeave,
+          total_lop: stats.lop_days
+        }
       };
 
       try {

@@ -20,6 +20,8 @@ import type {
   VerificationInfo,
   EmployerVerification
 } from "../joining-form/types";
+import { uploadDocument, getEmployeeDocuments } from "../profiles/services/documentService";
+import type { EmployeeDocument } from "../profiles/types";
 
 const emptyEmployeeInfo: EmployeeInfo = {
   full_name: "",
@@ -141,14 +143,44 @@ export default function JoiningForm({
   const [academicInfo, setAcademicInfo] = useState<AcademicInfo[]>([]);
   const [previousEmployment, setPreviousEmployment] = useState<PreviousEmployment[]>([]);
   const [verificationInfo, setVerificationInfo] = useState<VerificationInfo>(emptyVerificationInfo);
+  const [uploadedDocuments, setUploadedDocuments] = useState<EmployeeDocument[]>([]);
 
   const handleUpdateEmployeeInfo = (field: keyof EmployeeInfo, value: any) => {
     setEmployeeInfo(prev => ({ ...prev, [field]: value }));
   };
 
   // KYC upload handler
-  const handleKycUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // ...existing logic for handling KYC uploads...
+  const handleKycUpload = async (e: React.ChangeEvent<HTMLInputElement>, category: string, type: string) => {
+    if (!profileIdState) {
+      toast({
+        title: "Error",
+        description: "Please save the basic information first before uploading documents.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      try {
+        const doc = await uploadDocument(profileIdState, category, type, file);
+        toast({
+          title: "Success",
+          description: `${type} uploaded successfully`,
+        });
+
+        // Refresh documents list
+        const docs = await getEmployeeDocuments(profileIdState);
+        setUploadedDocuments(docs);
+      } catch (error) {
+        console.error("Upload failed", error);
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload document. Please try again.",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   // Load existing form data if editing
@@ -168,6 +200,14 @@ export default function JoiningForm({
         setAcademicInfo(form.academic_info || []);
         setPreviousEmployment(form.previous_employment || []);
         setVerificationInfo(form.verification_info || emptyVerificationInfo);
+
+        // Load documents
+        try {
+          const docs = await getEmployeeDocuments(id);
+          setUploadedDocuments(docs);
+        } catch (docError) {
+          console.error("Failed to load documents:", docError);
+        }
       }
     } catch (error) {
       console.error("Failed to load form data:", error);
@@ -479,7 +519,10 @@ export default function JoiningForm({
                     />
 
                     <div className="pt-8 border-t">
-                      <DocumentUploadSection handleKycUpload={handleKycUpload} />
+                      <DocumentUploadSection
+                        handleKycUpload={handleKycUpload}
+                        uploadedDocuments={uploadedDocuments}
+                      />
                     </div>
                   </CardContent>
                 </Card>

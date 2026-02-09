@@ -225,7 +225,7 @@ export default function LeaveCalendar() {
     if (activeTab === 'attendance') {
       loadAttendance();
     }
-  }, [attendanceMonth, activeTab]);
+  }, [attendanceMonth, attendanceViewMode, attendanceWeekStart, activeTab]);
 
   // Load leave balances when selected user changes (for admin)
   useEffect(() => {
@@ -276,11 +276,22 @@ export default function LeaveCalendar() {
 
   const loadAttendance = async () => {
     try {
-      const monthStart = startOfMonth(attendanceMonth);
-      const monthEnd = endOfMonth(attendanceMonth);
+      let startDate, endDate;
+
+      if (attendanceViewMode === 'week' && attendanceWeekStart) {
+        // Load this week's attendance
+        startDate = attendanceWeekStart;
+        endDate = new Date(attendanceWeekStart);
+        endDate.setDate(endDate.getDate() + 6); // Sunday
+      } else {
+        // Load month's attendance
+        startDate = startOfMonth(attendanceMonth);
+        endDate = endOfMonth(attendanceMonth);
+      }
+
       const response = await api.leaveCalendar.getAttendance(
-        format(monthStart, 'yyyy-MM-dd'),
-        format(monthEnd, 'yyyy-MM-dd')
+        format(startDate, 'yyyy-MM-dd'),
+        format(endDate, 'yyyy-MM-dd')
       ) as any;
       setAttendance(response.attendance_records || response.attendance || []);
     } catch (error) {
@@ -395,6 +406,7 @@ export default function LeaveCalendar() {
       case 'absent': return 'bg-red-100 text-red-800';
       case 'half_day': return 'bg-yellow-100 text-yellow-800';
       case 'on_leave': return 'bg-blue-100 text-blue-800';
+      case 'week_off': return 'bg-slate-100 text-slate-500';
       case 'upcoming': return 'bg-gray-50 text-gray-400';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -620,6 +632,33 @@ export default function LeaveCalendar() {
           </button>
         </div>
 
+        {/* Probation Warning */}
+        {leaveBalances.some((b: any) => b.is_probation) && !isAdmin && (
+          <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  You are currently in the <strong>Probation Period (90 days)</strong>. Leave accrual policies may apply differently.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Policy Note */}
+        {!isAdmin && (
+          <div className="mb-6 text-xs text-gray-500 bg-gray-100 p-3 rounded-md border border-gray-200 space-y-1">
+            <p><strong>Note:</strong> Unauthorized leave (without prior approval) will be treated as Leave Without Pay (LWP). Sick Leave is expected.</p>
+            <p><strong>Attendance:</strong> Checking in after <strong>11:00 AM</strong> will be marked as <strong>Absent for First Half</strong> (Half Day).</p>
+          </div>
+        )}
+
+
         {/* Tab Content */}
         {activeTab === 'calendar' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -744,6 +783,11 @@ export default function LeaveCalendar() {
                               </div>
                               <p className="text-sm mt-1">
                                 {format(new Date(request.start_date), 'MMM d, yyyy')} - {format(new Date(request.end_date), 'MMM d, yyyy')}
+                                {request.session && request.session !== 'Full Day' && (
+                                  <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-medium">
+                                    {request.session}
+                                  </span>
+                                )}
                               </p>
                               {request.reason && (
                                 <p className="text-sm mt-2">Reason: {request.reason}</p>
@@ -791,7 +835,12 @@ export default function LeaveCalendar() {
                             <div key={request.id} className="border border-yellow-100 rounded-lg p-3 bg-white shadow-sm">
                               <p className="font-bold text-[13px] text-gray-900 truncate">{request.user_email}</p>
                               <div className="flex items-center justify-between mt-1">
-                                <p className="text-[11px] text-gray-500 font-medium">{getLeaveTypeLabel(request.leave_type)}</p>
+                                <div className="flex flex-col">
+                                  <p className="text-[11px] text-gray-500 font-medium">{getLeaveTypeLabel(request.leave_type)}</p>
+                                  {request.session && request.session !== 'Full Day' && (
+                                    <span className="text-[10px] text-blue-600 font-medium mt-0.5">{request.session}</span>
+                                  )}
+                                </div>
                                 <p className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
                                   {format(new Date(request.start_date), 'MMM d')}
                                 </p>

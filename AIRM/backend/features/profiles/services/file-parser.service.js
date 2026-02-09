@@ -317,15 +317,15 @@ export async function parseBatchProfilesFile(buffer, originalname) {
           }
 
           const mapped = {
-            Employee_ID: getVal(['Employee ID', 'Id', 'ID']),
-            Full_Name: getVal(['Full Name', 'Name']),
-            Official_Email: getVal(['Email', 'Official Email']),
-            Personal_Email: getVal(['Personal Mail ID', 'Personal Email']),
-            Phone_Number: getVal(['Mobile No', 'Phone', 'Contact']),
-            Date_of_Joining: formatDate(getVal(['Joining Date (DD/MM/YY)', 'Joining Date', 'Date of Joining', 'DOJ'])),
-            Department: getVal(['Department', 'Department/Branch', 'Branch']),
-            Role: getVal(['Designation', 'Role', 'Job Title']),
-            Employment_Type: getVal(['Employment Type']),
+            Employee_ID: getVal(['Employee ID', 'Id', 'ID', 'Emp ID', 'Emp_ID', 'Employee Code']),
+            Full_Name: getVal(['Full Name', 'Name', 'Employee Name', 'Emp Name']),
+            Official_Email: getVal(['Email', 'Official Email', 'Email Address', 'Email ID', 'Mail', 'Mail ID', 'Official Mail', 'Work Email']),
+            Personal_Email: getVal(['Personal Mail ID', 'Personal Email', 'Personal Mail']),
+            Phone_Number: getVal(['Mobile No', 'Phone', 'Contact', 'Mobile', 'Cell', 'Phone Number', 'Contact Number']),
+            Date_of_Joining: formatDate(getVal(['Joining Date (DD/MM/YY)', 'Joining Date', 'Date of Joining', 'DOJ', 'Join Date'])),
+            Department: getVal(['Department', 'Department/Branch', 'Branch', 'Dept']),
+            Role: getVal(['Designation', 'Role', 'Job Title', 'Position']),
+            Employment_Type: getVal(['Employment Type', 'Emp Type', 'Type']),
             Gender: getVal(['Gender']),
 
             // Personal Details

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import JoiningForm from "../joining-form/JoiningForm";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
@@ -965,7 +965,7 @@ const Profiles = ({ onlyCurrentUser = false, hideHeader = false, noPadding = fal
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         profile={selectedProfile}
-        activeTab={activeTab as 'basic' | 'contact' | 'skills' | 'experience' | 'projects' | 'education' | 'performance' | 'burnout' | 'hr-payroll' | 'documents' | 'assets' | 'activity'}
+        activeTab={activeTab as 'basic' | 'contact' | 'family' | 'skills' | 'experience' | 'projects' | 'education' | 'performance' | 'health' | 'verification' | 'burnout' | 'hr-payroll' | 'documents' | 'assets' | 'activity'}
         onTabChange={setActiveTab}
         canEdit={canEdit}
         onEdit={handleEditProfile}
@@ -991,6 +991,7 @@ const Profiles = ({ onlyCurrentUser = false, hideHeader = false, noPadding = fal
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Profile</DialogTitle>
+            <DialogDescription className="sr-only">Form to edit profile details for {editForm.full_name || editForm.email}</DialogDescription>
           </DialogHeader>
 
           {/* Tabs for different sections */}

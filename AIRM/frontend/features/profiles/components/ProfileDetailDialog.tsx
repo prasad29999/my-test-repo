@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getJoiningFormById } from '../../joining-form/services/joiningFormService';
 import type { JoiningForm } from '../../joining-form/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -32,7 +32,7 @@ interface ProfileDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profile: EmployeeProfile | null;
-  activeTab: 'basic' | 'contact' | 'skills' | 'experience' | 'projects' | 'education' | 'performance' | 'burnout' | 'hr-payroll' | 'documents' | 'assets' | 'activity';
+  activeTab: 'basic' | 'contact' | 'family' | 'skills' | 'experience' | 'projects' | 'education' | 'performance' | 'health' | 'verification' | 'burnout' | 'hr-payroll' | 'documents' | 'assets' | 'activity';
   onTabChange: (tab: string) => void;
   canEdit: boolean;
   onEdit: () => void;
@@ -173,6 +173,7 @@ export const ProfileDetailDialog = ({
                 </Button>
               )}
             </div>
+            <DialogDescription className="sr-only">Detailed profile view for {profile.full_name || profile.email}</DialogDescription>
           </div>
         </DialogHeader>
 
@@ -182,11 +183,10 @@ export const ProfileDetailDialog = ({
             <button
               key={tab}
               onClick={() => handleTabClick(tab)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1).replace('_', ' ').replace('-', ' & ')}
             </button>
@@ -338,9 +338,9 @@ export const ProfileDetailDialog = ({
               {profile.linkedin_url && (
                 <div>
                   <Label className="text-xs text-gray-500">LinkedIn</Label>
-                  <a 
-                    href={profile.linkedin_url} 
-                    target="_blank" 
+                  <a
+                    href={profile.linkedin_url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-blue-600 hover:underline flex items-center space-x-1"
                   >
@@ -352,9 +352,9 @@ export const ProfileDetailDialog = ({
               {profile.github_url && (
                 <div>
                   <Label className="text-xs text-gray-500">GitHub</Label>
-                  <a 
-                    href={profile.github_url} 
-                    target="_blank" 
+                  <a
+                    href={profile.github_url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-gray-600 hover:underline flex items-center space-x-1"
                   >
@@ -362,6 +362,79 @@ export const ProfileDetailDialog = ({
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Family Details */}
+          {activeTab === 'family' && (
+            <div className="space-y-4">
+              {((profile.family_details && Array.isArray(profile.family_details) && profile.family_details.length > 0) ||
+                (joiningForm?.family_members && joiningForm.family_members.length > 0)) ? (
+                <div className="space-y-4">
+                  {/* Profile Family Details (from Batch Upload/Profile) */}
+                  {profile.family_details && Array.isArray(profile.family_details) && profile.family_details.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold mb-3">Family Members</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {profile.family_details.map((member: any, idx: number) => (
+                          <Card key={idx} className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <p className="font-medium">{member.name || member.member_name || 'Family Member'}</p>
+                                <p className="text-sm text-gray-500">{member.relation || member.relationship || 'Relation'}</p>
+                              </div>
+                              <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                                {member.occupation || 'N/A'}
+                              </span>
+                            </div>
+                            <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-xs text-gray-600">
+                              <div>
+                                <span className="text-gray-400 block">Age</span>
+                                {member.age || 'N/A'}
+                              </div>
+                              <div>
+                                <span className="text-gray-400 block">Contact</span>
+                                {member.contact || 'N/A'}
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Joining Form Family Details (if different or if profile details are empty) */}
+                  {(!profile.family_details || profile.family_details.length === 0) && joiningForm?.family_members && joiningForm.family_members.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold mb-3">Family Members (Joined Form)</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {joiningForm.family_members.map((member: any, idx: number) => (
+                          <Card key={idx} className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <p className="font-medium">{member.member_name}</p>
+                                <p className="text-sm text-gray-500">{member.relation} ({member.member_type})</p>
+                              </div>
+                            </div>
+                            <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-xs text-gray-600">
+                              <div>
+                                <span className="text-gray-400 block">Location</span>
+                                {member.location || 'N/A'}
+                              </div>
+                              <div>
+                                <span className="text-gray-400 block">Contact</span>
+                                {member.contact || 'N/A'}
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No family details available</p>
               )}
             </div>
           )}
@@ -396,14 +469,14 @@ export const ProfileDetailDialog = ({
                 <Label className="text-sm font-medium mb-2 block">Total Years of Experience</Label>
                 <p className="text-lg font-semibold">{profile.experience_years || 0} years</p>
               </div>
-              
+
               {/* Experience Timeline */}
               <div className="mt-6">
                 <Label className="text-sm font-medium mb-3 block">Experience Timeline</Label>
                 <div className="relative">
                   {/* Timeline line */}
                   <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                  
+
                   <div className="space-y-4">
                     {/* Current Company */}
                     {profile.join_date && (() => {
@@ -435,7 +508,7 @@ export const ProfileDetailDialog = ({
                         </div>
                       );
                     })()}
-                    
+
                     {/* Previous Experience */}
                     {profile.previous_projects && profile.previous_projects.length > 0 && (
                       <>
@@ -471,9 +544,142 @@ export const ProfileDetailDialog = ({
                   </div>
                 </div>
               </div>
-              
+
               {(!profile.previous_projects || profile.previous_projects.length === 0) && !profile.join_date && (
                 <p className="text-sm text-gray-500">No experience listed</p>
+              )}
+            </div>
+          )}
+
+          {/* Health Information */}
+          {activeTab === 'health' && (
+            <div className="space-y-4">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Health Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label className="text-xs text-gray-500">Blood Group</Label>
+                    <p className="text-sm font-medium">{profile.blood_group || joiningForm?.employee_info?.blood_group || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Height</Label>
+                    <p className="text-sm font-medium">{profile.height ? `${profile.height} cm` : (joiningForm?.employee_info?.height ? `${joiningForm.employee_info.height} cm` : 'N/A')}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Weight</Label>
+                    <p className="text-sm font-medium">{profile.weight ? `${profile.weight} kg` : (joiningForm?.employee_info?.weight ? `${joiningForm.employee_info.weight} kg` : 'N/A')}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className="text-xs text-gray-500">Medical History / Major Illness</Label>
+                    <p className="text-sm font-medium whitespace-pre-wrap">{profile.medical_history || joiningForm?.employee_info?.medical_history || 'None'}</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Verification Information */}
+          {activeTab === 'verification' && (
+            <div className="space-y-4">
+              {joiningForm?.verification_info ? (
+                <>
+                  {/* Personal Verification Details */}
+                  <Card className="p-6">
+                    <h3 className="text-lg font-semibold mb-4">Background Verification Details</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                      <div>
+                        <Label className="text-xs text-gray-500">Full Name</Label>
+                        <p className="text-sm font-medium">{joiningForm.verification_info.name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Father's Name</Label>
+                        <p className="text-sm font-medium">{joiningForm.verification_info.father_name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Date of Birth</Label>
+                        <p className="text-sm font-medium">{joiningForm.verification_info.date_of_birth || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Gender</Label>
+                        <p className="text-sm font-medium">{joiningForm.verification_info.gender || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">PAN Number</Label>
+                        <p className="text-sm font-medium">{joiningForm.verification_info.pan_number || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Aadhaar Number</Label>
+                        <p className="text-sm font-medium">{joiningForm.verification_info.aadhar_number || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Address Verification */}
+                  <Card className="p-6">
+                    <h3 className="text-lg font-semibold mb-4">Address Details</h3>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs text-gray-500 mb-1 block">Present Address</Label>
+                          <p className="text-sm">{joiningForm.verification_info.present_address || 'N/A'}</p>
+                          <div className="mt-2 text-xs text-gray-500">
+                            <span className="mr-2">Stay Period: {joiningForm.verification_info.present_stay_period || 'N/A'}</span>
+                            <span>Contact: {joiningForm.verification_info.present_contact || 'N/A'}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-500 mb-1 block">Permanent Address</Label>
+                          <p className="text-sm">{joiningForm.verification_info.permanent_address || 'N/A'}</p>
+                          <div className="mt-2 text-xs text-gray-500">
+                            <span className="mr-2">Stay Period: {joiningForm.verification_info.permanent_stay_period || 'N/A'}</span>
+                            <span>Contact: {joiningForm.verification_info.permanent_contact || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Employment Verification */}
+                  {joiningForm.verification_info.employers && joiningForm.verification_info.employers.length > 0 && (
+                    <Card className="p-6">
+                      <h3 className="text-lg font-semibold mb-4">Previous Employment Verification</h3>
+                      <div className="space-y-4">
+                        {joiningForm.verification_info.employers.map((emp: any, idx: number) => (
+                          <div key={idx} className="border-b last:border-0 pb-4 last:pb-0">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium">{emp.employer_name}</p>
+                                <p className="text-sm text-gray-600">{emp.designation}</p>
+                                <p className="text-xs text-gray-500 mt-1">{emp.location}</p>
+                              </div>
+                              <div className="text-right text-xs text-gray-500">
+                                <p>Period: {emp.period_of_working}</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 mt-3 text-xs text-gray-600">
+                              <div>
+                                <span className="text-gray-400 block">Supervisor Contact</span>
+                                {emp.supervisor_contact || 'N/A'}
+                              </div>
+                              <div>
+                                <span className="text-gray-400 block">HR Contact</span>
+                                {emp.hr_contact || 'N/A'} ({emp.hr_mail || 'N/A'})
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-gray-400 block">Reason for Leaving</span>
+                                {emp.reason_for_leaving || 'N/A'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No verification information available.</p>
+                </div>
               )}
             </div>
           )}
@@ -633,12 +839,11 @@ export const ProfileDetailDialog = ({
                       <span>Critical Risk</span>
                     </div>
                     <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${
-                          profile.burnout_score <= 30 ? 'bg-green-500' :
+                      <div
+                        className={`h-full transition-all ${profile.burnout_score <= 30 ? 'bg-green-500' :
                           profile.burnout_score <= 60 ? 'bg-yellow-500' :
-                          profile.burnout_score <= 80 ? 'bg-orange-500' : 'bg-red-500'
-                        }`}
+                            profile.burnout_score <= 80 ? 'bg-orange-500' : 'bg-red-500'
+                          }`}
                         style={{ width: `${profile.burnout_score}%` }}
                       />
                     </div>
@@ -647,13 +852,13 @@ export const ProfileDetailDialog = ({
                         <strong>Risk Level:</strong> {getBurnoutLevel(profile.burnout_score).level}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {profile.burnout_score <= 30 
+                        {profile.burnout_score <= 30
                           ? 'Employee shows low signs of burnout. Continue monitoring and maintain healthy work-life balance.'
                           : profile.burnout_score <= 60
-                          ? 'Employee shows moderate signs of burnout. Consider workload adjustments and check-in meetings.'
-                          : profile.burnout_score <= 80
-                          ? 'Employee shows high signs of burnout. Immediate intervention recommended - reduce workload and provide support.'
-                          : 'Employee shows critical signs of burnout. Urgent action required - consider time off and professional support.'}
+                            ? 'Employee shows moderate signs of burnout. Consider workload adjustments and check-in meetings.'
+                            : profile.burnout_score <= 80
+                              ? 'Employee shows high signs of burnout. Immediate intervention recommended - reduce workload and provide support.'
+                              : 'Employee shows critical signs of burnout. Urgent action required - consider time off and professional support.'}
                       </p>
                     </div>
                   </div>
@@ -680,7 +885,7 @@ export const ProfileDetailDialog = ({
                     <div>
                       <Label className="text-xs text-gray-500">Date of Joining</Label>
                       <p className="text-sm font-medium">
-                        {profile.join_date 
+                        {profile.join_date
                           ? format(new Date(profile.join_date), "MMMM dd, yyyy")
                           : 'N/A'}
                       </p>
@@ -711,8 +916,8 @@ export const ProfileDetailDialog = ({
                               <p className="text-xs text-gray-400">Available for download</p>
                             </div>
                           </div>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => window.location.href = '/payslips'}
                           >
@@ -749,7 +954,7 @@ export const ProfileDetailDialog = ({
                       </div>
                     )}
                   </div>
-                  
+
                   {/* PF Management Section */}
                   {(currentUser?.role === 'admin' || currentUser?.role === 'hr' || currentUser?.id === profile.id) && (
                     <PfManagementSection profileId={profile.id} isAdmin={isAdmin} />
@@ -766,7 +971,7 @@ export const ProfileDetailDialog = ({
               {(currentUser?.role === 'admin' || currentUser?.role === 'hr' || currentUser?.id === profile.id) && (
                 <Card className="p-6">
                   <h3 className="text-lg font-semibold mb-6">Upload Documents</h3>
-                  
+
                   {/* KYC Documents */}
                   <div className="mb-6">
                     <h4 className="text-md font-semibold text-gray-700 mb-3 pb-2 border-b">KYC Documents</h4>

@@ -114,6 +114,14 @@ export interface EmployeeProfile {
   onboarding_status?: string | null;
   onboarding_completed_at?: string | null;
   burnout_score?: number;
+  family_details?: any[];
+  bank_details?: any;
+  personal_details?: any;
+  address?: any;
+  blood_group?: string | null;
+  height?: string | null;
+  weight?: string | null;
+  medical_history?: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -144,6 +152,14 @@ export interface UpdateProfileRequest {
   performance_reviews?: any[];
   documents?: any[];
   burnout_score?: number;
+  family_details?: any[];
+  bank_details?: any;
+  personal_details?: any;
+  address?: any;
+  blood_group?: string;
+  height?: string;
+  weight?: string;
+  medical_history?: string;
 }
 
 /**

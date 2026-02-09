@@ -31,7 +31,7 @@ interface UserProfile {
 
 const Timesheet = () => {
   console.log('🎬 Timesheet component rendered');
-  
+
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,7 @@ const Timesheet = () => {
   const [weekEnd, setWeekEnd] = useState<Date>(
     endOfWeek(new Date(), { weekStartsOn: 1 })
   );
-  
+
   console.log('🎬 Timesheet state:', {
     user: user?.id,
     selectedUserId,
@@ -65,6 +65,7 @@ const Timesheet = () => {
       source: 'manual',
     },
   ]);
+  const [weeklyAttendance, setWeeklyAttendance] = useState<any[]>([]);
 
   useEffect(() => {
     const initUser = async () => {
@@ -138,11 +139,11 @@ const Timesheet = () => {
     const today = new Date();
     const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
     const currentWeekEnd = endOfWeek(today, { weekStartsOn: 1 });
-    
+
     // Only check once on mount - if viewing past or future week, go to current week
     const currentWeekStartStr = format(currentWeekStart, "yyyy-MM-dd");
     const viewingWeekStartStr = format(weekStart, "yyyy-MM-dd");
-    
+
     if (currentWeekStartStr !== viewingWeekStartStr) {
       console.log('📅 Not viewing current week. Current:', currentWeekStartStr, 'Viewing:', viewingWeekStartStr);
       // Only auto-navigate if viewing a past week (more than 7 days old)
@@ -194,7 +195,7 @@ const Timesheet = () => {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     // Also reload when window gains focus (user switches back to tab)
     const handleFocus = () => {
       if (user && selectedUserId) {
@@ -217,10 +218,10 @@ const Timesheet = () => {
       setLoading(true);
       const weekStartStr = format(weekStart, "yyyy-MM-dd");
       const weekEndStr = format(weekEnd, "yyyy-MM-dd");
-      
+
       // Build API parameters - for admin viewing another user, always pass user_id
       const apiParams: any = { week_start: weekStartStr };
-      
+
       // If admin and viewing another user, pass user_id to backend
       if (isAdmin && user && userId !== user.id) {
         apiParams.user_id = userId;
@@ -228,26 +229,32 @@ const Timesheet = () => {
       } else {
         console.log('👤 User viewing own timesheet:', userId);
       }
-      
+
       console.log('📞 API params:', apiParams);
-      
+
       // Load all data in parallel
-      const [timesheetResult, leaveResult, issuesResult] = await Promise.allSettled([
+      const [timesheetResult, leaveResult, issuesResult, attendanceResult] = await Promise.allSettled([
         api.timesheets.getTimesheets(apiParams),
         api.leave.getAll().catch(() => ({ leave_requests: [] })),
-        api.issues.getAll().catch(() => ({ issues: [] }))
+        api.issues.getAll().catch(() => ({ issues: [] })),
+        api.leaveCalendar.getAttendance(weekStartStr, weekEndStr).catch(() => ({ attendance_records: [] }))
       ]);
 
       // Extract results
-      const timesheetResponse = timesheetResult.status === 'fulfilled' 
+      const timesheetResponse = timesheetResult.status === 'fulfilled'
         ? timesheetResult.value as any
         : { timesheets: [] };
-      const leaveRequestsResponse = leaveResult.status === 'fulfilled' 
+      const leaveRequestsResponse = leaveResult.status === 'fulfilled'
         ? leaveResult.value as any
         : { leave_requests: [] };
-      const issuesResponse = issuesResult.status === 'fulfilled' 
+      const issuesResponse = issuesResult.status === 'fulfilled'
         ? issuesResult.value as any
         : { issues: [] };
+      const attendanceResponse = attendanceResult.status === 'fulfilled'
+        ? attendanceResult.value as any
+        : { attendance_records: [] };
+
+      setWeeklyAttendance(attendanceResponse.attendance_records || attendanceResponse.attendance || []);
 
       if (timesheetResult.status === 'rejected') {
         console.error('❌ Error loading timesheet:', timesheetResult.reason);
@@ -259,19 +266,19 @@ const Timesheet = () => {
       }
 
       // Get all timesheets from response
-      const timesheets = Array.isArray(timesheetResponse?.timesheets) 
-        ? timesheetResponse.timesheets 
+      const timesheets = Array.isArray(timesheetResponse?.timesheets)
+        ? timesheetResponse.timesheets
         : [];
-      
+
       console.log('📊 Received timesheets:', timesheets.length);
-      
+
       // Find matching timesheet - collect ALL timesheets that overlap with requested week
       let matchedTimesheets: any[] = [];
       const weekStartDate = new Date(weekStartStr + 'T00:00:00');
       const weekEndDate = new Date(weekEndStr + 'T23:59:59');
-      
+
       console.log('🔍 Looking for timesheets matching week:', weekStartStr, 'to', weekEndStr);
-      
+
       for (const t of timesheets) {
         // Normalize week_start
         let tWeekStart: string;
@@ -282,14 +289,14 @@ const Timesheet = () => {
         } else {
           continue;
         }
-        
+
         // Check exact match first
         if (tWeekStart === weekStartStr) {
           matchedTimesheets.push(t);
           console.log('✅ Found exact match timesheet:', t.id, 'with', Array.isArray(t.entries) ? t.entries.length : 0, 'entries');
           continue;
         }
-        
+
         // Check overlap
         let tWeekEnd: string;
         if (typeof t.week_end === 'string') {
@@ -301,28 +308,28 @@ const Timesheet = () => {
           tsStart.setDate(tsStart.getDate() + 6);
           tWeekEnd = tsStart.toISOString().split('T')[0];
         }
-        
+
         const tWeekStartDate = new Date(tWeekStart + 'T00:00:00');
         const tWeekEndDate = new Date(tWeekEnd + 'T23:59:59');
-        
+
         // Check if weeks overlap
         if (weekStartDate <= tWeekEndDate && weekEndDate >= tWeekStartDate) {
           matchedTimesheets.push(t);
           console.log('✅ Found overlapping timesheet:', t.id, 'week:', tWeekStart, 'to', tWeekEnd, 'with', Array.isArray(t.entries) ? t.entries.length : 0, 'entries');
         }
       }
-      
+
       // Collect all entries from ALL matched timesheets (in case there are multiple)
       let allEntries: any[] = [];
       let firstTimesheetId: string | null = null;
-      
+
       if (matchedTimesheets.length > 0) {
         // Use the first matched timesheet's ID (prefer exact match)
         firstTimesheetId = matchedTimesheets[0].id;
         setTimesheetId(firstTimesheetId);
-        
+
         console.log(`📋 Processing ${matchedTimesheets.length} matched timesheet(s)`);
-        
+
         // Collect entries from ALL matched timesheets
         for (const ts of matchedTimesheets) {
           console.log(`  Checking timesheet ${ts.id}:`, {
@@ -330,9 +337,9 @@ const Timesheet = () => {
             entries_is_array: Array.isArray(ts.entries),
             entries_length: Array.isArray(ts.entries) ? ts.entries.length : 'N/A'
           });
-          
+
           let entries = ts.entries || [];
-          
+
           // Handle string entries
           if (typeof entries === 'string') {
             try {
@@ -343,20 +350,20 @@ const Timesheet = () => {
               entries = [];
             }
           }
-          
+
           // Ensure it's an array
           if (!Array.isArray(entries)) {
             console.warn(`  ⚠️ Entries is not an array:`, typeof entries);
             entries = [];
           }
-          
+
           if (entries.length > 0) {
             console.log(`  📋 Collecting ${entries.length} entries from timesheet ${ts.id}`);
             entries.forEach((e: any, idx: number) => {
-              const total = (parseFloat(e.mon_hours) || 0) + (parseFloat(e.tue_hours) || 0) + 
-                           (parseFloat(e.wed_hours) || 0) + (parseFloat(e.thu_hours) || 0) + 
-                           (parseFloat(e.fri_hours) || 0) + (parseFloat(e.sat_hours) || 0) + 
-                           (parseFloat(e.sun_hours) || 0);
+              const total = (parseFloat(e.mon_hours) || 0) + (parseFloat(e.tue_hours) || 0) +
+                (parseFloat(e.wed_hours) || 0) + (parseFloat(e.thu_hours) || 0) +
+                (parseFloat(e.fri_hours) || 0) + (parseFloat(e.sat_hours) || 0) +
+                (parseFloat(e.sun_hours) || 0);
               console.log(`    Entry ${idx + 1}: ${e.project || 'N/A'}/${e.task || 'N/A'}`, {
                 source: e.source,
                 total: total,
@@ -376,7 +383,7 @@ const Timesheet = () => {
             console.log(`  ⚠️ Timesheet ${ts.id} has no entries`);
           }
         }
-        
+
         console.log(`📊 Total entries collected from all timesheets: ${allEntries.length}`);
       } else {
         setTimesheetId(null);
@@ -388,45 +395,45 @@ const Timesheet = () => {
           entries_count: Array.isArray(t.entries) ? t.entries.length : 0
         })));
       }
-      
+
       // Determine which user ID to use for filtering leave requests and issues
       // Use the userId parameter directly (which is the selected user's ID for admins)
       const targetUserIdForData = userId;
-      
+
       // Filter leave requests for this user and week
       const allLeaveRequests = leaveRequestsResponse?.leave_requests || leaveRequestsResponse || [];
-      const leaveRequests = Array.isArray(allLeaveRequests) 
-        ? allLeaveRequests.filter((leave: any) => 
-            leave.user_id === targetUserIdForData &&
-            leave.status === 'approved' &&
-            leave.end_date >= weekStartStr &&
-            leave.start_date <= weekEndStr
-          )
+      const leaveRequests = Array.isArray(allLeaveRequests)
+        ? allLeaveRequests.filter((leave: any) =>
+          leave.user_id === targetUserIdForData &&
+          leave.status === 'approved' &&
+          leave.end_date >= weekStartStr &&
+          leave.start_date <= weekEndStr
+        )
         : [];
 
       // Get assigned issues for this user (only open and in_progress)
       const allIssues = issuesResponse?.issues || issuesResponse || [];
       const assignedIssues = Array.isArray(allIssues)
-        ? allIssues.filter((issue: any) => 
-            (issue.status === 'open' || issue.status === 'in_progress') &&
-            issue.assignees && 
-            Array.isArray(issue.assignees) && 
-            issue.assignees.some((assignee: any) => 
-              assignee.user_id === targetUserIdForData || assignee.id === targetUserIdForData
-            )
+        ? allIssues.filter((issue: any) =>
+          (issue.status === 'open' || issue.status === 'in_progress') &&
+          issue.assignees &&
+          Array.isArray(issue.assignees) &&
+          issue.assignees.some((assignee: any) =>
+            assignee.user_id === targetUserIdForData || assignee.id === targetUserIdForData
           )
+        )
         : [];
 
       // Convert leave requests to timesheet entries (optimized)
       const leaveEntries: TimesheetEntry[] = [];
       const dayMap = ['mon_hours', 'tue_hours', 'wed_hours', 'thu_hours', 'fri_hours', 'sat_hours', 'sun_hours'] as const;
-      
+
       if (leaveRequests.length > 0) {
         leaveRequests.forEach((leave: any) => {
           // Pre-calculate dates (optimized)
           const leaveStartStr = leave.start_date;
           const leaveEndStr = leave.end_date;
-          
+
           // Calculate hours for each day of the week (optimized)
           // Generate unique ID using leave ID if available, otherwise use dates + random
           const leaveId = leave.id || `leave-${leave.start_date}-${leave.end_date}-${leave.leave_type}-${Math.random().toString(36).substr(2, 9)}`;
@@ -448,10 +455,10 @@ const Timesheet = () => {
           // Extract date part only (in case time is included)
           const leaveStartDate = leaveStartStr.split('T')[0];
           const leaveEndDate = leaveEndStr.split('T')[0];
-          
+
           for (let i = 0; i < 7; i++) {
             const currentDayStr = format(addDays(weekStart, i), 'yyyy-MM-dd');
-            
+
             // Compare date strings to avoid timezone issues
             if (currentDayStr >= leaveStartDate && currentDayStr <= leaveEndDate) {
               const dayKey = dayMap[i];
@@ -467,22 +474,22 @@ const Timesheet = () => {
 
       // Create assigned issues entries (only if not already in timesheet)
       const assignedIssueEntries: TimesheetEntry[] = [];
-      
+
       // Get existing entries to check for duplicates - use allEntries if available
       const existingEntries = allEntries;
       const existingProjectTasks = new Set(
         existingEntries.map((e: any) => `${e.project || ''}|${e.task || ''}`)
       );
-      
+
       if (assignedIssues.length > 0) {
         assignedIssues.forEach((issue: any) => {
           const projectName = issue.project_name || 'Assigned Tasks';
           const taskName = `Issue #${issue.id}: ${issue.title}`;
           const projectTaskKey = `${projectName}|${taskName}`;
-          
+
           // Check if this issue is already in the timesheet entries
           const issueAlreadyExists = existingProjectTasks.has(projectTaskKey);
-          
+
           if (!issueAlreadyExists) {
             assignedIssueEntries.push({
               id: `assigned-issue-${issue.id}-${Date.now()}`,
@@ -507,42 +514,42 @@ const Timesheet = () => {
         const num = typeof value === 'string' ? parseFloat(value) : Number(value);
         return isNaN(num) ? 0 : num;
       };
-      
+
       // Process all entries - convert hours to numbers
       // Filter out leave entries - they should be displayed separately in a leave section
       console.log(`🔄 Processing ${allEntries.length} entries for display...`);
       const regularEntries: TimesheetEntry[] = allEntries
         .filter((entry: any) => entry.source !== 'leave') // Exclude leave entries
         .map((entry: any, idx: number) => {
-        const processed = {
-          id: entry.id || `entry-${firstTimesheetId || 'new'}-${idx}-${Date.now()}`,
-          project: entry.project || '',
-          task: entry.task || '',
-          mon_hours: toNumber(entry.mon_hours),
-          tue_hours: toNumber(entry.tue_hours),
-          wed_hours: toNumber(entry.wed_hours),
-          thu_hours: toNumber(entry.thu_hours),
-          fri_hours: toNumber(entry.fri_hours),
-          sat_hours: toNumber(entry.sat_hours),
-          sun_hours: toNumber(entry.sun_hours),
-          source: entry.source || 'manual',
-        };
-        
-        const total = processed.mon_hours + processed.tue_hours + processed.wed_hours + 
-                     processed.thu_hours + processed.fri_hours + processed.sat_hours + processed.sun_hours;
-        if (total > 0) {
-          console.log(`  ✅ Processed entry ${idx + 1}: ${processed.project}/${processed.task} - Total: ${total}`, {
-            thu: processed.thu_hours,
-            fri: processed.fri_hours,
-            source: processed.source
-          });
-        }
-        
-        return processed;
-      });
-      
+          const processed = {
+            id: entry.id || `entry-${firstTimesheetId || 'new'}-${idx}-${Date.now()}`,
+            project: entry.project || '',
+            task: entry.task || '',
+            mon_hours: toNumber(entry.mon_hours),
+            tue_hours: toNumber(entry.tue_hours),
+            wed_hours: toNumber(entry.wed_hours),
+            thu_hours: toNumber(entry.thu_hours),
+            fri_hours: toNumber(entry.fri_hours),
+            sat_hours: toNumber(entry.sat_hours),
+            sun_hours: toNumber(entry.sun_hours),
+            source: entry.source || 'manual',
+          };
+
+          const total = processed.mon_hours + processed.tue_hours + processed.wed_hours +
+            processed.thu_hours + processed.fri_hours + processed.sat_hours + processed.sun_hours;
+          if (total > 0) {
+            console.log(`  ✅ Processed entry ${idx + 1}: ${processed.project}/${processed.task} - Total: ${total}`, {
+              thu: processed.thu_hours,
+              fri: processed.fri_hours,
+              source: processed.source
+            });
+          }
+
+          return processed;
+        });
+
       console.log(`✅ Processed ${regularEntries.length} regular entries`);
-      
+
       // Check which assigned issues are already in the timesheet
       const existingProjectsTasks = new Set(
         regularEntries.map((e: TimesheetEntry) => `${e.project}|${e.task}`)
@@ -550,10 +557,10 @@ const Timesheet = () => {
       const newAssignedEntries = assignedIssueEntries.filter(
         (entry: TimesheetEntry) => !existingProjectsTasks.has(`${entry.project}|${entry.task}`)
       );
-      
+
       // Combine all entries
       const finalEntries = [...regularEntries, ...leaveEntries, ...newAssignedEntries];
-      
+
       // Always add an empty row for manual entry
       finalEntries.push({
         id: `manual-empty-${Date.now()}`,
@@ -568,23 +575,23 @@ const Timesheet = () => {
         sun_hours: 0,
         source: 'manual',
       });
-      
+
       console.log('📊 Final entries summary:', {
         regular: regularEntries.length,
         leave: leaveEntries.length,
         assigned: newAssignedEntries.length,
         total: finalEntries.length,
-        withHours: finalEntries.filter(e => 
-          e.mon_hours > 0 || e.tue_hours > 0 || e.wed_hours > 0 || 
+        withHours: finalEntries.filter(e =>
+          e.mon_hours > 0 || e.tue_hours > 0 || e.wed_hours > 0 ||
           e.thu_hours > 0 || e.fri_hours > 0 || e.sat_hours > 0 || e.sun_hours > 0
         ).length
       });
-      
+
       // Log all final entries with details
       console.log('📋 All final entries being set:');
       finalEntries.forEach((e, idx) => {
-        const total = e.mon_hours + e.tue_hours + e.wed_hours + e.thu_hours + 
-                     e.fri_hours + e.sat_hours + e.sun_hours;
+        const total = e.mon_hours + e.tue_hours + e.wed_hours + e.thu_hours +
+          e.fri_hours + e.sat_hours + e.sun_hours;
         console.log(`  Entry ${idx + 1}:`, {
           id: e.id,
           project: e.project,
@@ -602,7 +609,7 @@ const Timesheet = () => {
           }
         });
       });
-      
+
       console.log('✅ Setting entries state with', finalEntries.length, 'entries');
       setEntries(finalEntries);
     } catch (error: any) {
@@ -662,13 +669,13 @@ const Timesheet = () => {
       console.warn('⚠️ Attempted to delete read-only entry:', entry.source);
       return; // Do not allow deletion of time_clock or leave entries
     }
-    
+
     // Also prevent deleting if admin viewing another user's timesheet
     if (isAdmin && selectedUserId && selectedUserId !== user?.id) {
       console.warn('⚠️ Attempted to delete entry from another user\'s timesheet');
       return; // Do not allow deletion when viewing another user's timesheet
     }
-    
+
     setEntries(entries.filter((_, i) => i !== index));
   };
 
@@ -679,13 +686,13 @@ const Timesheet = () => {
       console.warn('⚠️ Attempted to edit read-only entry:', entry.source);
       return; // Do not allow modifications to time_clock or leave entries
     }
-    
+
     // Also prevent editing if admin viewing another user's timesheet
     if (isAdmin && selectedUserId && selectedUserId !== user?.id) {
       console.warn('⚠️ Attempted to edit another user\'s timesheet');
       return; // Do not allow modifications when viewing another user's timesheet
     }
-    
+
     const newEntries = [...entries];
     newEntries[index] = { ...newEntries[index], [field]: value };
     setEntries(newEntries);
@@ -718,7 +725,7 @@ const Timesheet = () => {
   const moveToNextWeek = () => {
     const newWeekStart = addWeeks(weekStart, 1);
     const newWeekEnd = endOfWeek(newWeekStart, { weekStartsOn: 1 });
-    
+
     // Reset state
     setTimesheetId(null);
     setEntries([{
@@ -733,7 +740,7 @@ const Timesheet = () => {
       sun_hours: 0,
       source: 'manual',
     }]);
-    
+
     // Update week - this will trigger useEffect to load timesheet
     setWeekStart(newWeekStart);
     setWeekEnd(newWeekEnd);
@@ -742,7 +749,7 @@ const Timesheet = () => {
   const moveToPreviousWeek = () => {
     const newWeekStart = addWeeks(weekStart, -1);
     const newWeekEnd = endOfWeek(newWeekStart, { weekStartsOn: 1 });
-    
+
     // Reset state
     setTimesheetId(null);
     setEntries([{
@@ -757,7 +764,7 @@ const Timesheet = () => {
       sun_hours: 0,
       source: 'manual',
     }]);
-    
+
     // Update week - this will trigger useEffect to load timesheet
     setWeekStart(newWeekStart);
     setWeekEnd(newWeekEnd);
@@ -766,15 +773,15 @@ const Timesheet = () => {
   const handleShare = async () => {
     // Check if timesheet exists (either in state or in database)
     let currentTimesheetId = timesheetId;
-    
+
     // If we don't have a timesheetId, try to get it from database
     if (!currentTimesheetId) {
       try {
         const weekStartStr = format(weekStart, "yyyy-MM-dd");
         const response = await api.timesheets.getTimesheets({ week_start: weekStartStr }) as any;
-        
+
         const timesheets = response?.timesheets || response || [];
-        
+
         // Try to find matching timesheet - handle different date formats
         const timesheet = Array.isArray(timesheets) ? timesheets.find((t: any) => {
           const tWeekStart = t.week_start || t.week_start;
@@ -784,7 +791,7 @@ const Timesheet = () => {
           const weekDate = weekStartStr;
           return tDate === weekDate || tWeekStart === weekDate || tWeekStart.startsWith(weekDate);
         }) : null;
-        
+
         if (timesheet?.id) {
           currentTimesheetId = timesheet.id;
           setTimesheetId(timesheet.id);
@@ -800,7 +807,7 @@ const Timesheet = () => {
         console.error("Share: Error checking timesheet:", error);
       }
     }
-    
+
     if (!currentTimesheetId) {
       toast({
         title: "Error",
@@ -811,7 +818,7 @@ const Timesheet = () => {
     }
 
     const shareUrl = `${window.location.origin}/timesheet/${currentTimesheetId}`;
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
@@ -840,17 +847,17 @@ const Timesheet = () => {
 
   const handleDownload = () => {
     const doc = new jsPDF('landscape');
-    
+
     // Add title
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.text('Timesheet', 14, 15);
-    
+
     // Add week info
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     doc.text(`Week: ${format(weekStart, "dd MMMM yyyy")} - ${format(weekEnd, "dd MMMM yyyy")}`, 14, 22);
-    
+
     // Prepare table data
     const headers = [
       'Project',
@@ -864,7 +871,7 @@ const Timesheet = () => {
       `SUN\n${format(addDays(weekStart, 6), "dd MMM")}`,
       'TOTAL'
     ];
-    
+
     const body: any[] = entries.map(entry => [
       entry.project,
       entry.task,
@@ -877,7 +884,7 @@ const Timesheet = () => {
       formatHours(entry.sun_hours),
       formatHours(calculateTotal(entry))
     ]);
-    
+
     // Add totals row
     body.push([
       { content: 'TOTAL', colSpan: 2, styles: { fontStyle: 'bold', halign: 'right' } },
@@ -890,7 +897,7 @@ const Timesheet = () => {
       formatHours(calculateDayTotal("sun_hours")),
       { content: formatHours(calculateGrandTotal()), styles: { fontStyle: 'bold' } }
     ]);
-    
+
     // Generate table
     autoTable(doc, {
       head: [headers],
@@ -918,7 +925,7 @@ const Timesheet = () => {
         8: { halign: 'center', cellWidth: 20 },
         9: { halign: 'center', cellWidth: 20, fontStyle: 'bold' },
       },
-      didDrawPage: function() {
+      didDrawPage: function () {
         // Footer
         doc.setFontSize(8);
         doc.setFont('helvetica', 'italic');
@@ -926,10 +933,10 @@ const Timesheet = () => {
         doc.text('*Overtime is not authorized without Customer Management Approval', 14, doc.internal.pageSize.height - 10);
       }
     });
-    
+
     // Save PDF
     doc.save(`timesheet_${format(weekStart, "yyyy-MM-dd")}.pdf`);
-    
+
     toast({
       title: "Downloaded",
       description: "Timesheet PDF downloaded successfully",
@@ -966,12 +973,12 @@ const Timesheet = () => {
             sat_hours: toNumber(entry.sat_hours),
             sun_hours: toNumber(entry.sun_hours),
           };
-          
+
           // Log each entry being saved for debugging
-          const totalHours = preparedEntry.mon_hours + preparedEntry.tue_hours + 
-                           preparedEntry.wed_hours + preparedEntry.thu_hours + 
-                           preparedEntry.fri_hours + preparedEntry.sat_hours + 
-                           preparedEntry.sun_hours;
+          const totalHours = preparedEntry.mon_hours + preparedEntry.tue_hours +
+            preparedEntry.wed_hours + preparedEntry.thu_hours +
+            preparedEntry.fri_hours + preparedEntry.sat_hours +
+            preparedEntry.sun_hours;
           console.log('💾 Preparing to save entry:', {
             project: preparedEntry.project,
             task: preparedEntry.task,
@@ -986,15 +993,15 @@ const Timesheet = () => {
               sun: preparedEntry.sun_hours,
             }
           });
-          
+
           return preparedEntry;
         })
         .filter((entry) => {
           // Only save entries that have project/task OR have hours > 0
           const hasProjectTask = entry.project && entry.task;
           const hasHours = entry.mon_hours > 0 || entry.tue_hours > 0 || entry.wed_hours > 0 ||
-                          entry.thu_hours > 0 || entry.fri_hours > 0 || entry.sat_hours > 0 ||
-                          entry.sun_hours > 0;
+            entry.thu_hours > 0 || entry.fri_hours > 0 || entry.sat_hours > 0 ||
+            entry.sun_hours > 0;
           return hasProjectTask && hasHours;
         });
 
@@ -1022,7 +1029,7 @@ const Timesheet = () => {
 
       // Reload timesheet to get updated data (this will also set timesheetId from loaded data)
       await loadTimesheet(selectedUserId || user.id);
-      
+
       // Double-check: if timesheetId is still not set, use the one from save response
       // This handles the case where loadTimesheet might not find the timesheet yet
       if (savedTimesheetId) {
@@ -1107,9 +1114,9 @@ const Timesheet = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => loadTimesheet(selectedUserId || user?.id || '')}
                   disabled={loading}
                   title="Refresh timesheet to see new entries"
@@ -1156,11 +1163,11 @@ const Timesheet = () => {
                       <div>FRI</div>
                       <div className="text-xs font-normal">{getDayDate(4)}</div>
                     </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
+                    <th className="border border-border bg-slate-200 p-2 text-center font-semibold">
                       <div>SAT</div>
                       <div className="text-xs font-normal">{getDayDate(5)}</div>
                     </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
+                    <th className="border border-border bg-slate-200 p-2 text-center font-semibold">
                       <div>SUN</div>
                       <div className="text-xs font-normal">{getDayDate(6)}</div>
                     </th>
@@ -1173,6 +1180,41 @@ const Timesheet = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Clock In Row */}
+                  <tr className="bg-slate-100 text-xs font-semibold text-slate-700 border-b border-border">
+                    <td colSpan={2} className="border border-border p-2 text-right">
+                      Clock In
+                    </td>
+                    {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day, i) => {
+                      const dateStr = format(addDays(weekStart, i), 'yyyy-MM-dd');
+                      const record = weeklyAttendance.find((a: any) => {
+                        const recDate = typeof a.date === 'string' ? a.date.split('T')[0] : '';
+                        return recDate === dateStr && a.user_id === (selectedUserId || user?.id);
+                      });
+
+                      const isWeekend = i === 5 || i === 6;
+                      let display = isWeekend ? 'Week Off' : '-';
+
+                      if (record) {
+                        if (record.clock_in) {
+                          display = format(new Date(record.clock_in), 'hh:mm a');
+                        } else if (record.status === 'week_off') {
+                          display = 'Week Off';
+                        } else if (record.status === 'on_leave') {
+                          display = 'On Leave';
+                        } else if (record.status === 'absent' && !isWeekend) {
+                          display = 'Absent';
+                        }
+                      }
+
+                      return (
+                        <td key={day} className="border border-border p-2 text-center whitespace-nowrap">
+                          {display}
+                        </td>
+                      );
+                    })}
+                    <td colSpan={2} className="border border-border bg-muted"></td>
+                  </tr>
                   {entries.map((entry, index) => {
                     const isTimeClock = entry.source === 'time_clock';
                     const isLeave = entry.source === 'leave';
@@ -1218,14 +1260,15 @@ const Timesheet = () => {
                           )}
                         </td>
                         {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day) => {
+                          const isWeekend = day === "sat" || day === "sun";
                           // Safely convert to number, handling all edge cases
                           const rawValue = entry[`${day}_hours` as keyof TimesheetEntry];
-                          const dayHours = rawValue === null || rawValue === undefined || rawValue === '' 
-                            ? 0 
-                            : typeof rawValue === 'string' 
-                              ? parseFloat(rawValue) || 0 
+                          const dayHours = rawValue === null || rawValue === undefined || rawValue === ''
+                            ? 0
+                            : typeof rawValue === 'string'
+                              ? parseFloat(rawValue) || 0
                               : Number(rawValue) || 0;
-                          
+
                           // Debug logging for all time_clock entries with hours
                           if (isTimeClock && dayHours > 0) {
                             console.log(`🔍 Displaying ${day} hours for time_clock entry ${index}:`, {
@@ -1239,39 +1282,39 @@ const Timesheet = () => {
                               fullEntry: entry
                             });
                           }
-                          
+
                           // Always show the value, even if 0
-                          const displayValue = isLeave && dayHours > 0 
-                            ? 'PTO' 
+                          const displayValue = isLeave && dayHours > 0
+                            ? 'PTO'
                             : dayHours > 0 || dayHours === 0
-                            ? (dayHours > 0 ? formatHours(dayHours) : '0')
-                            : '0';
-                          
+                              ? (dayHours > 0 ? formatHours(dayHours) : '0')
+                              : '0';
+
                           return (
-                          <td key={day} className="border border-border p-1">
-                            {isReadOnly ? (
-                              <div className="text-center text-sm py-1 font-semibold">
-                                {displayValue}
-                              </div>
-                            ) : (
-                              <Input
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                value={dayHours}
-                                onChange={(e) =>
-                                  updateEntry(
-                                    index,
-                                    `${day}_hours` as keyof TimesheetEntry,
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                className="h-8 border-0 bg-transparent text-center"
-                                disabled={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
-                                readOnly={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
-                              />
-                            )}
-                          </td>
+                            <td key={day} className={`border border-border p-1 ${isWeekend ? 'bg-slate-50' : ''}`}>
+                              {isReadOnly ? (
+                                <div className="text-center text-sm py-1 font-semibold">
+                                  {displayValue}
+                                </div>
+                              ) : (
+                                <Input
+                                  type="number"
+                                  step="0.5"
+                                  min="0"
+                                  value={dayHours}
+                                  onChange={(e) =>
+                                    updateEntry(
+                                      index,
+                                      `${day}_hours` as keyof TimesheetEntry,
+                                      parseFloat(e.target.value) || 0
+                                    )
+                                  }
+                                  className="h-8 border-0 bg-transparent text-center"
+                                  disabled={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
+                                  readOnly={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
+                                />
+                              )}
+                            </td>
                           );
                         })}
                         <td className="border border-border p-2 text-center font-semibold">

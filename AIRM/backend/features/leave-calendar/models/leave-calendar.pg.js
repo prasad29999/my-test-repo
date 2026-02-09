@@ -19,25 +19,39 @@ export async function getLeaveBalances(userId) {
 }
 
 /**
+ * Get user join date
+ */
+export async function getUserJoinDate(userId) {
+  const result = await pool.query(
+    `SELECT 
+      COALESCE(p.join_date, (CASE WHEN e.joining_date IS NOT NULL AND e.joining_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN e.joining_date::date ELSE NULL END)) as join_date
+     FROM erp.users u
+     LEFT JOIN erp.profiles p ON u.id = p.id
+     LEFT JOIN erp.employee e ON p.id = e.profile_id
+     WHERE u.id = $1`,
+    [userId]
+  );
+  return result.rows[0]?.join_date;
+}
+
+/**
  * Update leave balance
  */
 export async function updateLeaveBalance(balanceData) {
-  const { user_id, leave_type, financial_year, opening_balance, availed, balance, lapse, lapse_date } = balanceData;
+  const { user_id, leave_type, financial_year, opening_balance, availed, balance } = balanceData;
 
   const result = await pool.query(
     `INSERT INTO erp.leave_balances (
-      user_id, leave_type, financial_year, opening_balance, availed, balance, lapse, lapse_date
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      user_id, leave_type, financial_year, opening_balance, availed, balance
+    ) VALUES ($1, $2, $3, $4, $5, $6)
     ON CONFLICT (user_id, leave_type, financial_year)
     DO UPDATE SET
       opening_balance = EXCLUDED.opening_balance,
       availed = EXCLUDED.availed,
       balance = EXCLUDED.balance,
-      lapse = EXCLUDED.lapse,
-      lapse_date = EXCLUDED.lapse_date,
       updated_at = NOW()
     RETURNING *`,
-    [user_id, leave_type, financial_year, opening_balance, availed, balance, lapse, lapse_date]
+    [user_id, leave_type, financial_year, opening_balance, availed, balance]
   );
   return result.rows[0];
 }
@@ -108,16 +122,17 @@ export async function getAttendance(startDate, endDate) {
        COALESCE(SUM(tc.total_hours), 0) as total_hours,
        sr.shift_type,
        CASE 
+         WHEN (MIN(tc.clock_in) AT TIME ZONE 'Asia/Kolkata')::time > '11:00:00' THEN 'half_day'
          WHEN COALESCE(SUM(tc.total_hours), 0) >= 8 THEN 'present'
          WHEN COALESCE(SUM(tc.total_hours), 0) >= 4 THEN 'half_day'
          WHEN COALESCE(SUM(tc.total_hours), 0) > 0 THEN 'present'
+         WHEN MAX(tc.clock_out) IS NULL THEN 'present'
          ELSE 'absent'
        END as status
      FROM erp.time_clock tc
      JOIN erp.users u ON tc.user_id = u.id
      LEFT JOIN erp.shift_roster sr ON tc.user_id = sr.user_id AND DATE(tc.clock_in) = sr.date
      WHERE DATE(tc.clock_in) BETWEEN $1 AND $2
-       AND tc.status = 'clocked_out'
      GROUP BY tc.user_id, u.email, u.full_name, DATE(tc.clock_in), sr.shift_type
      ORDER BY DATE(tc.clock_in) DESC, u.full_name`,
     [startDate, endDate]
@@ -148,8 +163,14 @@ export async function getAttendance(startDate, endDate) {
 
   // Build full result: all users x all dates
   const result = [];
+  const today = new Date();
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
   for (const user of users) {
     for (const date of dates) {
+      // Process all dates including future ones
+      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
       const key = `${user.id}_${date.toISOString().slice(0, 10)}`;
       if (attendanceMap[key]) {
         // Ensure real records have an id (from db or fallback)
@@ -162,9 +183,13 @@ export async function getAttendance(startDate, endDate) {
         const today = new Date();
         const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+
         let status = '';
         if (leaveMap[key]) {
           status = 'on_leave';
+        } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+          status = 'week_off';
         } else if (dateOnly < todayOnly) {
           status = 'absent';
         } else if (dateOnly.getTime() === todayOnly.getTime()) {
@@ -250,14 +275,14 @@ export async function getAllLeaveRequests(userId, isAdmin) {
 /**
  * Create leave request
  */
-export async function createLeaveRequest(userId, startDate, endDate, leaveType, reason) {
+export async function createLeaveRequest(userId, startDate, endDate, leaveType, reason, session) {
   const result = await pool.query(
     `INSERT INTO erp.leave_requests (
-      id, user_id, start_date, end_date, leave_type, reason, status
+      id, user_id, start_date, end_date, leave_type, reason, status, session
     )
-    VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending')
+    VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending', $6)
     RETURNING *`,
-    [userId, startDate, endDate, leaveType, reason || null]
+    [userId, startDate, endDate, leaveType, reason || null, session || 'Full Day']
   );
   return result.rows[0];
 }

@@ -1,21 +1,29 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, GraduationCap, Briefcase, FileUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ShieldCheck, GraduationCap, Briefcase, FileUp, CheckCircle, Eye, Download } from "lucide-react";
+import { EmployeeDocument, DOCUMENT_CATEGORIES } from "../../profiles/types";
+import { getDocumentPreviewUrl, downloadDocument } from "../../profiles/services/documentService";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface DocumentUploadSectionProps {
-    handleKycUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handleKycUpload: (e: React.ChangeEvent<HTMLInputElement>, category: string, type: string) => void;
+    uploadedDocuments: EmployeeDocument[];
 }
 
-export const DocumentUploadSection = ({ handleKycUpload }: DocumentUploadSectionProps) => {
+export const DocumentUploadSection = ({ handleKycUpload, uploadedDocuments }: DocumentUploadSectionProps) => {
+    const [previewDoc, setPreviewDoc] = useState<EmployeeDocument | null>(null);
+
     const documentGroups = [
         {
             title: "Identity & Address Proof",
             icon: <ShieldCheck className="h-5 w-5 text-blue-600" />,
             bgColor: "bg-blue-50",
             docs: [
-                { id: "aadhaar", label: "Aadhaar Card" },
-                { id: "utility_bill", label: "Electricity / Utility Bill" },
-                { id: "pan", label: "PAN Card" },
+                { id: "aadhaar", label: "Aadhaar Card", category: DOCUMENT_CATEGORIES.KYC_DOCUMENTS, type: 'Aadhaar' },
+                { id: "utility_bill", label: "Electricity / Utility Bill", category: DOCUMENT_CATEGORIES.KYC_DOCUMENTS, type: 'Electricity / Utility Bill' },
+                { id: "pan", label: "PAN Card", category: DOCUMENT_CATEGORIES.KYC_DOCUMENTS, type: 'PAN' },
             ]
         },
         {
@@ -23,10 +31,10 @@ export const DocumentUploadSection = ({ handleKycUpload }: DocumentUploadSection
             icon: <GraduationCap className="h-5 w-5 text-purple-600" />,
             bgColor: "bg-purple-50",
             docs: [
-                { id: "ssc", label: "SSC (10th) Certificate" },
-                { id: "hsc", label: "HSC (12th) Certificate" },
-                { id: "graduation", label: "Graduation Certificate" },
-                { id: "post_graduation", label: "Post Graduation Certificate" },
+                { id: "ssc", label: "SSC (10th) Certificate", category: DOCUMENT_CATEGORIES.EDUCATION_CERTIFICATES, type: 'SSC' },
+                { id: "hsc", label: "HSC (12th) Certificate", category: DOCUMENT_CATEGORIES.EDUCATION_CERTIFICATES, type: 'HSC' },
+                { id: "graduation", label: "Graduation Certificate", category: DOCUMENT_CATEGORIES.EDUCATION_CERTIFICATES, type: 'Graduation' },
+                { id: "post_graduation", label: "Post Graduation Certificate", category: DOCUMENT_CATEGORIES.EDUCATION_CERTIFICATES, type: 'Post Graduation' },
             ]
         },
         {
@@ -34,12 +42,32 @@ export const DocumentUploadSection = ({ handleKycUpload }: DocumentUploadSection
             icon: <Briefcase className="h-5 w-5 text-amber-600" />,
             bgColor: "bg-amber-50",
             docs: [
-                { id: "experience_letter", label: "Previous Experience Letter" },
-                { id: "salary_slips", label: "Salary Slips (Last 3 Months)" },
-                { id: "offer_letter", label: "Offer / Appointment Letter" },
+                { id: "experience_letter", label: "Previous Experience Letter", category: DOCUMENT_CATEGORIES.EXPERIENCE_DOCUMENTS, type: 'Experience Letter' },
+                { id: "salary_slips", label: "Salary Slips (Last 3 Months)", category: DOCUMENT_CATEGORIES.EXPERIENCE_DOCUMENTS, type: 'Previous Company Salary Slips' },
+                { id: "offer_letter", label: "Offer / Appointment Letter", category: DOCUMENT_CATEGORIES.EXPERIENCE_DOCUMENTS, type: 'Previous Company Offer / Appointment Letter' },
             ]
         }
     ];
+
+    const getUploadedDoc = (category: string, type: string) => {
+        return uploadedDocuments.find(d => d.document_category === category && d.document_type === type);
+    };
+
+    const handleDownload = async (doc: EmployeeDocument) => {
+        try {
+            const blob = await downloadDocument(doc.id);
+            const url = window.URL.createObjectURL(blob);
+            const a = window.document.createElement('a');
+            a.href = url;
+            a.download = doc.file_name;
+            window.document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            window.document.body.removeChild(a);
+        } catch (error) {
+            console.error("Download failed", error);
+        }
+    };
 
     return (
         <div className="space-y-10">
@@ -58,21 +86,46 @@ export const DocumentUploadSection = ({ handleKycUpload }: DocumentUploadSection
                     </div>
 
                     <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6 rounded-2xl border bg-white shadow-sm`}>
-                        {group.docs.map((doc) => (
-                            <div key={doc.id} className="space-y-2 group">
-                                <Label htmlFor={doc.id} className="text-sm font-semibold text-gray-600 group-hover:text-blue-600 transition-colors">
-                                    {doc.label}
-                                </Label>
-                                <div className="relative">
-                                    <Input
-                                        id={doc.id}
-                                        type="file"
-                                        onChange={handleKycUpload}
-                                        className="cursor-pointer file:cursor-pointer file:bg-gray-50 file:border-0 file:text-blue-700 file:font-semibold hover:file:bg-blue-50 transition-all border-dashed"
-                                    />
+                        {group.docs.map((doc) => {
+                            const uploadedDoc = getUploadedDoc(doc.category, doc.type);
+                            return (
+                                <div key={doc.id} className="space-y-2 group">
+                                    <Label htmlFor={doc.id} className="text-sm font-semibold text-gray-600 group-hover:text-blue-600 transition-colors">
+                                        {doc.label}
+                                    </Label>
+                                    <div className="relative">
+                                        {uploadedDoc ? (
+                                            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                <div className="flex items-center gap-2 text-green-700 text-sm font-medium mb-2">
+                                                    <CheckCircle className="h-4 w-4" />
+                                                    <span className="truncate max-w-[150px]" title={uploadedDoc.file_name}>
+                                                        {uploadedDoc.file_name}
+                                                    </span>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 text-xs w-full bg-white text-green-700 border-green-200 hover:bg-green-100"
+                                                        onClick={() => handleDownload(uploadedDoc)}
+                                                    >
+                                                        <Download className="h-3 w-3 mr-1" /> Download
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <Input
+                                                id={doc.id}
+                                                type="file"
+                                                onChange={(e) => handleKycUpload(e, doc.category, doc.type)}
+                                                className="cursor-pointer file:cursor-pointer file:bg-gray-50 file:border-0 file:text-blue-700 file:font-semibold hover:file:bg-blue-50 transition-all border-dashed"
+                                            />
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             ))}
