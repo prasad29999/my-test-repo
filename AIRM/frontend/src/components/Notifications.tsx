@@ -25,21 +25,32 @@ interface Notification {
 export function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
+  const loadProfiles = async () => {
+    try {
+      const response = await api.profiles.getAll() as any;
+      setProfiles(response.profiles || response || []);
+    } catch (error) {
+      console.error("Error loading profiles for notifications:", error);
+    }
+  };
+
   useEffect(() => {
+    loadProfiles();
     loadNotifications();
 
-    // Poll for new notifications every 30 seconds
+    // Poll for new notifications every 60 seconds (reduced frequency)
     const interval = setInterval(() => {
-          loadNotifications();
-    }, 30000);
+      loadNotifications();
+    }, 60000);
 
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [profiles]); // Reload when profiles are loaded
 
   const loadNotifications = async () => {
     try {
@@ -49,12 +60,38 @@ export function Notifications() {
       const response = await api.notifications.getAll() as any;
       const data = response.notifications || response || [];
 
-      // Sort by created_at descending and limit to 10
-      const sortedData = Array.isArray(data)
-        ? data.sort((a: any, b: any) => 
-            new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()
-          ).slice(0, 10)
-        : [];
+      // Generate virtual anniversary notifications
+      const today = new Date();
+      const anniversaryNotifications = profiles.filter(p => {
+        if (!p.join_date) return false;
+        // Check if join_date is a valid date string before parsing
+        const joinDateStr = p.join_date;
+        const joinDate = new Date(joinDateStr);
+        if (isNaN(joinDate.getTime())) return false;
+
+        return joinDate.getDate() === today.getDate() &&
+          joinDate.getMonth() === today.getMonth() &&
+          joinDate.getFullYear() < today.getFullYear();
+      }).map(p => {
+        const years = today.getFullYear() - new Date(p.join_date).getFullYear();
+        return {
+          id: `anniversary-${p.id}-${today.getFullYear()}`,
+          title: "Work Anniversary! 🎉",
+          message: `${p.full_name} is celebrating ${years} ${years === 1 ? 'year' : 'years'} with us today!`,
+          type: "anniversary",
+          link: `/profile/${p.id}`,
+          read: false,
+          created_at: new Date(today.setHours(0, 0, 0, 0)).toISOString(),
+          related_id: p.id
+        };
+      });
+
+      const combinedData = [...anniversaryNotifications, ...(Array.isArray(data) ? data : [])];
+
+      // Sort by created_at descending and limit to 15
+      const sortedData = combinedData.sort((a: any, b: any) =>
+        new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()
+      ).slice(0, 15);
 
       setNotifications(sortedData);
       setUnreadCount(sortedData.filter((n: any) => !n.read).length);
@@ -68,7 +105,7 @@ export function Notifications() {
   const markAsRead = async (notificationId: string) => {
     try {
       await api.notifications.markRead(notificationId);
-    loadNotifications();
+      loadNotifications();
     } catch (error) {
       // Silently fail
     }
@@ -77,7 +114,7 @@ export function Notifications() {
   const markAllAsRead = async () => {
     try {
       await api.notifications.markAllRead();
-    loadNotifications();
+      loadNotifications();
     } catch (error) {
       // Silently fail
     }
@@ -103,6 +140,8 @@ export function Notifications() {
         return "✅";
       case "leave_rejected":
         return "❌";
+      case "anniversary":
+        return "🎉";
       default:
         return "🔔";
     }
@@ -144,9 +183,8 @@ export function Notifications() {
               <DropdownMenuItem
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
-                className={`cursor-pointer px-4 py-3 ${
-                  !notification.read ? "bg-blue-50/50" : ""
-                }`}
+                className={`cursor-pointer px-4 py-3 ${!notification.read ? "bg-blue-50/50" : ""
+                  }`}
               >
                 <div className="flex gap-3 w-full">
                   <div className="text-2xl flex-shrink-0">

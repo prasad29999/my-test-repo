@@ -103,7 +103,6 @@ const HOLIDAYS = [
 ];
 
 interface User {
-  id: string;
   email: string;
   full_name?: string;
 }
@@ -709,6 +708,8 @@ export default function LeaveCalendar() {
                       const isHoliday = !!holiday;
                       const isPast = isBefore(day, startOfDay(new Date()));
 
+                      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+
                       return (
                         <div
                           key={day.toISOString()}
@@ -717,11 +718,12 @@ export default function LeaveCalendar() {
                           ${isToday(day) ? 'border-blue-500 bg-blue-50' : 'border-gray-100'}
                           ${isLeave ? 'bg-orange-50 border-orange-200' : ''}
                           ${isHoliday ? 'bg-green-100 border-green-300 ring-1 ring-green-400/20' : ''}
+                          ${isWeekend && !isLeave && !isHoliday ? 'bg-gray-100/50 border-gray-200 dashed-border' : ''}
                           ${!isSameMonth(day, currentMonth) ? 'opacity-20' : ''}
-                          ${isPast && !isHoliday ? 'opacity-50' : ''}
+                          ${isPast && !isHoliday && !isWeekend ? 'opacity-50' : ''}
                         `}
                         >
-                          <div className={`text-sm font-semibold mb-1 ${isHoliday ? 'text-green-900' : ''}`}>
+                          <div className={`text-sm font-semibold mb-1 ${isHoliday ? 'text-green-900' : isWeekend ? 'text-gray-400' : ''}`}>
                             {format(day, 'd')}
                           </div>
                           {isLeave && (
@@ -731,6 +733,9 @@ export default function LeaveCalendar() {
                             <div className="text-[10px] text-green-700 font-extrabold leading-tight px-1 text-center mt-auto pb-1">
                               {holiday.name}
                             </div>
+                          )}
+                          {isWeekend && !isLeave && !isHoliday && (
+                            <div className="text-[10px] text-gray-400 font-medium mt-auto pb-1">Week Off</div>
                           )}
                         </div>
                       );
@@ -750,6 +755,10 @@ export default function LeaveCalendar() {
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded bg-blue-50 border border-blue-500"></div>
                     <span className="font-semibold text-blue-700">Today</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-gray-100/50 border border-gray-200"></div>
+                    <span className="font-semibold text-gray-400">Week Off</span>
                   </div>
                 </div>
               </Card>
@@ -1066,12 +1075,16 @@ export default function LeaveCalendar() {
                     <thead>
                       <tr className="bg-gray-100">
                         <th className="border p-3 text-left font-semibold">Employee</th>
-                        {[0, 1, 2, 3, 4, 5, 6].map(i => (
-                          <th key={i} className="border p-3 text-center font-semibold">
-                            <div>{format(addDays(shiftWeekStart, i), 'EEE')}</div>
-                            <div className="text-xs font-normal">{format(addDays(shiftWeekStart, i), 'MMM d')}</div>
-                          </th>
-                        ))}
+                        {Array.from({ length: 7 }).map((_, i) => {
+                          const date = addDays(shiftWeekStart, i);
+                          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                          return (
+                            <th key={i} className={`border p-3 text-center font-semibold ${isWeekend ? 'bg-gray-100/50 text-gray-500' : 'bg-gray-100'}`}>
+                              <div>{format(date, 'EEE')}</div>
+                              <div className="text-xs font-normal">{format(date, 'MMM d')}</div>
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
@@ -1086,17 +1099,21 @@ export default function LeaveCalendar() {
                           <tr key={user.id} className="hover:bg-gray-50">
                             <td className="border p-3 font-medium">{user.full_name || user.email}</td>
                             {[0, 1, 2, 3, 4, 5, 6].map(i => {
-                              const dayStr = format(addDays(shiftWeekStart, i), 'yyyy-MM-dd');
-                              const shift = shiftRoster.find(s => s.user_id === user.id && s.date.split('T')[0] === dayStr);
+                              const date = addDays(shiftWeekStart, i);
+                              const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                              const shift = shiftRoster.find(s =>
+                                s.user_id === user.id &&
+                                format(new Date(s.date), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+                              );
                               return (
-                                <td key={i} className="border p-2 text-center text-sm">
+                                <td key={i} className={`border p-3 text-center ${isWeekend ? 'bg-gray-100/30' : ''}`}>
                                   {shift ? (
                                     <div className={`px-2 py-1 rounded ${shift.shift_type === 'General Shift' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
                                       <div className="font-medium">{shift.shift_type === 'General Shift' ? 'General' : 'Second'}</div>
                                       <div className="text-xs">{shift.start_time} - {shift.end_time}</div>
                                     </div>
                                   ) : (
-                                    <span className="text-gray-400">-</span>
+                                    <span className="text-gray-300">{isWeekend ? 'Off' : '-'}</span>
                                   )}
                                 </td>
                               );
@@ -1272,31 +1289,37 @@ export default function LeaveCalendar() {
                             if (selectedAttendanceUserId) return a.user_id === selectedAttendanceUserId;
                             return true; // Show all for admin when no user selected
                           })
-                          .map((record) => (
-                            <tr key={record.id} className="hover:bg-gray-50">
-                              <td className="border p-3">{format(new Date(record.date), 'EEE, MMM d')}</td>
-                              {isAdmin && <td className="border p-3">{record.full_name || record.email}</td>}
-                              <td className="border p-3 text-center">
-                                {(record.status === 'upcoming' as any) || !record.status ? (
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${getAttendanceStatusColor(record.status)}`}> </span>
-                                ) : (
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${getAttendanceStatusColor(record.status)}`}>
-                                    {record.status.replace('_', ' ').toUpperCase()}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="border p-3 text-center text-sm">{record.shift_type || '-'}</td>
-                              <td className="border p-3 text-center text-sm">
-                                {record.clock_in ? format(new Date(record.clock_in), 'HH:mm') : '-'}
-                              </td>
-                              <td className="border p-3 text-center text-sm">
-                                {record.clock_out ? format(new Date(record.clock_out), 'HH:mm') : '-'}
-                              </td>
-                              <td className="border p-3 text-center font-medium">
-                                {typeof record.total_hours === 'number' && !isNaN(record.total_hours) ? record.total_hours.toFixed(1) : '-'}
-                              </td>
-                            </tr>
-                          ))
+                          .map((record) => {
+                            const date = new Date(record.date);
+                            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                            return (
+                              <tr key={record.id} className={`hover:bg-gray-50 ${isWeekend ? 'bg-gray-50/80 text-gray-400 italic' : ''}`}>
+                                <td className="border p-3">{format(date, 'EEE, MMM d')}</td>
+                                {isAdmin && <td className="border p-3">{record.full_name || record.email}</td>}
+                                <td className="border p-3 text-center">
+                                  {(record.status === 'upcoming' as any) || !record.status || (isWeekend && !record.clock_in) ? (
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${isWeekend ? 'bg-slate-100 text-slate-400' : getAttendanceStatusColor(record.status)}`}>
+                                      {isWeekend ? 'WEEK OFF' : ' '}
+                                    </span>
+                                  ) : (
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${getAttendanceStatusColor(record.status)}`}>
+                                      {record.status.replace('_', ' ').toUpperCase()}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="border p-3 text-center text-sm">{record.shift_type || (isWeekend ? 'Off' : '-')}</td>
+                                <td className="border p-3 text-center text-sm">
+                                  {record.clock_in ? format(new Date(record.clock_in), 'HH:mm') : '-'}
+                                </td>
+                                <td className="border p-3 text-center text-sm">
+                                  {record.clock_out ? format(new Date(record.clock_out), 'HH:mm') : '-'}
+                                </td>
+                                <td className="border p-3 text-center font-medium">
+                                  {typeof record.total_hours === 'number' && !isNaN(record.total_hours) ? record.total_hours.toFixed(1) : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })
                       )}
                     </tbody>
                   </table>
