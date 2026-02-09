@@ -35,15 +35,15 @@ router.get('/', requireAdmin, async (req, res) => {
         id: user.id,
         email: user.email,
         full_name: user.profile_name || user.full_name,
-        role: user.role || 'user',
+        role: user.role || 'employee',
         created_at: user.created_at,
       })),
     });
   } catch (error) {
     console.error('Get users error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get users',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -61,9 +61,9 @@ router.get('/with-roles', async (req, res) => {
     });
   } catch (error) {
     console.error('Get users with roles error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get users',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -73,14 +73,15 @@ router.get('/with-roles', async (req, res) => {
  * PUT /api/users/:id/role
  */
 router.put('/:id/role', requireAdmin, async (req, res) => {
+  console.log('🚀 [LEGACY_UPDATE_ROLE] Request received for ID:', req.params.id, 'Role:', req.body.role);
   try {
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!role || !['admin', 'user'].includes(role)) {
-      return res.status(400).json({ 
+    if (!role || !['admin', 'employee'].includes(role)) {
+      return res.status(400).json({
         error: 'Invalid role',
-        message: 'Role must be "admin" or "user"' 
+        message: 'Role must be "admin" or "employee"'
       });
     }
 
@@ -94,11 +95,13 @@ router.put('/:id/role', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Update or insert role
+    // Delete existing roles to ensure user has only one role
+    await pool.query('DELETE FROM erp.user_roles WHERE user_id = $1', [id]);
+
+    // Insert new role
     await pool.query(
-      `INSERT INTO erp.user_roles (user_id, role)
-       VALUES ($1, $2)
-       ON CONFLICT (user_id, role) DO UPDATE SET role = $2`,
+      `INSERT INTO erp.user_roles (id, user_id, role)
+       VALUES (gen_random_uuid(), $1, $2)`,
       [id, role]
     );
 
@@ -109,9 +112,9 @@ router.put('/:id/role', requireAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Update role error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to update role',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });
@@ -128,9 +131,9 @@ router.get('/:id', async (req, res) => {
 
     // Users can only see their own profile unless admin
     if (id !== userId && !isAdmin) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Forbidden',
-        message: 'You can only view your own profile' 
+        message: 'You can only view your own profile'
       });
     }
 
@@ -156,9 +159,9 @@ router.get('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Get user error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get user',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 });

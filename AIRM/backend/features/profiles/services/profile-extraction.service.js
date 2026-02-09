@@ -29,14 +29,14 @@ export async function extractProfileFromFile(fileBuffer, mimeType, filename) {
 
     // Step 1: Parse file content based on type
     let textContent = '';
-    
+
     if (mimeType === 'application/pdf') {
       textContent = await fileParser.parsePDF(fileBuffer);
-    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-               mimeType === 'application/msword') {
+    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      mimeType === 'application/msword') {
       textContent = await fileParser.parseWord(fileBuffer);
-    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-               mimeType === 'application/vnd.ms-excel') {
+    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      mimeType === 'application/vnd.ms-excel') {
       textContent = await fileParser.parseExcel(fileBuffer);
     } else if (mimeType === 'text/plain' || mimeType === 'text/csv' || mimeType === 'application/csv') {
       textContent = await fileParser.parseText(fileBuffer);
@@ -216,7 +216,7 @@ async function extractWithGemini(textContent) {
  */
 export async function extractProfilesFromFiles(files) {
   const results = [];
-  
+
   for (const file of files) {
     try {
       const profile = await extractProfileFromFile(
@@ -237,7 +237,7 @@ export async function extractProfilesFromFiles(files) {
       });
     }
   }
-  
+
   return results;
 }
 
@@ -252,11 +252,12 @@ export async function parseBatchProfilesFile(fileBuffer, mimeType, filename) {
   try {
     // Use the file parser service to parse the batch file
     const profiles = await fileParser.parseBatchProfilesFile(fileBuffer, filename);
-    
+
     // Validate and clean the extracted profiles
     return profiles.map(profile => {
-      // Clean up and normalize values
+      // Clean up and normalize base values, but keep all other fields
       return {
+        ...profile, // Keep Address, Bank_Details, Family_Details, _raw, etc.
         Employee_ID: profile.Employee_ID ? String(profile.Employee_ID).trim() : null,
         Full_Name: profile.Full_Name ? String(profile.Full_Name).trim() : null,
         Official_Email: profile.Official_Email ? String(profile.Official_Email).trim().toLowerCase() : null,
@@ -265,19 +266,19 @@ export async function parseBatchProfilesFile(fileBuffer, mimeType, filename) {
         Department: profile.Department ? String(profile.Department).trim() : null,
         Role: profile.Role ? String(profile.Role).trim() : null,
         Employment_Type: profile.Employment_Type ? String(profile.Employment_Type).trim() : null,
-        Total_Experience_Years: profile.Total_Experience_Years ? 
-          typeof profile.Total_Experience_Years === 'number' ? 
-            profile.Total_Experience_Years : 
+        Total_Experience_Years: profile.Total_Experience_Years ?
+          typeof profile.Total_Experience_Years === 'number' ?
+            profile.Total_Experience_Years :
             parseFloat(String(profile.Total_Experience_Years)) || null : null,
-        Skills: profile.Skills ? 
-          Array.isArray(profile.Skills) ? profile.Skills : 
-          String(profile.Skills).split(',').map(s => s.trim()).filter(s => s) : null,
-        Certifications: profile.Certifications ? 
-          Array.isArray(profile.Certifications) ? profile.Certifications : 
-          String(profile.Certifications).split(',').map(c => c.trim()).filter(c => c) : null,
-        Past_Projects: profile.Past_Projects ? 
-          Array.isArray(profile.Past_Projects) ? profile.Past_Projects : 
-          String(profile.Past_Projects).split(',').map(p => p.trim()).filter(p => p) : null,
+        Skills: profile.Skills ?
+          Array.isArray(profile.Skills) ? profile.Skills :
+            String(profile.Skills).split(',').map(s => s.trim()).filter(s => s) : null,
+        Certifications: profile.Certifications ?
+          Array.isArray(profile.Certifications) ? profile.Certifications :
+            String(profile.Certifications).split(',').map(c => c.trim()).filter(c => c) : null,
+        Past_Projects: profile.Past_Projects ?
+          Array.isArray(profile.Past_Projects) ? profile.Past_Projects :
+            String(profile.Past_Projects).split(',').map(p => p.trim()).filter(p => p) : null,
         Current_Project: profile.Current_Project ? String(profile.Current_Project).trim() : null,
         Manager_Name: profile.Manager_Name ? String(profile.Manager_Name).trim() : null,
         Manager_Email: profile.Manager_Email ? String(profile.Manager_Email).trim().toLowerCase() : null,

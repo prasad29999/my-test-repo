@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
+import {
   Home,
   Search,
   Users,
@@ -72,9 +72,8 @@ export function Sidebar({ onLogout }: SidebarProps) {
   const filteredMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
 
   return (
-    <div className={`bg-white border-r border-gray-200 h-screen flex flex-col transition-all duration-300 ${
-      isCollapsed ? 'w-16' : 'w-64'
-    }`}>
+    <div className={`bg-white border-r border-gray-200 h-screen flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'
+      }`}>
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
@@ -107,11 +106,10 @@ export function Sidebar({ onLogout }: SidebarProps) {
             <button
               key={item.path}
               onClick={() => handleNavigation(item.path)}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                isActive
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${isActive
                   ? 'bg-blue-900 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
-              } ${isCollapsed ? 'justify-center' : ''}`}
+                } ${isCollapsed ? 'justify-center' : ''}`}
               title={isCollapsed ? item.label : ''}
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
@@ -122,11 +120,10 @@ export function Sidebar({ onLogout }: SidebarProps) {
         {/* Project Management as second item */}
         <button
           onClick={() => handleNavigation('/project-management')}
-          className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-            location.pathname.startsWith('/project-management')
+          className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${location.pathname.startsWith('/project-management')
               ? 'bg-blue-900 text-white'
               : 'text-gray-700 hover:bg-gray-100'
-          } ${isCollapsed ? 'justify-center' : ''}`}
+            } ${isCollapsed ? 'justify-center' : ''}`}
           title={isCollapsed ? 'Project Management' : ''}
         >
           <FolderKanban className="h-5 w-5 flex-shrink-0" />
@@ -135,11 +132,11 @@ export function Sidebar({ onLogout }: SidebarProps) {
         {/* Other Menu Items */}
         {otherMenuItems.filter(item => !item.adminOnly || isAdmin).map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path || 
-            (item.path === '/resource-management' && 
-              (location.pathname === '/profiles' || 
+          const isActive = location.pathname === item.path ||
+            (item.path === '/resource-management' &&
+              (location.pathname === '/profiles' ||
                 location.pathname === '/joining-form' ||
-                location.pathname === '/exit-formalities' || 
+                location.pathname === '/exit-formalities' ||
                 location.pathname === '/payslips' ||
                 location.pathname === '/hr-documents' ||
                 location.pathname.startsWith('/profiles/') ||
@@ -151,11 +148,10 @@ export function Sidebar({ onLogout }: SidebarProps) {
             <button
               key={item.path}
               onClick={() => handleNavigation(item.path)}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                isActive
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${isActive
                   ? 'bg-blue-900 text-white'
                   : 'text-gray-700 hover:bg-gray-100'
-              } ${isCollapsed ? 'justify-center' : ''}`}
+                } ${isCollapsed ? 'justify-center' : ''}`}
               title={isCollapsed ? item.label : ''}
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
@@ -168,7 +164,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
       {/* User Profile & Logout */}
       <div className="border-t border-gray-200 p-4">
         {!isCollapsed && (
-          <button 
+          <button
             onClick={() => handleNavigation('/employee')}
             className="w-full flex items-center space-x-3 mb-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
@@ -177,17 +173,17 @@ export function Sidebar({ onLogout }: SidebarProps) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-gray-900 truncate">
-                {user?.full_name || user?.email || 'User'}
+                {user?.full_name || user?.email || 'Employee'}
               </div>
               <div className="text-xs text-gray-500 truncate">
-                {user?.role || 'employee'}
+                {user?.role === 'admin' ? 'Admin' : 'Employee'}
               </div>
             </div>
           </button>
         )}
-        
+
         {isCollapsed && (
-          <button 
+          <button
             onClick={() => handleNavigation('/employee')}
             className="w-full flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 transition-colors mb-3"
             title="Profile"
@@ -197,13 +193,12 @@ export function Sidebar({ onLogout }: SidebarProps) {
             </div>
           </button>
         )}
-        
+
         <Button
           variant="ghost"
           onClick={onLogout}
-          className={`w-full flex items-center space-x-3 text-gray-700 hover:bg-red-50 hover:text-red-600 ${
-            isCollapsed ? 'justify-center px-3' : 'justify-start'
-          }`}
+          className={`w-full flex items-center space-x-3 text-gray-700 hover:bg-red-50 hover:text-red-600 ${isCollapsed ? 'justify-center px-3' : 'justify-start'
+            }`}
           title={isCollapsed ? 'Logout' : ''}
         >
           <LogOut className="h-4 w-4 flex-shrink-0" />

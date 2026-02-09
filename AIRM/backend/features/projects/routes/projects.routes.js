@@ -5,7 +5,7 @@
 
 import express from 'express';
 import { body } from 'express-validator';
-import { authenticate } from '../../../core/auth/authMiddleware.js';
+import { authenticate, requireAdmin } from '../../../core/auth/authMiddleware.js';
 import * as projectsController from '../controllers/projects.controller.js';
 
 const router = express.Router();
@@ -26,7 +26,7 @@ router.get('/:id', authenticate, projectsController.getProjectById);
  * Create project
  * POST /api/projects
  */
-router.post('/', authenticate, [
+router.post('/', authenticate, requireAdmin, [
   body('name').trim().notEmpty().withMessage('Project name is required'),
   body('description').optional(),
 ], projectsController.createProject);
@@ -35,7 +35,7 @@ router.post('/', authenticate, [
  * Update project
  * PUT /api/projects/:id
  */
-router.put('/:id', authenticate, [
+router.put('/:id', authenticate, requireAdmin, [
   body('name').optional().trim().notEmpty(),
   body('description').optional(),
   body('visibility').optional().isIn(['private', 'internal', 'public']),
@@ -45,7 +45,7 @@ router.put('/:id', authenticate, [
  * Delete project
  * DELETE /api/projects/:id
  */
-router.delete('/:id', authenticate, projectsController.deleteProject);
+router.delete('/:id', authenticate, requireAdmin, projectsController.deleteProject);
 
 /**
  * Get project members
@@ -57,7 +57,7 @@ router.get('/:id/members', authenticate, projectsController.getProjectMembers);
  * Add project member
  * POST /api/projects/:id/members
  */
-router.post('/:id/members', authenticate, [
+router.post('/:id/members', authenticate, requireAdmin, [
   body('user_id').isInt().withMessage('User ID must be an integer'),
   body('access_level').isInt().withMessage('Access level must be an integer'),
 ], projectsController.addProjectMember);

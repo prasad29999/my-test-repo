@@ -392,14 +392,14 @@ export default function IssueDetail() {
 
       toast({
         title: "Success",
-        description: "User assigned successfully",
+        description: "Employee assigned successfully",
       });
 
       await loadIssueData();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to assign user",
+        description: error.message || "Failed to assign employee",
         variant: "destructive",
       });
     }
@@ -413,7 +413,7 @@ export default function IssueDetail() {
 
       toast({
         title: "Success",
-        description: `${selectedUserIds.length} user(s) assigned successfully`,
+        description: `${selectedUserIds.length} employee(s) assigned successfully`,
       });
 
       setSelectedUserIds([]);
@@ -422,7 +422,7 @@ export default function IssueDetail() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to assign users",
+        description: error.message || "Failed to assign employees",
         variant: "destructive",
       });
     }
@@ -444,14 +444,14 @@ export default function IssueDetail() {
 
       toast({
         title: "Success",
-        description: "User unassigned successfully",
+        description: "Employee unassigned successfully",
       });
 
       await loadIssueData();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to unassign user",
+        description: error.message || "Failed to unassign employee",
         variant: "destructive",
       });
     }
@@ -880,14 +880,16 @@ export default function IssueDetail() {
                     <Tag className="h-4 w-4" />
                     Labels
                   </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => setShowLabelDialog(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setShowLabelDialog(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">

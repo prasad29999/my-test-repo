@@ -15,9 +15,9 @@ export async function getAllUsers(req, res) {
     res.json({ users });
   } catch (error) {
     console.error('Get users error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get users',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -32,9 +32,9 @@ export async function getAllUsersWithRoles(req, res) {
     res.json({ users });
   } catch (error) {
     console.error('Get users with roles error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get users',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -51,9 +51,9 @@ export async function getUserById(req, res) {
 
     // Users can only see their own profile unless admin
     if (id !== userId && !isAdmin) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Forbidden',
-        message: 'You can only view your own profile' 
+        message: 'You can only view your own profile'
       });
     }
 
@@ -63,11 +63,11 @@ export async function getUserById(req, res) {
     if (error.message === 'User not found') {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     console.error('Get user error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get user',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -77,35 +77,37 @@ export async function getUserById(req, res) {
  * PUT /api/users/:id/role
  */
 export async function updateUserRole(req, res) {
+  console.log('🚀 [UPDATE_ROLE] Request received for ID:', req.params.id, 'Role:', req.body.role);
   try {
     const { id } = req.params;
     const { role } = req.body;
 
     try {
       const result = await usersService.updateUserRole(id, role);
+      console.log('✅ [UPDATE_ROLE] Service success:', result);
       res.json({
         message: 'User role updated successfully',
         ...result
       });
     } catch (error) {
       if (error.message === 'Invalid role') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Invalid role',
-          message: 'Role must be "admin" or "user"' 
+          message: 'Role must be "admin" or "employee"'
         });
       }
-      
+
       if (error.message === 'User not found') {
         return res.status(404).json({ error: 'User not found' });
       }
-      
+
       throw error;
     }
   } catch (error) {
     console.error('Update role error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to update role',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -138,33 +140,33 @@ export async function createUser(req, res) {
     } catch (error) {
       console.log('❌ Service error:', error.message);
       if (error.message === 'Invalid email') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Invalid email',
-          message: 'Please provide a valid email address' 
+          message: 'Please provide a valid email address'
         });
       }
-      
+
       if (error.message === 'User already exists') {
-        return res.status(409).json({ 
+        return res.status(409).json({
           error: 'User exists',
-          message: 'A user with this email already exists' 
+          message: 'A user with this email already exists'
         });
       }
 
       if (error.message === 'Invalid role') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Invalid role',
-          message: 'Role must be "admin" or "user"' 
+          message: 'Role must be "admin" or "employee"'
         });
       }
-      
+
       throw error;
     }
   } catch (error) {
     console.error('❌ Create user error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to create user',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -196,9 +198,9 @@ export async function deleteUser(req, res) {
     }
   } catch (error) {
     console.error('Delete user error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to delete user',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }

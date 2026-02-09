@@ -27,7 +27,7 @@ export async function sendMagicLink(email) {
     console.error('⚠️ Database query failed while looking up user:', dbErr.message);
     // In development, provide a fallback magic link so frontend can continue testing
     if (process.env.NODE_ENV === 'development') {
-      const pseudoId = `dev-${Buffer.from(email).toString('hex').slice(0,8)}`;
+      const pseudoId = `dev-${Buffer.from(email).toString('hex').slice(0, 8)}`;
       const magicToken = jwt.sign(
         {
           userId: pseudoId,
@@ -63,7 +63,7 @@ export async function sendMagicLink(email) {
 
   // Generate magic link token
   const magicToken = jwt.sign(
-    { 
+    {
       userId: user.id,
       email: user.email,
       purpose: 'magic-login'
@@ -127,10 +127,10 @@ export async function verifyMagicLink(token) {
 
   // Generate auth token
   const authToken = jwt.sign(
-    { 
+    {
       userId: user.id,
       email: user.email,
-      role: user.role || 'user'
+      role: user.role || 'employee'
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
@@ -142,7 +142,7 @@ export async function verifyMagicLink(token) {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
-      role: user.role || 'user'
+      role: user.role || 'employee'
     }
   };
 }
@@ -168,7 +168,7 @@ export async function getCurrentUser(userId) {
     id: user.id,
     email: user.email,
     full_name: user.full_name,
-    role: user.role || 'user'
+    role: user.role || 'employee'
   };
 }
 

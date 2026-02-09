@@ -321,6 +321,53 @@ const Profiles = ({ onlyCurrentUser = false, hideHeader = false, noPadding = fal
     }
   };
 
+  // Handle Batch Profile Upload
+  const handleProfileBatchUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      // Check file type
+      if (!file.name.match(/\.(xlsx|xls|csv)$/)) {
+        throw new Error("Invalid file type. Please upload Excel or CSV file.");
+      }
+
+      const response = await uploadBatchProfiles(file);
+
+      if (response.success) {
+        toast({
+          title: "Batch Upload Successful",
+          description: response.message || `Processed ${response.total} profiles.`,
+        });
+
+        // Show details of results if mixed success
+        if (response.failed > 0) {
+          console.warn('Batch upload partial failures:', response.results.filter((r: any) => !r.success));
+          toast({
+            title: "Partial Success",
+            description: `${response.successful} succeeded, ${response.failed} failed. Check console for details.`,
+          });
+        }
+
+        refetchProfiles();
+      } else {
+        throw new Error(response.message || 'Upload failed');
+      }
+    } catch (error: any) {
+      console.error("Error uploading profiles:", error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload profiles",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
+
   const handleEditProfile = () => {
     if (selectedProfile) {
       setEditForm({
@@ -641,8 +688,8 @@ const Profiles = ({ onlyCurrentUser = false, hideHeader = false, noPadding = fal
                   type="file"
                   id="profile-upload"
                   className="hidden"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
-                  // Removed quick-add profile logic. All new profiles should be added via the JoiningForm modal for consistency.
+                  accept=".xls,.xlsx,.csv"
+                  onChange={handleProfileBatchUpload}
                   disabled={isUploading}
                 />
 
@@ -722,36 +769,23 @@ const Profiles = ({ onlyCurrentUser = false, hideHeader = false, noPadding = fal
                   }}
                 />
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" disabled={isUploading}>
-                      {isUploading ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload File
-                          <ChevronDown className="h-4 w-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Upload Options</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-
-                    <DropdownMenuItem
-                      onClick={() => document.getElementById('profile-upload')?.click()}
-                      className="cursor-pointer"
-                    >
-                      <User className="h-4 w-4 mr-2" />
-                      Upload User Profile
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  variant="outline"
+                  disabled={isUploading}
+                  onClick={() => document.getElementById('profile-upload')?.click()}
+                >
+                  {isUploading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Employees
+                    </>
+                  )}
+                </Button>
               </div>
 
               {/* View Mode Toggle */}

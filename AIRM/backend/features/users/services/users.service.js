@@ -27,7 +27,7 @@ export async function getAllUsers() {
     id: user.id,
     email: user.email,
     full_name: user.profile_name || user.full_name,
-    role: user.role || 'user',
+    role: user.role || 'employee',
     created_at: user.created_at,
   }));
 }
@@ -68,7 +68,7 @@ export async function getUserById(userId) {
  * Update user role
  */
 export async function updateUserRole(userId, role) {
-  if (!role || !['admin', 'user'].includes(role)) {
+  if (!role || !['admin', 'employee'].includes(role)) {
     throw new Error('Invalid role');
   }
 
@@ -82,11 +82,13 @@ export async function updateUserRole(userId, role) {
     throw new Error('User not found');
   }
 
-  // Update or insert role
+  // Delete existing roles to ensure user has only one role
+  await pool.query('DELETE FROM erp.user_roles WHERE user_id = $1', [userId]);
+
+  // Insert new role
   await pool.query(
-    `INSERT INTO erp.user_roles (user_id, role)
-     VALUES ($1, $2)
-     ON CONFLICT (user_id, role) DO UPDATE SET role = $2`,
+    `INSERT INTO erp.user_roles (id, user_id, role)
+     VALUES (gen_random_uuid(), $1, $2)`,
     [userId, role]
   );
 
@@ -96,14 +98,14 @@ export async function updateUserRole(userId, role) {
 /**
  * Create a new user (Admin only)
  */
-export async function createUser(email, fullName, role = 'user') {
+export async function createUser(email, fullName, role = 'employee') {
   // Validate email
   if (!email || !email.includes('@')) {
     throw new Error('Invalid email');
   }
 
   // Validate role
-  if (role && !['admin', 'user'].includes(role)) {
+  if (role && !['admin', 'employee'].includes(role)) {
     throw new Error('Invalid role');
   }
 
@@ -129,8 +131,8 @@ export async function createUser(email, fullName, role = 'user') {
 
   // Create user role
   await pool.query(
-    `INSERT INTO erp.user_roles (id, user_id, role, created_at, updated_at)
-     VALUES (gen_random_uuid(), $1, $2, NOW(), NOW())`,
+    `INSERT INTO erp.user_roles (id, user_id, role, created_at)
+     VALUES (gen_random_uuid(), $1, $2, NOW())`,
     [newUser.id, role]
   );
 

@@ -10,17 +10,17 @@ dotenv.config();
 
 // Get email and role from command line
 const targetEmail = process.argv[2];
-const newRole = process.argv[3] || 'user';
+const newRole = process.argv[3] || 'employee';
 
 if (!targetEmail) {
   console.error('❌ Please provide an email address');
   console.log('Usage: node change-user-role.js <email> [role]');
-  console.log('Example: node change-user-role.js satwik.k@techiemaya.com user');
+  console.log('Example: node change-user-role.js satwik.k@techiemaya.com employee');
   process.exit(1);
 }
 
-if (!['admin', 'user'].includes(newRole)) {
-  console.error('❌ Role must be either "admin" or "user"');
+if (!['admin', 'employee'].includes(newRole)) {
+  console.error('❌ Role must be either "admin" or "employee"');
   process.exit(1);
 }
 
@@ -54,8 +54,8 @@ async function changeRole() {
       [user.id]
     );
 
-    const currentRole = currentRoleResult.rows.length > 0 
-      ? currentRoleResult.rows[0].role 
+    const currentRole = currentRoleResult.rows.length > 0
+      ? currentRoleResult.rows[0].role
       : 'user';
 
     console.log(`Current role: ${currentRole}`);
@@ -69,13 +69,13 @@ async function changeRole() {
 
     // Update role
     console.log(`🔄 Updating role...`);
-    
+
     // Delete existing roles
     await pool.query('DELETE FROM erp.user_roles WHERE user_id = $1', [user.id]);
-    
+
     // Insert new role
     await pool.query(
-      'INSERT INTO erp.user_roles (user_id, role) VALUES ($1, $2)',
+      'INSERT INTO erp.user_roles (id, user_id, role) VALUES (gen_random_uuid(), $1, $2)',
       [user.id, newRole]
     );
 

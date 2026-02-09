@@ -38,15 +38,15 @@ router.post('/send-magic-link', [
     const userResult = await pool.query(userQuery, [email]);
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'User not found',
-        message: 'No account found with this email address. Please contact your administrator.' 
+        message: 'No account found with this email address. Please contact your administrator.'
       });
     }
 
     // Generate magic link token
     const magicToken = jwt.sign(
-      { 
+      {
         userId: userResult.rows[0].id,
         email: userResult.rows[0].email,
         purpose: 'magic-login'
@@ -65,7 +65,7 @@ router.post('/send-magic-link', [
     try {
       // Send email with magic link
       const emailResult = await sendMagicLinkEmail(email, magicLink, userResult.rows[0].full_name);
-      
+
       // Check if email was actually sent or if it's fallback mode
       if (emailResult.fallback || !emailResult.success) {
         console.log('⚠️ Email service not configured, returning magic link directly');
@@ -87,10 +87,10 @@ router.post('/send-magic-link', [
           ...(emailResult.previewUrl && { previewUrl: emailResult.previewUrl })
         });
       }
-      
+
     } catch (emailError) {
       console.error('📧 Failed to send magic link email:', emailError);
-      
+
       // Fallback: return the link directly (for development)
       res.json({
         message: 'Magic link generated (email service unavailable)',
@@ -127,16 +127,16 @@ router.post('/verify-magic-link', [
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (jwtError) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid or expired magic link',
-        message: 'The magic link has expired or is invalid' 
+        message: 'The magic link has expired or is invalid'
       });
     }
 
     if (decoded.purpose !== 'magic-login') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid token purpose',
-        message: 'This token is not valid for login' 
+        message: 'This token is not valid for login'
       });
     }
 
@@ -150,9 +150,9 @@ router.post('/verify-magic-link', [
     const userResult = await pool.query(userQuery, [decoded.userId]);
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'User not found',
-        message: 'User account no longer exists' 
+        message: 'User account no longer exists'
       });
     }
 
@@ -160,10 +160,10 @@ router.post('/verify-magic-link', [
 
     // Generate auth token
     const authToken = jwt.sign(
-      { 
+      {
         userId: user.id,
         email: user.email,
-        role: user.role || 'user'
+        role: user.role || 'employee'
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -176,7 +176,7 @@ router.post('/verify-magic-link', [
         id: user.id,
         email: user.email,
         full_name: user.full_name,
-        role: user.role || 'user'
+        role: user.role || 'employee'
       }
     });
 
@@ -201,8 +201,8 @@ router.get('/me', authenticate, async (req, res) => {
     `, [req.userId]);
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ 
-        error: 'User not found' 
+      return res.status(404).json({
+        error: 'User not found'
       });
     }
 
@@ -211,7 +211,7 @@ router.get('/me', authenticate, async (req, res) => {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
-      role: user.role || 'user'
+      role: user.role || 'employee'
     });
 
   } catch (error) {

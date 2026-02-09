@@ -47,25 +47,11 @@ export async function getAllIssues(filters) {
   }
 
   if (assignee && assignee !== 'all') {
-    if (isAdmin) {
-      conditions.push(`EXISTS (
-        SELECT 1 FROM erp.issue_assignees 
-        WHERE issue_id = i.id AND user_id = $${paramCount++}
-      )`);
-      params.push(assignee);
-    } else {
-      conditions.push(`EXISTS (
-        SELECT 1 FROM erp.issue_assignees 
-        WHERE issue_id = i.id AND user_id = $${paramCount++}
-      )`);
-      params.push(userId);
-    }
-  } else if (!isAdmin) {
     conditions.push(`EXISTS (
       SELECT 1 FROM erp.issue_assignees 
       WHERE issue_id = i.id AND user_id = $${paramCount++}
     )`);
-    params.push(userId);
+    params.push(assignee);
   }
 
   if (project) {

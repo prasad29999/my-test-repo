@@ -128,7 +128,12 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
         ]) as any;
 
         const currentUserData = results[3];
-        setIsAdmin(currentUserData?.user?.role === 'admin' || currentUserData?.role === 'admin');
+        const lsUserData = JSON.parse(localStorage.getItem('user') || '{}');
+        setIsAdmin(
+          currentUserData?.user?.role === 'admin' ||
+          currentUserData?.role === 'admin' ||
+          lsUserData?.role === 'admin'
+        );
       } catch (error) {
         console.error('Error initializing page:', error);
         navigate("/auth");
@@ -226,6 +231,15 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
   }, [filterProject]);
 
   const handleDragEnd = async (result: DropResult) => {
+    if (!isAdmin) {
+      toast({
+        title: "Permission Denied",
+        description: "Only admins can move issues",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { destination, source, draggableId } = result;
 
     // Dropped outside the list
@@ -602,7 +616,7 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
           </div>
 
           <div className="flex items-center gap-2">
-            {view === 'kanban' && (
+            {view === 'kanban' && isAdmin && (
               <>
                 <Button
                   variant="outline"
@@ -755,36 +769,40 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
                               <Copy className="h-4 w-4 mr-2" />
                               Copy link
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger>
-                                <ArrowRight className="h-4 w-4 mr-2" />
-                                Move to column
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent>
-                                {availableColumns.map(col => (
-                                  <DropdownMenuItem
-                                    key={col.id}
-                                    disabled={issue.status === col.id}
-                                    onClick={() => handleMoveIssue(issue.id, col.id)}
-                                  >
-                                    {col.name}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleArchiveIssue(issue.id)}>
-                              <Archive className="h-4 w-4 mr-2" />
-                              Archive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                              onClick={() => handleDeleteIssue(issue.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete issue
-                            </DropdownMenuItem>
+                            {isAdmin && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuSub>
+                                  <DropdownMenuSubTrigger>
+                                    <ArrowRight className="h-4 w-4 mr-2" />
+                                    Move to column
+                                  </DropdownMenuSubTrigger>
+                                  <DropdownMenuSubContent>
+                                    {availableColumns.map(col => (
+                                      <DropdownMenuItem
+                                        key={col.id}
+                                        disabled={issue.status === col.id}
+                                        onClick={() => handleMoveIssue(issue.id, col.id)}
+                                      >
+                                        {col.name}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleArchiveIssue(issue.id)}>
+                                  <Archive className="h-4 w-4 mr-2" />
+                                  Archive
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                  onClick={() => handleDeleteIssue(issue.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete issue
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -856,33 +874,35 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
                         </div>
 
                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-[#d0d7de]/50 rounded-md text-[#656d76]">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => {
-                                setEditingColumn(column);
-                                setShowEditColumnDialog(true);
-                              }}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600"
-                                onClick={() => {
-                                  if (confirm('Are you sure you want to delete this column?')) {
-                                    setAvailableColumns(availableColumns.filter(c => c.id !== column.id));
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete column
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {isAdmin && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-[#d0d7de]/50 rounded-md text-[#656d76]">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => {
+                                  setEditingColumn(column);
+                                  setShowEditColumnDialog(true);
+                                }}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={() => {
+                                    if (confirm('Are you sure you want to delete this column?')) {
+                                      setAvailableColumns(availableColumns.filter(c => c.id !== column.id));
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete column
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </div>
 
@@ -947,41 +967,42 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
                                                 Copy link in project
                                               </DropdownMenuItem>
 
-                                              <DropdownMenuSeparator />
-
-                                              <DropdownMenuSub>
-                                                <DropdownMenuSubTrigger>
-                                                  <ArrowRight className="h-4 w-4 mr-2" />
-                                                  Move to column
-                                                </DropdownMenuSubTrigger>
-                                                <DropdownMenuSubContent>
-                                                  {availableColumns.map(col => (
-                                                    <DropdownMenuItem
-                                                      key={col.id}
-                                                      disabled={issue.status === col.id}
-                                                      onClick={() => handleMoveIssue(issue.id, col.id)}
-                                                    >
-                                                      {col.name}
-                                                    </DropdownMenuItem>
-                                                  ))}
-                                                </DropdownMenuSubContent>
-                                              </DropdownMenuSub>
-
-                                              <DropdownMenuSeparator />
-
-                                              <DropdownMenuItem onClick={() => handleArchiveIssue(issue.id)}>
-                                                <Archive className="h-4 w-4 mr-2" />
-                                                Archive
-                                                <DropdownMenuShortcut>E</DropdownMenuShortcut>
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                                onClick={() => handleDeleteIssue(issue.id)}
-                                              >
-                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                Delete from project
-                                                <DropdownMenuShortcut>Del</DropdownMenuShortcut>
-                                              </DropdownMenuItem>
+                                              {isAdmin && (
+                                                <>
+                                                  <DropdownMenuSeparator />
+                                                  <DropdownMenuSub>
+                                                    <DropdownMenuSubTrigger>
+                                                      <ArrowRight className="h-4 w-4 mr-2" />
+                                                      Move to column
+                                                    </DropdownMenuSubTrigger>
+                                                    <DropdownMenuSubContent>
+                                                      {availableColumns.map(col => (
+                                                        <DropdownMenuItem
+                                                          key={col.id}
+                                                          disabled={issue.status === col.id}
+                                                          onClick={() => handleMoveIssue(issue.id, col.id)}
+                                                        >
+                                                          {col.name}
+                                                        </DropdownMenuItem>
+                                                      ))}
+                                                    </DropdownMenuSubContent>
+                                                  </DropdownMenuSub>
+                                                  <DropdownMenuSeparator />
+                                                  <DropdownMenuItem onClick={() => handleArchiveIssue(issue.id)}>
+                                                    <Archive className="h-4 w-4 mr-2" />
+                                                    Archive
+                                                    <DropdownMenuShortcut>E</DropdownMenuShortcut>
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuItem
+                                                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                    onClick={() => handleDeleteIssue(issue.id)}
+                                                  >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete from project
+                                                    <DropdownMenuShortcut>Del</DropdownMenuShortcut>
+                                                  </DropdownMenuItem>
+                                                </>
+                                              )}
                                             </DropdownMenuContent>
                                           </DropdownMenu>
                                         </div>
@@ -1057,32 +1078,36 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
                       </Droppable>
 
                       {/* Add Item Footer */}
-                      <div className="p-2">
-                        <button
-                          onClick={() => {
-                            setNewIssueStatus(column.id as any);
-                            setShowCreateDialog(true);
-                          }}
-                          className="flex items-center gap-2 w-full px-2 py-1.5 text-gray-500 hover:text-gray-900 hover:bg-white rounded-md transition-all text-sm font-medium text-left"
-                        >
-                          <Plus className="h-4 w-4" />
-                          Add item
-                        </button>
-                      </div>
+                      {isAdmin && (
+                        <div className="p-2">
+                          <button
+                            onClick={() => {
+                              setNewIssueStatus(column.id as any);
+                              setShowCreateDialog(true);
+                            }}
+                            className="flex items-center gap-2 w-full px-2 py-1.5 text-gray-500 hover:text-gray-900 hover:bg-white rounded-md transition-all text-sm font-medium text-left"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add item
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
 
                 {/* Add Column Button Placeholder */}
-                <div className="w-[340px] flex-shrink-0">
-                  <button
-                    onClick={() => setShowNewColumnDialog(true)}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-3 text-[#24292f] hover:bg-[#f3f4f6] rounded-lg text-sm font-bold border-2 border-dashed border-[#d0d7de] hover:border-[#0969da] transition-all bg-white shadow-sm"
-                  >
-                    <Plus className="h-5 w-5 text-[#0969da]" />
-                    <span>Create New Column</span>
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="w-[340px] flex-shrink-0">
+                    <button
+                      onClick={() => setShowNewColumnDialog(true)}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 text-[#24292f] hover:bg-[#f3f4f6] rounded-lg text-sm font-bold border-2 border-dashed border-[#d0d7de] hover:border-[#0969da] transition-all bg-white shadow-sm"
+                    >
+                      <Plus className="h-5 w-5 text-[#0969da]" />
+                      <span>Create New Column</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Spacer for right padding */}
                 <div className="w-4 shrink-0" />

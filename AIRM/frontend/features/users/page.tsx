@@ -31,7 +31,7 @@ const Users = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserName, setNewUserName] = useState("");
-  const [newUserRole, setNewUserRole] = useState("user");
+  const [newUserRole, setNewUserRole] = useState("employee");
   const [addingUser, setAddingUser] = useState(false);
 
   useEffect(() => {
@@ -40,25 +40,25 @@ const Users = () => {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         if (userData.id) {
           setCurrentUser(userData);
-          
+
           // Check admin status from localStorage first (faster)
           const isAdminFromStorage = userData.role === 'admin';
-          
+
           // Also try to get from API as fallback
           try {
-          const currentUserResp = await api.auth.getMe() as any;
-            const isAdminFromAPI = currentUserResp?.user?.role === 'admin' || 
-                                   currentUserResp?.role === 'admin' ||
-                                   currentUserResp?.data?.role === 'admin';
+            const currentUserResp = await api.auth.getMe() as any;
+            const isAdminFromAPI = currentUserResp?.user?.role === 'admin' ||
+              currentUserResp?.role === 'admin' ||
+              currentUserResp?.data?.role === 'admin';
             setIsAdmin(isAdminFromStorage || isAdminFromAPI);
           } catch (apiError) {
             // If API fails, use localStorage value
             console.warn('Could not fetch user from API, using localStorage:', apiError);
             setIsAdmin(isAdminFromStorage);
           }
-          
+
           await loadUsers();
-      }
+        }
       } catch (error) {
         console.error('Error initializing users:', error);
         // Fallback: check localStorage role
@@ -79,10 +79,10 @@ const Users = () => {
         const userProfiles = usersData.map((user: any) => ({
           id: user.user_id || user.id,
           email: user.email,
-          role: user.role || 'user',
+          role: user.role || 'employee',
           created_at: user.created_at,
         }));
-        
+
         setUsers(userProfiles);
       } else {
         setUsers([]);
@@ -125,8 +125,8 @@ const Users = () => {
 
     setLoading(true);
     try {
-      const newRole = currentRole === "admin" ? "user" : "admin";
-      
+      const newRole = currentRole === "admin" ? "employee" : "admin";
+
       await api.users.updateRole(userId, newRole);
 
       toast({
@@ -171,7 +171,7 @@ const Users = () => {
       setShowAddDialog(false);
       setNewUserEmail("");
       setNewUserName("");
-      setNewUserRole("user");
+      setNewUserRole("employee");
       loadUsers();
     } catch (error: any) {
       toast({
@@ -281,7 +281,7 @@ const Users = () => {
                     value={newUserRole}
                     onChange={(e) => setNewUserRole(e.target.value)}
                   >
-                    <option value="user">Employee</option>
+                    <option value="employee">Employee</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
@@ -337,11 +337,10 @@ const Users = () => {
                         )}
                         <h3 className="font-semibold">{user.email}</h3>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            user.role === "admin"
+                          className={`text-xs px-2 py-0.5 rounded-full ${user.role === "admin"
                               ? "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200"
                               : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                          }`}
+                            }`}
                         >
                           {user.role === "admin" ? "admin" : "employee"}
                         </span>

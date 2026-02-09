@@ -63,7 +63,7 @@ const Users = () => {
         const userProfiles = usersData.map((user: any) => ({
           id: user.user_id || user.id,
           email: user.email,
-          role: user.role || 'user',
+          role: user.role || 'employee',
           created_at: user.created_at,
         }));
 
@@ -75,7 +75,7 @@ const Users = () => {
       console.error("Error loading users:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to load users",
+        description: error.message || "Failed to load employees",
         variant: "destructive",
       });
       setUsers([]);
@@ -109,13 +109,13 @@ const Users = () => {
 
     setLoading(true);
     try {
-      const newRole = currentRole === "admin" ? "user" : "admin";
+      const newRole = currentRole === "admin" ? "employee" : "admin";
 
       await api.users.updateRole(userId, newRole);
 
       toast({
         title: "Role Updated",
-        description: `User role changed to ${newRole}`,
+        description: `Employee role changed to ${newRole}`,
       });
       loadUsers();
     } catch (error: any) {
@@ -176,9 +176,9 @@ const Users = () => {
           </CardHeader>
           <CardContent>
             {loading && users.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">Loading users...</p>
+              <p className="text-center text-muted-foreground py-8">Loading employees...</p>
             ) : users.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No users found</p>
+              <p className="text-center text-muted-foreground py-8">No employees found</p>
             ) : (
               <div className="space-y-3">
                 {users.map((user) => (
@@ -207,7 +207,9 @@ const Users = () => {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Joined: {new Date(user.created_at).toLocaleDateString()}
+                        Joined: {user.created_at && !isNaN(new Date(user.created_at).getTime())
+                          ? new Date(user.created_at).toLocaleDateString()
+                          : 'N/A'}
                       </p>
                     </div>
                     <Button
@@ -231,14 +233,14 @@ const Users = () => {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p>
-              <strong>Admin:</strong> Can create tasks, assign tasks to users, and manage user
+              <strong>Admin:</strong> Can create tasks, assign tasks to employees, and manage employee
               roles.
             </p>
             <p>
-              <strong>User:</strong> Can only clock in/out to tasks assigned to them by admins.
+              <strong>Employee:</strong> Can only clock in/out to tasks assigned to them by admins.
             </p>
             <p className="text-muted-foreground mt-4">
-              💡 Tip: Go to the Issues page to create and assign issues to users.
+              💡 Tip: Go to the Issues page to create and assign issues to employees.
             </p>
           </CardContent>
         </Card>

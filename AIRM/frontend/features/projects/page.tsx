@@ -35,9 +35,12 @@ const Projects = ({ onProjectSelect }: { onProjectSelect?: (projectName: string)
     visibility: "private" as "private" | "internal" | "public"
   });
   const [creating, setCreating] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetchProjects();
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    setIsAdmin(userData.role === 'admin');
   }, []);
 
   const fetchProjects = async () => {
@@ -135,75 +138,77 @@ const Projects = ({ onProjectSelect }: { onProjectSelect?: (projectName: string)
           </p>
         </div>
 
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              🚀 Create Project
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New Project</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateProject} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Project Name *</Label>
-                <Input
-                  id="name"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                  placeholder="Enter project name"
-                  required
-                />
-              </div>
+        {isAdmin && (
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                🚀 Create Project
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Create New Project</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateProject} className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Project Name *</Label>
+                  <Input
+                    id="name"
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                    placeholder="Enter project name"
+                    required
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={createForm.description}
-                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                  placeholder="Enter project description (optional)"
-                  rows={3}
-                />
-              </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                    placeholder="Enter project description (optional)"
+                    rows={3}
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="visibility">Visibility</Label>
-                <select
-                  id="visibility"
-                  value={createForm.visibility}
-                  onChange={(e) => setCreateForm({ ...createForm, visibility: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="private">Private</option>
-                  <option value="internal">Internal</option>
-                  <option value="public">Public</option>
-                </select>
-              </div>
+                <div>
+                  <Label htmlFor="visibility">Visibility</Label>
+                  <select
+                    id="visibility"
+                    value={createForm.visibility}
+                    onChange={(e) => setCreateForm({ ...createForm, visibility: e.target.value as any })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="private">Private</option>
+                    <option value="internal">Internal</option>
+                    <option value="public">Public</option>
+                  </select>
+                </div>
 
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowCreateDialog(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={creating}>
-                  {creating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Project"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCreateDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={creating}>
+                    {creating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Creating...
+                      </>
+                    ) : (
+                      "Create Project"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {projects.length === 0 ? (
@@ -240,56 +245,60 @@ const Projects = ({ onProjectSelect }: { onProjectSelect?: (projectName: string)
                       }`}>
                       {project.visibility}
                     </span>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent onClick={(e) => e.stopPropagation()} className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2 text-red-600">
-                            <AlertCircle className="h-5 w-5" />
-                            Confirm Project Deletion
-                          </DialogTitle>
-                        </DialogHeader>
-                        <div className="py-4">
-                          <p className="text-sm text-gray-500">
-                            Are you sure you want to delete <strong>{project.name}</strong>?
-                            This will also remove all issues associated with this project. This action cannot be undone.
-                          </p>
-                        </div>
-                        <div className="flex justify-end space-x-2">
+                    {isAdmin && (
+                      <Dialog>
+                        <DialogTrigger asChild>
                           <Button
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // The dialog closes automatically when trigger state changes
-                              // but we need to find a way to close it without shadcn's internal methods
-                              // Actually, the simplest way is to use a local state if needed.
-                              // But shadcn Dialog closes on any button click that doesn't stopPropagation?
-                              // Actually, just let the user click Delete.
-                            }}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            Cancel
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteProject(project.id);
-                            }}
-                          >
-                            Delete Project
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                        </DialogTrigger>
+                        <DialogContent onClick={(e) => e.stopPropagation()} className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-red-600">
+                              <AlertCircle className="h-5 w-5" />
+                              Confirm Project Deletion
+                            </DialogTitle>
+                          </DialogHeader>
+                          <div className="py-4">
+                            <p className="text-sm text-gray-500">
+                              Are you sure you want to delete <strong>{project.name}</strong>?
+                              This will also remove all issues associated with this project. This action cannot be undone.
+                            </p>
+                          </div>
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // The dialog closes automatically when trigger state changes
+                                // but we need to find a way to close it without shadcn's internal methods
+                                // Actually, the simplest way is to use a local state if needed.
+                                // But shadcn Dialog closes on any button click that doesn't stopPropagation?
+                                // Actually, just let the user click Delete.
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteProject(project.id);
+                                // Close the dialog by triggering a click on the backdrop or similar?
+                                // Usually shadcn handles this.
+                              }}
+                            >
+                              Delete Project
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                   </div>
                 </div>
               </CardHeader>
