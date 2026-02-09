@@ -32,7 +32,29 @@ export async function clockIn(userId, clockInData) {
     location_address
   );
   console.log('✅ Clock-in entry created:', result.id);
-  return result;
+
+  // Fetch issue details to return full object
+  let issueDetails = null;
+  if (result.issue_id) {
+    try {
+      const issue = await timesheetModel.getIssueDetails(result.issue_id);
+      if (issue) {
+        issueDetails = {
+          id: result.issue_id,
+          title: issue.title,
+          project_name: issue.project_name,
+          estimated_hours: issue.estimated_hours
+        };
+      }
+    } catch (err) {
+      console.warn('Could not fetch issue details for clock-in response:', err);
+    }
+  }
+
+  return {
+    ...result,
+    issue: issueDetails
+  };
 }
 
 /**
