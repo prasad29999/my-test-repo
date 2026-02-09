@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { Calendar as CalendarIcon, Check, X, Clock, Plus, BarChart3, ClipboardList } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isBefore, startOfDay, addDays, startOfWeek, endOfWeek } from "date-fns";
+import { CalendarSkeleton } from "@/components/PageSkeletons";
 
 // Helper function to get current financial year (April to March)
 const getCurrentFinancialYear = () => {
@@ -559,12 +560,14 @@ export default function LeaveCalendar() {
   };
 
   if (loading) {
-    console.log('Leave Calendar - Still loading...');
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading leave calendar...</p>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            <div className="h-10 w-64 bg-gray-200 animate-pulse rounded mb-2" />
+            <div className="h-4 w-96 bg-gray-200 animate-pulse rounded" />
+          </div>
+          <CalendarSkeleton />
         </div>
       </div>
     );

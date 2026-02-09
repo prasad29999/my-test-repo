@@ -12,6 +12,7 @@ import {
   Plus, Trash2, Save, ArrowLeft, CheckCircle, ShieldCheck, FileText
 } from "lucide-react";
 import * as joiningFormService from "../joining-form/services/joiningFormService";
+import { FormSkeleton, TableSkeleton } from "@/components/PageSkeletons";
 import type {
   EmployeeInfo,
   FamilyMember,
@@ -356,8 +357,31 @@ export default function JoiningForm({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="h-full bg-white flex flex-col">
+        <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-100 px-8 py-4">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="h-8 w-48 bg-gray-200 animate-pulse rounded" />
+            <div className="flex gap-3">
+              <div className="h-10 w-32 bg-gray-200 animate-pulse rounded" />
+              <div className="h-10 w-40 bg-gray-200 animate-pulse rounded" />
+            </div>
+          </div>
+        </header>
+        <div className="max-w-7xl mx-auto px-8 py-8 space-y-8 w-full">
+          <div className="flex gap-2 mb-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-10 w-24 bg-gray-100 animate-pulse rounded-xl" />
+            ))}
+          </div>
+          <Card>
+            <CardHeader>
+              <div className="h-6 w-32 bg-gray-200 animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <FormSkeleton sections={3} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }

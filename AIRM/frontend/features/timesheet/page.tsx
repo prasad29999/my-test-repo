@@ -8,6 +8,7 @@ import { format, startOfWeek, endOfWeek, addDays, addWeeks, isAfter } from "date
 import { Plus, Trash2, Save, Share2, ChevronLeft, ChevronRight, Download, RefreshCw, AlertTriangle } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { TimesheetSkeleton } from "@/components/PageSkeletons";
 // import logo from "@/assets/techiemaya-logo.png";
 
 interface TimesheetEntry {
@@ -1158,243 +1159,249 @@ const Timesheet = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Compact Late Clock-in Warning */}
-            {Object.entries(clockInTimings).some(([_, entry]: [any, any]) => new Date(entry.clock_in).getHours() >= 11) && (
-              <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-md flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                <div className="text-sm font-medium text-red-900">
-                  <span className="font-bold">Late Attendance Warning:</span> First-shift absence recorded for{' '}
-                  {Object.entries(clockInTimings)
-                    .filter(([_, entry]: [any, any]) => new Date(entry.clock_in).getHours() >= 11)
-                    .map(([date, entry]: [any, any]) => (
-                      <span key={date} className="inline-flex items-center bg-red-100 px-2 py-0.5 rounded text-[11px] font-bold mx-0.5">
-                        {format(new Date(date + 'T12:00:00'), "EEE, MMM dd")} ({format(new Date(entry.clock_in), "hh:mm a")})
-                      </span>
-                    ))}
-                  . (Clock-in required before 11:00 AM)
-                </div>
-              </div>
-            )}
+            {loading && entries.length === 0 ? (
+              <TimesheetSkeleton />
+            ) : (
+              <>
+                {/* Compact Late Clock-in Warning */}
+                {Object.entries(clockInTimings).some(([_, entry]: [any, any]) => new Date(entry.clock_in).getHours() >= 11) && (
+                  <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-md flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                    <div className="text-sm font-medium text-red-900">
+                      <span className="font-bold">Late Attendance Warning:</span> First-shift absence recorded for{' '}
+                      {Object.entries(clockInTimings)
+                        .filter(([_, entry]: [any, any]) => new Date(entry.clock_in).getHours() >= 11)
+                        .map(([date, entry]: [any, any]) => (
+                          <span key={date} className="inline-flex items-center bg-red-100 px-2 py-0.5 rounded text-[11px] font-bold mx-0.5">
+                            {format(new Date(date + 'T12:00:00'), "EEE, MMM dd")} ({format(new Date(entry.clock_in), "hh:mm a")})
+                          </span>
+                        ))}
+                      . (Clock-in required before 11:00 AM)
+                    </div>
+                  </div>
+                )}
 
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-border">
-                    <th className="border border-border bg-muted p-2 text-left font-semibold">
-                      Project
-                    </th>
-                    <th className="border border-border bg-muted p-2 text-left font-semibold">
-                      Task
-                    </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
-                      <div>MON</div>
-                      <div className="text-xs font-normal">{getDayDate(0)}</div>
-                    </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
-                      <div>TUE</div>
-                      <div className="text-xs font-normal">{getDayDate(1)}</div>
-                    </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
-                      <div>WED</div>
-                      <div className="text-xs font-normal">{getDayDate(2)}</div>
-                    </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
-                      <div>THU</div>
-                      <div className="text-xs font-normal">{getDayDate(3)}</div>
-                    </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
-                      <div>FRI</div>
-                      <div className="text-xs font-normal">{getDayDate(4)}</div>
-                    </th>
-                    <th className="border border-border bg-gray-100/50 p-2 text-center font-semibold">
-                      <div>SAT</div>
-                      <div className="text-xs font-normal">{getDayDate(5)}</div>
-                    </th>
-                    <th className="border border-border bg-gray-100/50 p-2 text-center font-semibold">
-                      <div>SUN</div>
-                      <div className="text-xs font-normal">{getDayDate(6)}</div>
-                    </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
-                      TOTAL
-                    </th>
-                    <th className="border border-border bg-muted p-2 text-center font-semibold">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((entry, index) => {
-                    const isTimeClock = entry.source === 'time_clock';
-                    const isLeave = entry.source === 'leave';
-                    // Make read-only if: time_clock/leave entry OR admin viewing another user's timesheet
-                    const isViewingOtherUser = isAdmin && selectedUserId && selectedUserId !== user?.id;
-                    const isReadOnly = isTimeClock || isLeave || isViewingOtherUser;
-                    // Ensure unique key - entry.id should always exist now, but add index as fallback
-                    const uniqueKey = entry.id ? `${entry.id}-${index}` : `entry-${index}-${Date.now()}-${Math.random()}`;
-                    return (
-                      <tr key={uniqueKey} className={`hover:bg-muted/50 ${isTimeClock ? 'bg-blue-50/50' : ''} ${isLeave ? 'bg-green-50/50' : ''}`}>
-                        <td className="border border-border p-1">
-                          {isReadOnly ? (
-                            <div className="px-2 py-1 text-sm">{entry.project}</div>
-                          ) : (
-                            <Input
-                              value={entry.project}
-                              onChange={(e) =>
-                                updateEntry(index, "project", e.target.value)
-                              }
-                              className="h-8 border-0 bg-transparent"
-                              placeholder="Project"
-                              disabled={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
-                              readOnly={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
-                            />
-                          )}
-                        </td>
-                        <td className="border border-border p-1">
-                          {isReadOnly ? (
-                            <div className="px-2 py-1 text-sm flex items-center gap-2">
-                              {entry.task}
-                              {isTimeClock && <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">Auto</span>}
-                              {isLeave && <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded">Leave</span>}
-                            </div>
-                          ) : (
-                            <Input
-                              value={entry.task}
-                              onChange={(e) => updateEntry(index, "task", e.target.value)}
-                              className="h-8 border-0 bg-transparent"
-                              placeholder="Task"
-                              disabled={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
-                              readOnly={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
-                            />
-                          )}
-                        </td>
-                        {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day) => {
-                          // Safely convert to number, handling all edge cases
-                          const rawValue = entry[`${day}_hours` as keyof TimesheetEntry];
-                          const dayHours = rawValue === null || rawValue === undefined || rawValue === ''
-                            ? 0
-                            : typeof rawValue === 'string'
-                              ? parseFloat(rawValue) || 0
-                              : Number(rawValue) || 0;
-
-                          // Always show the value, even if 0
-                          const displayValue = isLeave && dayHours > 0
-                            ? 'PTO'
-                            : dayHours > 0 || dayHours === 0
-                              ? (dayHours > 0 ? formatHours(dayHours) : '0')
-                              : '0';
-
-                          const isWeekend = day === 'sat' || day === 'sun';
-
-                          return (
-                            <td key={day} className={`border border-border p-1 ${isWeekend ? 'bg-gray-100/50' : ''}`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-border">
+                        <th className="border border-border bg-muted p-2 text-left font-semibold">
+                          Project
+                        </th>
+                        <th className="border border-border bg-muted p-2 text-left font-semibold">
+                          Task
+                        </th>
+                        <th className="border border-border bg-muted p-2 text-center font-semibold">
+                          <div>MON</div>
+                          <div className="text-xs font-normal">{getDayDate(0)}</div>
+                        </th>
+                        <th className="border border-border bg-muted p-2 text-center font-semibold">
+                          <div>TUE</div>
+                          <div className="text-xs font-normal">{getDayDate(1)}</div>
+                        </th>
+                        <th className="border border-border bg-muted p-2 text-center font-semibold">
+                          <div>WED</div>
+                          <div className="text-xs font-normal">{getDayDate(2)}</div>
+                        </th>
+                        <th className="border border-border bg-muted p-2 text-center font-semibold">
+                          <div>THU</div>
+                          <div className="text-xs font-normal">{getDayDate(3)}</div>
+                        </th>
+                        <th className="border border-border bg-muted p-2 text-center font-semibold">
+                          <div>FRI</div>
+                          <div className="text-xs font-normal">{getDayDate(4)}</div>
+                        </th>
+                        <th className="border border-border bg-gray-100/50 p-2 text-center font-semibold">
+                          <div>SAT</div>
+                          <div className="text-xs font-normal">{getDayDate(5)}</div>
+                        </th>
+                        <th className="border border-border bg-gray-100/50 p-2 text-center font-semibold">
+                          <div>SUN</div>
+                          <div className="text-xs font-normal">{getDayDate(6)}</div>
+                        </th>
+                        <th className="border border-border bg-muted p-2 text-center font-semibold">
+                          TOTAL
+                        </th>
+                        <th className="border border-border bg-muted p-2 text-center font-semibold">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entries.map((entry, index) => {
+                        const isTimeClock = entry.source === 'time_clock';
+                        const isLeave = entry.source === 'leave';
+                        // Make read-only if: time_clock/leave entry OR admin viewing another user's timesheet
+                        const isViewingOtherUser = isAdmin && selectedUserId && selectedUserId !== user?.id;
+                        const isReadOnly = isTimeClock || isLeave || isViewingOtherUser;
+                        // Ensure unique key - entry.id should always exist now, but add index as fallback
+                        const uniqueKey = entry.id ? `${entry.id}-${index}` : `entry-${index}-${Date.now()}-${Math.random()}`;
+                        return (
+                          <tr key={uniqueKey} className={`hover:bg-muted/50 ${isTimeClock ? 'bg-blue-50/50' : ''} ${isLeave ? 'bg-green-50/50' : ''}`}>
+                            <td className="border border-border p-1">
                               {isReadOnly ? (
-                                <div className={`text-center text-sm py-1 font-semibold ${isWeekend ? 'text-gray-500' : ''}`}>
-                                  {displayValue === '0' && isWeekend ? '-' : displayValue}
-                                </div>
+                                <div className="px-2 py-1 text-sm">{entry.project}</div>
                               ) : (
                                 <Input
-                                  type="number"
-                                  step="0.5"
-                                  min="0"
-                                  value={dayHours}
+                                  value={entry.project}
                                   onChange={(e) =>
-                                    updateEntry(
-                                      index,
-                                      `${day}_hours` as keyof TimesheetEntry,
-                                      parseFloat(e.target.value) || 0
-                                    )
+                                    updateEntry(index, "project", e.target.value)
                                   }
-                                  className={`h-8 border-0 bg-transparent text-center ${isWeekend ? 'text-gray-500' : ''}`}
+                                  className="h-8 border-0 bg-transparent"
+                                  placeholder="Project"
                                   disabled={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
                                   readOnly={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
                                 />
                               )}
                             </td>
+                            <td className="border border-border p-1">
+                              {isReadOnly ? (
+                                <div className="px-2 py-1 text-sm flex items-center gap-2">
+                                  {entry.task}
+                                  {isTimeClock && <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">Auto</span>}
+                                  {isLeave && <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded">Leave</span>}
+                                </div>
+                              ) : (
+                                <Input
+                                  value={entry.task}
+                                  onChange={(e) => updateEntry(index, "task", e.target.value)}
+                                  className="h-8 border-0 bg-transparent"
+                                  placeholder="Task"
+                                  disabled={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
+                                  readOnly={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
+                                />
+                              )}
+                            </td>
+                            {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day) => {
+                              // Safely convert to number, handling all edge cases
+                              const rawValue = entry[`${day}_hours` as keyof TimesheetEntry];
+                              const dayHours = rawValue === null || rawValue === undefined || rawValue === ''
+                                ? 0
+                                : typeof rawValue === 'string'
+                                  ? parseFloat(rawValue) || 0
+                                  : Number(rawValue) || 0;
+
+                              // Always show the value, even if 0
+                              const displayValue = isLeave && dayHours > 0
+                                ? 'PTO'
+                                : dayHours > 0 || dayHours === 0
+                                  ? (dayHours > 0 ? formatHours(dayHours) : '0')
+                                  : '0';
+
+                              const isWeekend = day === 'sat' || day === 'sun';
+
+                              return (
+                                <td key={day} className={`border border-border p-1 ${isWeekend ? 'bg-gray-100/50' : ''}`}>
+                                  {isReadOnly ? (
+                                    <div className={`text-center text-sm py-1 font-semibold ${isWeekend ? 'text-gray-500' : ''}`}>
+                                      {displayValue === '0' && isWeekend ? '-' : displayValue}
+                                    </div>
+                                  ) : (
+                                    <Input
+                                      type="number"
+                                      step="0.5"
+                                      min="0"
+                                      value={dayHours}
+                                      onChange={(e) =>
+                                        updateEntry(
+                                          index,
+                                          `${day}_hours` as keyof TimesheetEntry,
+                                          parseFloat(e.target.value) || 0
+                                        )
+                                      }
+                                      className={`h-8 border-0 bg-transparent text-center ${isWeekend ? 'text-gray-500' : ''}`}
+                                      disabled={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
+                                      readOnly={!!(isTimeClock || isLeave || (isAdmin && selectedUserId && selectedUserId !== user?.id))}
+                                    />
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="border border-border p-2 text-center font-semibold">
+                              {formatHours(calculateTotal(entry))}
+                            </td>
+                            <td className="border border-border p-1 text-center">
+                              {isReadOnly ? (
+                                <div className="text-xs text-muted-foreground">🔒</div>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeEntry(index)}
+                                  disabled={entries.length === 1}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="bg-muted font-semibold">
+                        <td colSpan={2} className="border border-border p-2 text-right">
+                          TOTAL
+                        </td>
+                        {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day) => {
+                          const isWeekend = day === 'sat' || day === 'sun';
+                          return (
+                            <td key={day} className={`border border-border p-2 text-center ${isWeekend ? 'bg-gray-100/50 text-gray-500' : ''}`}>
+                              {formatHours(calculateDayTotal(`${day}_hours` as keyof TimesheetEntry))}
+                            </td>
                           );
                         })}
-                        <td className="border border-border p-2 text-center font-semibold">
-                          {formatHours(calculateTotal(entry))}
+                        <td className="border border-border p-2 text-center">
+                          {formatHours(calculateGrandTotal())}
                         </td>
-                        <td className="border border-border p-1 text-center">
-                          {isReadOnly ? (
-                            <div className="text-xs text-muted-foreground">🔒</div>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeEntry(index)}
-                              disabled={entries.length === 1}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </td>
+                        <td className="border border-border"></td>
                       </tr>
-                    );
-                  })}
-                  <tr className="bg-muted font-semibold">
-                    <td colSpan={2} className="border border-border p-2 text-right">
-                      TOTAL
-                    </td>
-                    {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day) => {
-                      const isWeekend = day === 'sat' || day === 'sun';
-                      return (
-                        <td key={day} className={`border border-border p-2 text-center ${isWeekend ? 'bg-gray-100/50 text-gray-500' : ''}`}>
-                          {formatHours(calculateDayTotal(`${day}_hours` as keyof TimesheetEntry))}
-                        </td>
-                      );
-                    })}
-                    <td className="border border-border p-2 text-center">
-                      {formatHours(calculateGrandTotal())}
-                    </td>
-                    <td className="border border-border"></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                    </tbody>
+                  </table>
+                </div>
 
-            <div className="mt-4 flex gap-2">
-              {!(isAdmin && selectedUserId && selectedUserId !== user?.id) && (
-                <Button onClick={addEntry} variant="outline">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Row
-                </Button>
-              )}
-              {!(isAdmin && selectedUserId && selectedUserId !== user?.id) ? (
-                <Button onClick={() => saveTimesheet(false)} disabled={loading}>
-                  <Save className="mr-2 h-4 w-4" />
-                  {loading ? "Saving..." : "Save Timesheet"}
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-md text-sm text-muted-foreground">
-                  <span>🔒 Read-only mode - Viewing another user's timesheet</span>
+                <div className="mt-4 flex gap-2">
+                  {!(isAdmin && selectedUserId && selectedUserId !== user?.id) && (
+                    <Button onClick={addEntry} variant="outline">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Row
+                    </Button>
+                  )}
+                  {!(isAdmin && selectedUserId && selectedUserId !== user?.id) ? (
+                    <Button onClick={() => saveTimesheet(false)} disabled={loading}>
+                      <Save className="mr-2 h-4 w-4" />
+                      {loading ? "Saving..." : "Save Timesheet"}
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-md text-sm text-muted-foreground">
+                      <span>🔒 Read-only mode - Viewing another user's timesheet</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="mt-6 space-y-2 text-sm text-muted-foreground">
-              <p>*Record all time to the nearest 10th of an hour</p>
-              <p>*Overtime is not authorized without Customer Management Approval</p>
-              <div className="mt-4 flex gap-4 items-center">
-                <p className="font-semibold text-foreground">Entry Types:</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></div>
-                  <span className="text-xs">Time Clock (Auto) 🔒</span>
+                <div className="mt-6 space-y-2 text-sm text-muted-foreground">
+                  <p>*Record all time to the nearest 10th of an hour</p>
+                  <p>*Overtime is not authorized without Customer Management Approval</p>
+                  <div className="mt-4 flex gap-4 items-center">
+                    <p className="font-semibold text-foreground">Entry Types:</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></div>
+                      <span className="text-xs">Time Clock (Auto) 🔒</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
+                      <span className="text-xs">Approved Leave 🔒</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-white border border-gray-300 rounded"></div>
+                      <span className="text-xs">Manual Entry (Editable)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-gray-100/50 border border-gray-200 rounded"></div>
+                      <span className="text-xs">Week Off</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
-                  <span className="text-xs">Approved Leave 🔒</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-white border border-gray-300 rounded"></div>
-                  <span className="text-xs">Manual Entry (Editable)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-gray-100/50 border border-gray-200 rounded"></div>
-                  <span className="text-xs">Week Off</span>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import { api } from '@/lib/api';
+import { TableSkeleton } from '@/components/PageSkeletons';
 
 interface Commit {
   id: string;
@@ -107,41 +108,42 @@ export default function Git() {
       <div className="flex space-x-1 bg-muted p-1 rounded-lg mb-6">
         <button
           onClick={() => setActiveTab('commits')}
-          className={`flex-1 py-2 px-4 rounded-md transition-colors ${
-            activeTab === 'commits'
+          className={`flex-1 py-2 px-4 rounded-md transition-colors ${activeTab === 'commits'
               ? 'bg-background text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground'
-          }`}
+            }`}
         >
           Recent Commits
         </button>
         <button
           onClick={() => setActiveTab('issues')}
-          className={`flex-1 py-2 px-4 rounded-md transition-colors ${
-            activeTab === 'issues'
+          className={`flex-1 py-2 px-4 rounded-md transition-colors ${activeTab === 'issues'
               ? 'bg-background text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground'
-          }`}
+            }`}
         >
           Issues
         </button>
         <button
           onClick={() => setActiveTab('sync')}
-          className={`flex-1 py-2 px-4 rounded-md transition-colors ${
-            activeTab === 'sync'
+          className={`flex-1 py-2 px-4 rounded-md transition-colors ${activeTab === 'sync'
               ? 'bg-background text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground'
-          }`}
+            }`}
         >
           GitLab Sync
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="mt-2 text-muted-foreground">Loading Git data...</p>
-        </div>
+        <Card>
+          <CardHeader>
+            <div className="h-6 w-48 bg-gray-200 animate-pulse rounded" />
+          </CardHeader>
+          <CardContent>
+            <TableSkeleton rows={5} cols={3} />
+          </CardContent>
+        </Card>
       ) : (
         <>
           {/* Commits Tab */}
@@ -237,11 +239,10 @@ export default function Git() {
                               <span className="text-sm font-medium text-muted-foreground">
                                 #{issue.iid}
                               </span>
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                issue.state === 'opened' 
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${issue.state === 'opened'
                                   ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
                                   : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                              }`}>
+                                }`}>
                                 {issue.state}
                               </span>
                             </div>
@@ -278,7 +279,7 @@ export default function Git() {
               </CardContent>
             </Card>
           )}
-          
+
           {/* Sync Tab */}
           {activeTab === 'sync' && (
             <Card>

@@ -15,6 +15,7 @@ import {
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { Users as UsersIcon, Shield, User as UserIcon, RefreshCw, UserPlus, Trash2 } from "lucide-react";
+import { TableSkeleton, CardSkeleton } from "@/components/PageSkeletons";
 
 interface UserProfile {
   id: string;
@@ -318,7 +319,7 @@ const Users = () => {
           </CardHeader>
           <CardContent>
             {loading && users.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">Loading employees...</p>
+              <TableSkeleton rows={5} cols={3} />
             ) : users.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No employees found</p>
             ) : (
@@ -338,8 +339,8 @@ const Users = () => {
                         <h3 className="font-semibold">{user.email}</h3>
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full ${user.role === "admin"
-                              ? "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200"
-                              : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                            ? "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                             }`}
                         >
                           {user.role === "admin" ? "admin" : "employee"}

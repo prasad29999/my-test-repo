@@ -47,6 +47,7 @@ import {
 import { format } from "date-fns";
 import { PfManagementSection, ProfileCard, ProfileFilters, ProfileSearchModal, ProfileListView, ProfileKanbanView, ProfileDetailDialog } from "./components";
 import { getInitials, getBurnoutLevel, getProfileStatus } from "./utils";
+import { CardSkeleton } from "@/components/PageSkeletons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -629,12 +630,23 @@ const Profiles = ({ onlyCurrentUser = false, hideHeader = false, noPadding = fal
 
   if (loading && profiles.length === 0) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-500">Loading employee profiles...</p>
+      <div className={noPadding ? "" : "p-6"}>
+        {!hideHeader && (
+          <div className="flex items-center justify-between mb-6">
+            <div className="space-y-2">
+              <div className="h-10 w-48 bg-gray-200 animate-pulse rounded" />
+              <div className="h-4 w-96 bg-gray-200 animate-pulse rounded" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-10 w-32 bg-gray-200 animate-pulse rounded" />
+              <div className="h-10 w-32 bg-gray-200 animate-pulse rounded" />
+            </div>
           </div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
         </div>
       </div>
     );

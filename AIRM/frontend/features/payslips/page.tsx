@@ -15,6 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { usePayslips, usePayslip, usePayrollMutation } from '../payroll-pf';
 import type { Payslip } from '@/sdk/features/payroll-pf';
 import { useProfiles } from '../profiles/hooks/useprofiles';
+import { TableSkeleton } from '@/components/PageSkeletons';
 import {
   FileText,
   Download,
@@ -258,9 +259,7 @@ const Payslips = () => {
       {/* Payslips List */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
-          </div>
+          <TableSkeleton rows={5} cols={4} />
         ) : filteredPayslips.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">

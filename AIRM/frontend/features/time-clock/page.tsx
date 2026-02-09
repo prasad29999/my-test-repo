@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Clock, Play, Square, Pause, FolderKanban } from "lucide-react";
+import { TableSkeleton } from "@/components/PageSkeletons";
 
 interface Issue {
   id: number;
@@ -508,10 +509,35 @@ const TimeClock = () => {
 
   if (initializing) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="mx-auto max-w-4xl space-y-6">
+          <div className="h-10 w-48 bg-gray-200 animate-pulse rounded" />
+
+          <Card>
+            <CardHeader>
+              <div className="h-6 w-32 bg-gray-200 animate-pulse rounded" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-gray-200 animate-pulse rounded" />
+                <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-gray-200 animate-pulse rounded" />
+                <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
+              </div>
+              <div className="h-12 w-full bg-gray-200 animate-pulse rounded" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="h-6 w-48 bg-gray-200 animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <TableSkeleton rows={3} cols={1} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -536,8 +562,8 @@ const TimeClock = () => {
             {currentEntry ? (
               <div className="space-y-4">
                 <div className={`p-4 rounded-lg border ${currentEntry.status === 'paused'
-                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
-                    : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+                  : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
                   }`}>
                   <p className="text-sm text-muted-foreground">
                     {currentEntry.status === 'paused' ? 'Work Paused' : 'Currently clocked in'}
@@ -690,10 +716,10 @@ const TimeClock = () => {
                       <div className="flex items-center gap-2">
                         <div
                           className={`w-2 h-2 rounded-full ${entry.status === "clocked_in"
-                              ? "bg-green-500"
-                              : entry.status === "paused"
-                                ? "bg-amber-500"
-                                : "bg-gray-400"
+                            ? "bg-green-500"
+                            : entry.status === "paused"
+                              ? "bg-amber-500"
+                              : "bg-gray-400"
                             }`}
                         />
                         <h3 className="font-semibold text-gray-900">
@@ -737,8 +763,8 @@ const TimeClock = () => {
                         </p>
                       ) : (
                         <p className={`text-sm ${entry.status === "paused"
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-green-600 dark:text-green-400"
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-green-600 dark:text-green-400"
                           }`}>
                           {entry.status === "paused" ? "Paused" : "In Progress"}
                         </p>

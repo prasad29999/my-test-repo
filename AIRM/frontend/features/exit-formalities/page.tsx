@@ -38,6 +38,7 @@ import { format } from 'date-fns';
 import * as exitAPI from './services/exit-formalitiesService';
 import { SettlementTab } from './components/SettlementTab';
 import { DocumentGenerator } from './components/DocumentGenerator';
+import { TableSkeleton } from '@/components/PageSkeletons';
 
 type ExitStatusFilter = 'all' | ExitStatus;
 type DetailTab = 'overview' | 'assets' | 'deprovisioning' | 'settlement' | 'pf-gratuity' | 'compliance' | 'progress';
@@ -50,7 +51,7 @@ const ExitFormalities = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isInitiateOpen, setIsInitiateOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  
+
   // New feature data states
   const [assets, setAssets] = useState<any[]>([]);
   const [deprovisioning, setDeprovisioning] = useState<any[]>([]);
@@ -382,9 +383,7 @@ const ExitFormalities = () => {
       {/* Exit Requests List */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
-          </div>
+          <TableSkeleton rows={5} cols={4} />
         ) : filteredExits.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
@@ -483,11 +482,10 @@ const ExitFormalities = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                      activeTab === tab.id
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center space-x-2">
                       <Icon className="h-4 w-4" />
@@ -593,13 +591,12 @@ const ExitFormalities = () => {
                                   )}
                                 </div>
                                 <span
-                                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                    item.status === 'approved'
+                                  className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === 'approved'
                                       ? 'bg-green-100 text-green-800'
                                       : item.status === 'rejected'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }`}
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }`}
                                 >
                                   {item.status.toUpperCase()}
                                 </span>
@@ -648,13 +645,12 @@ const ExitFormalities = () => {
                                   <p className="text-sm text-gray-500">{asset.asset_id}</p>
                                 </div>
                                 <span
-                                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                    asset.recovery_status === 'returned'
+                                  className={`px-3 py-1 rounded-full text-xs font-medium ${asset.recovery_status === 'returned'
                                       ? 'bg-green-100 text-green-800'
                                       : asset.recovery_status === 'lost' || asset.recovery_status === 'damaged'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }`}
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }`}
                                 >
                                   {asset.recovery_status.toUpperCase()}
                                 </span>
@@ -701,11 +697,10 @@ const ExitFormalities = () => {
                                   <p className="text-sm text-gray-500">{item.system_type}</p>
                                 </div>
                                 <span
-                                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                    item.status === 'revoked'
+                                  className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === 'revoked'
                                       ? 'bg-green-100 text-green-800'
                                       : 'bg-yellow-100 text-yellow-800'
-                                  }`}
+                                    }`}
                                 >
                                   {item.status.toUpperCase()}
                                 </span>
@@ -806,13 +801,12 @@ const ExitFormalities = () => {
                                 )}
                               </div>
                               <span
-                                className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                  item.status === 'completed'
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === 'completed'
                                     ? 'bg-green-100 text-green-800'
                                     : item.status === 'not_applicable'
-                                    ? 'bg-gray-100 text-gray-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}
+                                      ? 'bg-gray-100 text-gray-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}
                               >
                                 {item.status.toUpperCase()}
                               </span>
@@ -867,15 +861,14 @@ const ExitFormalities = () => {
                                     <p className="text-sm text-gray-500">{risk.risk_reason}</p>
                                   </div>
                                   <span
-                                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                      risk.risk_level === 'critical'
+                                    className={`px-3 py-1 rounded-full text-xs font-medium ${risk.risk_level === 'critical'
                                         ? 'bg-red-100 text-red-800'
                                         : risk.risk_level === 'high'
-                                        ? 'bg-orange-100 text-orange-800'
-                                        : risk.risk_level === 'medium'
-                                        ? 'bg-yellow-100 text-yellow-800'
-                                        : 'bg-blue-100 text-blue-800'
-                                    }`}
+                                          ? 'bg-orange-100 text-orange-800'
+                                          : risk.risk_level === 'medium'
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : 'bg-blue-100 text-blue-800'
+                                      }`}
                                   >
                                     {risk.risk_level.toUpperCase()}
                                   </span>
@@ -912,44 +905,44 @@ const ExitFormalities = () => {
                       </Button>
                     )}
                     {isAdmin &&
-                     (exitRequestDetail.exit_request.status === 'clearance_completed' ||
-                      exitRequestDetail.exit_request.status === 'settlement_pending') && (
-                      <Button
-                        onClick={() => {
-                          mutations.completeExit.mutate(exitRequestDetail.exit_request.id, {
-                            onSuccess: () => {
-                              toast({
-                                title: 'Success',
-                                description: 'Exit completed successfully',
-                              });
-                              setIsDetailOpen(false);
-                              refetch();
-                            },
-                            onError: (error: any) => {
-                              toast({
-                                title: 'Error',
-                                description: error.message || 'Failed to complete exit',
-                                variant: 'destructive',
-                              });
-                            },
-                          });
-                        }}
-                        variant="default"
-                        disabled={mutations.completeExit.isPending}
-                      >
-                        {mutations.completeExit.isPending ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            Completing...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Complete Exit
-                          </>
-                        )}
-                      </Button>
-                    )}
+                      (exitRequestDetail.exit_request.status === 'clearance_completed' ||
+                        exitRequestDetail.exit_request.status === 'settlement_pending') && (
+                        <Button
+                          onClick={() => {
+                            mutations.completeExit.mutate(exitRequestDetail.exit_request.id, {
+                              onSuccess: () => {
+                                toast({
+                                  title: 'Success',
+                                  description: 'Exit completed successfully',
+                                });
+                                setIsDetailOpen(false);
+                                refetch();
+                              },
+                              onError: (error: any) => {
+                                toast({
+                                  title: 'Error',
+                                  description: error.message || 'Failed to complete exit',
+                                  variant: 'destructive',
+                                });
+                              },
+                            });
+                          }}
+                          variant="default"
+                          disabled={mutations.completeExit.isPending}
+                        >
+                          {mutations.completeExit.isPending ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Completing...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Complete Exit
+                            </>
+                          )}
+                        </Button>
+                      )}
                   </div>
                   <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
                     Close

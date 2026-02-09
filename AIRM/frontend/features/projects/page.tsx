@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, AlertTriangle, AlertCircle } from "lucide-react";
+import { CardSkeleton } from "@/components/PageSkeletons";
 
 
 interface Project {
@@ -122,8 +123,19 @@ const Projects = ({ onProjectSelect }: { onProjectSelect?: (projectName: string)
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="container mx-auto p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div className="space-y-2">
+            <div className="h-10 w-48 bg-gray-200 animate-pulse rounded" />
+            <div className="h-4 w-64 bg-gray-200 animate-pulse rounded" />
+          </div>
+          <div className="h-10 w-32 bg-gray-200 animate-pulse rounded" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
       </div>
     );
   }
