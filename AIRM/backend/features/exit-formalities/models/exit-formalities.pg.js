@@ -37,9 +37,12 @@ export async function getAllExitRequests(filters = {}) {
   }
 
   if (filters.user_id) {
-    query += ` AND er.user_id = $${paramCount}`;
-    params.push(filters.user_id);
-    paramCount++;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(filters.user_id)) {
+      query += ` AND er.user_id = $${paramCount}`;
+      params.push(filters.user_id);
+      paramCount++;
+    }
   }
 
   query += ` ORDER BY er.created_at DESC`;

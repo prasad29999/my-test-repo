@@ -2,44 +2,47 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@features': path.resolve(__dirname, './features'),
+export default defineConfig(({ mode }) => {
+  return {
+    plugins: [react()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+        '@features': path.resolve(__dirname, './features'),
+      },
     },
-  },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor': [
-            'react',
-            'react-dom',
-            'react-router-dom',
-            '@tanstack/react-query'
-          ],
-          'ui-libs': [
-            'lucide-react',
-            'date-fns',
-            'clsx',
-            'tailwind-merge'
-          ],
-          'document-libs': [
-            'jspdf',
-            'docx-preview',
-            'docxtemplater',
-            'pizzip'
-          ]
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor': [
+              'react',
+              'react-dom',
+              'react-router-dom',
+              '@tanstack/react-query'
+            ],
+            'ui-libs': [
+              'lucide-react',
+              'date-fns',
+              'clsx',
+              'tailwind-merge'
+            ],
+            'document-libs': [
+              'jspdf',
+              'docx-preview',
+              'docxtemplater',
+              'pizzip'
+            ]
+          }
         }
-      }
+      },
+      chunkSizeWarningLimit: 1000,
     },
-    chunkSizeWarningLimit: 1000,
-  },
-  esbuild: {
-    drop: ['console', 'debugger'], // Removes logs in production automatically
+    esbuild: {
+      // Only drop console/debugger in production to keep dev logs visible
+      drop: mode === 'production' ? ['console', 'debugger'] : [],
+    }
   }
 })

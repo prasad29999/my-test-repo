@@ -27,9 +27,12 @@ export async function getPayslips(filters = {}) {
   let paramCount = 1;
 
   if (filters.user_id) {
-    query += ` AND p.user_id = $${paramCount}`;
-    params.push(filters.user_id);
-    paramCount++;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(filters.user_id)) {
+      query += ` AND p.user_id = $${paramCount}`;
+      params.push(filters.user_id);
+      paramCount++;
+    }
   }
 
   if (filters.month) {

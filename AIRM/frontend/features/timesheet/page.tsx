@@ -218,11 +218,13 @@ const Timesheet = () => {
       setLoading(true);
       const weekStartStr = format(weekStart, "yyyy-MM-dd");
       const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+      console.log('🚀 loadTimesheet called for:', userId, 'Week:', weekStartStr);
 
       const apiParams: any = { week_start: weekStartStr };
 
-      if (isAdmin && user && userId !== user.id) {
+      if (isAdmin && user && userId && userId !== user.id && userId !== "undefined") {
         apiParams.user_id = userId;
+        console.log('👑 Admin viewing timesheet for:', userId);
       }
 
       // Load all data in parallel
@@ -233,7 +235,8 @@ const Timesheet = () => {
         api.timesheets.getEntries({
           start_date: weekStartStr,
           end_date: format(addDays(weekEnd, 1), "yyyy-MM-dd"), // inclusive
-          user_id: isAdmin ? userId : undefined
+          // Only pass user_id if it's a non-empty string and we are admin
+          ...(isAdmin && userId && userId !== "undefined" ? { user_id: userId } : {})
         }).catch(() => ({ entries: [] }))
       ]);
 

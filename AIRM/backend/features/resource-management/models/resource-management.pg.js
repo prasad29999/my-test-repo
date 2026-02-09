@@ -28,9 +28,12 @@ export async function getAllEmployeeAssets(filters = {}) {
   let paramCount = 1;
 
   if (filters.user_id) {
-    query += ` AND ea.user_id = $${paramCount}`;
-    params.push(filters.user_id);
-    paramCount++;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(filters.user_id)) {
+      query += ` AND ea.user_id = $${paramCount}`;
+      params.push(filters.user_id);
+      paramCount++;
+    }
   }
 
   if (filters.asset_category) {
@@ -330,13 +333,15 @@ export async function getAllResourceAllocations(filters = {}) {
   const params = [];
   let paramCount = 1;
 
-  if (filters.user_id) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (filters.user_id && uuidRegex.test(filters.user_id)) {
     query += ` AND ra.user_id = $${paramCount}`;
     params.push(filters.user_id);
     paramCount++;
   }
 
-  if (filters.equipment_id) {
+  if (filters.equipment_id && uuidRegex.test(filters.equipment_id)) {
     query += ` AND ra.equipment_id = $${paramCount}`;
     params.push(filters.equipment_id);
     paramCount++;
