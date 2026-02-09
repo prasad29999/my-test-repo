@@ -32,9 +32,9 @@ export async function clockIn(req, res) {
     } catch (error) {
       console.error('❌ Clock-in service error:', error.message);
       if (error.message === 'Already clocked in') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Already clocked in',
-          message: 'You already have an active time entry' 
+          message: 'You already have an active time entry'
         });
       }
       throw error;
@@ -42,9 +42,9 @@ export async function clockIn(req, res) {
   } catch (error) {
     console.error('❌ Clock in error:', error);
     console.error('❌ Clock in error stack:', error.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to clock in',
-      message: error.message || 'Internal server error' 
+      message: error.message || 'Internal server error'
     });
   }
 }
@@ -66,18 +66,18 @@ export async function clockOut(req, res) {
       });
     } catch (error) {
       if (error.message === 'No active entry') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'No active entry',
-          message: 'You are not currently clocked in' 
+          message: 'You are not currently clocked in'
         });
       }
       throw error;
     }
   } catch (error) {
     console.error('Clock out error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to clock out',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -99,18 +99,18 @@ export async function pause(req, res) {
       });
     } catch (error) {
       if (error.message === 'No active entry') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'No active entry',
-          message: 'You are not currently clocked in' 
+          message: 'You are not currently clocked in'
         });
       }
       throw error;
     }
   } catch (error) {
     console.error('Pause error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to pause',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -131,18 +131,18 @@ export async function resume(req, res) {
       });
     } catch (error) {
       if (error.message === 'No paused entry') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'No paused entry',
-          message: 'You do not have a paused time entry' 
+          message: 'You do not have a paused time entry'
         });
       }
       throw error;
     }
   } catch (error) {
     console.error('Resume error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to resume',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -158,9 +158,9 @@ export async function getCurrent(req, res) {
     res.json({ entry });
   } catch (error) {
     console.error('Get current entry error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get current entry',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -172,7 +172,7 @@ export async function getCurrent(req, res) {
 export async function getEntries(req, res) {
   try {
     const userId = req.userId;
-    
+
     // Check if user is admin with error handling
     let isAdmin = false;
     try {
@@ -185,11 +185,12 @@ export async function getEntries(req, res) {
       console.warn('Warning: Could not fetch user role:', roleError.message);
       isAdmin = false;
     }
-    
+
     const filters = {
       start_date: req.query.start_date,
       end_date: req.query.end_date,
       status: req.query.status,
+      user_id: req.query.user_id,
       limit: req.query.limit ? parseInt(req.query.limit, 10) : 100,
     };
 
@@ -197,9 +198,9 @@ export async function getEntries(req, res) {
     res.json({ entries });
   } catch (error) {
     console.error('Get entries error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get entries',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 }
@@ -214,9 +215,9 @@ export async function getActive(req, res) {
     res.json({ entries });
   } catch (error) {
     console.error('Get active entries error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get active entries',
-      message: error.message || 'Internal server error' 
+      message: error.message || 'Internal server error'
     });
   }
 }

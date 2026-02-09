@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, addDays, addWeeks, isAfter } from "date-fns";
-import { Plus, Trash2, Save, Share2, ChevronLeft, ChevronRight, Download, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Save, Share2, ChevronLeft, ChevronRight, Download, RefreshCw, AlertTriangle } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 // import logo from "@/assets/techiemaya-logo.png";
@@ -65,6 +65,7 @@ const Timesheet = () => {
       source: 'manual',
     },
   ]);
+  const [clockInTimings, setClockInTimings] = useState<any>({});
 
   useEffect(() => {
     const initUser = async () => {
@@ -233,10 +234,15 @@ const Timesheet = () => {
       console.log('📞 API params:', apiParams);
 
       // Load all data in parallel
-      const [timesheetResult, leaveResult, issuesResult] = await Promise.allSettled([
+      const [timesheetResult, leaveResult, issuesResult, clockInResult] = await Promise.allSettled([
         api.timesheets.getTimesheets(apiParams),
         api.leave.getAll().catch(() => ({ leave_requests: [] })),
-        api.issues.getAll().catch(() => ({ issues: [] }))
+        api.issues.getAll().catch(() => ({ issues: [] })),
+        api.timesheets.getEntries({
+          start_date: weekStartStr,
+          end_date: format(addDays(weekEnd, 1), "yyyy-MM-dd"), // inclusive
+          user_id: isAdmin ? userId : undefined
+        }).catch(() => ({ entries: [] }))
       ]);
 
       // Extract results
@@ -249,6 +255,21 @@ const Timesheet = () => {
       const issuesResponse = issuesResult.status === 'fulfilled'
         ? issuesResult.value as any
         : { issues: [] };
+      const clockInResponse = clockInResult.status === 'fulfilled'
+        ? clockInResult.value as any
+        : { entries: [] };
+
+      const clockEntries = clockInResponse?.entries || [];
+      const timingsByDay: any = {};
+
+      clockEntries.forEach((entry: any) => {
+        const date = format(new Date(entry.clock_in), "yyyy-MM-dd");
+        if (!timingsByDay[date] || new Date(entry.clock_in) < new Date(timingsByDay[date].clock_in)) {
+          timingsByDay[date] = entry;
+        }
+      });
+      console.log('⏰ Processed clock-in timings for', userId, ':', timingsByDay);
+      setClockInTimings(timingsByDay);
 
       if (timesheetResult.status === 'rejected') {
         console.error('❌ Error loading timesheet:', timesheetResult.reason);
@@ -1137,6 +1158,24 @@ const Timesheet = () => {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Compact Late Clock-in Warning */}
+            {Object.entries(clockInTimings).some(([_, entry]: [any, any]) => new Date(entry.clock_in).getHours() >= 11) && (
+              <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-md flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                <div className="text-sm font-medium text-red-900">
+                  <span className="font-bold">Late Attendance Warning:</span> First-shift absence recorded for{' '}
+                  {Object.entries(clockInTimings)
+                    .filter(([_, entry]: [any, any]) => new Date(entry.clock_in).getHours() >= 11)
+                    .map(([date, entry]: [any, any]) => (
+                      <span key={date} className="inline-flex items-center bg-red-100 px-2 py-0.5 rounded text-[11px] font-bold mx-0.5">
+                        {format(new Date(date + 'T12:00:00'), "EEE, MMM dd")} ({format(new Date(entry.clock_in), "hh:mm a")})
+                      </span>
+                    ))}
+                  . (Clock-in required before 11:00 AM)
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>

@@ -133,7 +133,10 @@ export async function getTimeClockEntries(userId, isAdmin, filters) {
   const params = [];
   let paramCount = 1;
 
-  if (!isAdmin) {
+  if (isAdmin && filters.user_id) {
+    query += ` AND tc.user_id = $${paramCount++}`;
+    params.push(filters.user_id);
+  } else if (!isAdmin) {
     query += ` AND tc.user_id = $${paramCount++}`;
     params.push(userId);
   }
