@@ -46,9 +46,9 @@ router.get('/', async (req, res) => {
         p.documents,
         p.burnout_score,
         p.updated_at
-      FROM erp.users u
-      LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
-      LEFT JOIN erp.profiles p ON u.id = p.id
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN profiles p ON u.id = p.id
       ORDER BY p.join_date DESC NULLS LAST, u.created_at DESC`
     );
 
@@ -144,7 +144,7 @@ router.get('/:id/documents', async (req, res) => {
     
     // Get profile documents from JSONB field
     const result = await pool.query(
-      'SELECT documents FROM erp.profiles WHERE id = $1',
+      'SELECT documents FROM profiles WHERE id = $1',
       [id]
     );
     
@@ -225,9 +225,9 @@ router.get('/:id', async (req, res) => {
         p.burnout_score,
         p.background_verification,
         p.updated_at
-      FROM erp.users u
-      LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
-      LEFT JOIN erp.profiles p ON u.id = p.id
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN profiles p ON u.id = p.id
       WHERE u.id = $1`,
       [id]
     );
@@ -335,7 +335,7 @@ router.put('/:id', async (req, res) => {
 
     // Check if user exists
     const userCheck = await pool.query(
-      'SELECT id FROM erp.users WHERE id = $1',
+      'SELECT id FROM users WHERE id = $1',
       [id]
     );
 
@@ -346,14 +346,14 @@ router.put('/:id', async (req, res) => {
     // Update user full_name if provided
     if (full_name) {
       await pool.query(
-        'UPDATE erp.users SET full_name = $1, updated_at = now() WHERE id = $2',
+        'UPDATE users SET full_name = $1, updated_at = now() WHERE id = $2',
         [full_name, id]
       );
     }
 
     // Insert or update profile
     await pool.query(
-      `INSERT INTO erp.profiles (
+      `INSERT INTO profiles (
         id, phone, skills, join_date, experience_years,
         previous_projects, bio, linkedin_url, github_url, full_name,
         job_title, department, employment_type, employee_id,
@@ -484,13 +484,13 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Check if profile exists
-    const existing = await pool.query('SELECT id FROM erp.profiles WHERE id = $1', [id]);
+    const existing = await pool.query('SELECT id FROM profiles WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Profile not found' });
     }
 
     // Delete the profile row (keeps user record intact)
-    await pool.query('DELETE FROM erp.profiles WHERE id = $1', [id]);
+    await pool.query('DELETE FROM profiles WHERE id = $1', [id]);
 
     res.json({
       message: 'Profile deleted successfully',

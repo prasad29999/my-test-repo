@@ -42,7 +42,7 @@ router.get('/', authenticate, async (req, res) => {
         COUNT(CASE WHEN status = 'open' THEN 1 END) as open_issues,
         COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed_issues,
         MIN(created_at) as created_at
-      FROM erp.issues 
+      FROM issues 
       WHERE project_name IS NOT NULL AND project_name != ''
       GROUP BY project_name
       ORDER BY MIN(created_at) DESC
@@ -86,8 +86,8 @@ router.get('/:id', authenticate, async (req, res) => {
         COUNT(CASE WHEN status = 'open' THEN 1 END) as open_issues,
         COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed_issues,
         MIN(created_at) as created_at
-      FROM erp.issues 
-      WHERE id = $1 OR project_name = (SELECT project_name FROM erp.issues WHERE id = $1)
+      FROM issues 
+      WHERE id = $1 OR project_name = (SELECT project_name FROM issues WHERE id = $1)
       GROUP BY project_name, description
     `;
     
@@ -137,7 +137,7 @@ router.post('/', authenticate, [
     // For now, we'll create a project by adding a project entry to the issues table
     // This is a temporary solution until we implement full GitLab integration
     const result = await pool.query(
-      `INSERT INTO erp.issues (title, description, status, priority, project_name, created_by)
+      `INSERT INTO issues (title, description, status, priority, project_name, created_by)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
       [
@@ -193,7 +193,7 @@ router.put('/:id', authenticate, [
 
     // Get current project
     const currentProject = await pool.query(
-      'SELECT * FROM erp.gitlab_projects WHERE id = $1',
+      'SELECT * FROM gitlab_projects WHERE id = $1',
       [id]
     );
 
@@ -231,7 +231,7 @@ router.put('/:id', authenticate, [
     if (updateFields.length > 0) {
       updateValues.push(id);
       const updateQuery = `
-        UPDATE erp.gitlab_projects 
+        UPDATE gitlab_projects 
         SET ${updateFields.join(', ')}, updated_at = NOW()
         WHERE id = $${paramCount}
         RETURNING *
@@ -265,7 +265,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 
     // Get project info
     const project = await pool.query(
-      'SELECT * FROM erp.gitlab_projects WHERE id = $1',
+      'SELECT * FROM gitlab_projects WHERE id = $1',
       [id]
     );
 
@@ -285,7 +285,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 
     // Delete from local database
-    await pool.query('DELETE FROM erp.gitlab_projects WHERE id = $1', [id]);
+    await pool.query('DELETE FROM gitlab_projects WHERE id = $1', [id]);
 
     res.json({
       message: 'Project deleted successfully',
@@ -308,7 +308,7 @@ router.get('/:id/members', authenticate, async (req, res) => {
 
     // Get project
     const project = await pool.query(
-      'SELECT gitlab_project_id FROM erp.gitlab_projects WHERE id = $1',
+      'SELECT gitlab_project_id FROM gitlab_projects WHERE id = $1',
       [id]
     );
 
@@ -353,7 +353,7 @@ router.post('/:id/members', authenticate, [
 
     // Get project
     const project = await pool.query(
-      'SELECT gitlab_project_id FROM erp.gitlab_projects WHERE id = $1',
+      'SELECT gitlab_project_id FROM gitlab_projects WHERE id = $1',
       [id]
     );
 

@@ -5,12 +5,12 @@
 SET search_path TO erp, public;
 
 -- Drop existing trigger if it exists
-DROP TRIGGER IF EXISTS trigger_notify_issue_assignment ON erp.issue_assignees;
+DROP TRIGGER IF EXISTS trigger_notify_issue_assignment ON issue_assignees;
 
 -- Drop and recreate the trigger function with correct type handling
-DROP FUNCTION IF EXISTS erp.notify_user_issue_assignment();
+DROP FUNCTION IF EXISTS notify_user_issue_assignment();
 
-CREATE OR REPLACE FUNCTION erp.notify_user_issue_assignment()
+CREATE OR REPLACE FUNCTION notify_user_issue_assignment()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -19,12 +19,12 @@ DECLARE
   issue_title TEXT;
 BEGIN
   -- Get issue title
-  SELECT title INTO issue_title FROM erp.issues WHERE id = NEW.issue_id;
+  SELECT title INTO issue_title FROM issues WHERE id = NEW.issue_id;
   
   -- Create in-app notification
   -- Note: related_id is UUID, but issue_id is INTEGER, so we pass NULL
   -- The link contains the issue_id which is sufficient for navigation
-  PERFORM erp.create_notification(
+  PERFORM create_notification(
     NEW.user_id,
     'Assigned to Issue',
     'You have been assigned to issue: ' || issue_title,
@@ -39,9 +39,9 @@ $$;
 
 -- Recreate the trigger
 CREATE TRIGGER trigger_notify_issue_assignment
-  AFTER INSERT ON erp.issue_assignees
+  AFTER INSERT ON issue_assignees
   FOR EACH ROW
-  EXECUTE FUNCTION erp.notify_user_issue_assignment();
+  EXECUTE FUNCTION notify_user_issue_assignment();
 
 -- Verify the trigger exists
 SELECT 

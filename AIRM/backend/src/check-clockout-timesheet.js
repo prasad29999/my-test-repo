@@ -25,8 +25,8 @@ async function checkClockOutTimesheet() {
         tc.status,
         tc.created_at,
         tc.updated_at
-      FROM erp.time_clock tc
-      JOIN erp.users u ON tc.user_id = u.id
+      FROM time_clock tc
+      JOIN users u ON tc.user_id = u.id
       WHERE tc.status = 'clocked_out'
       ORDER BY tc.updated_at DESC
       LIMIT 5`
@@ -63,7 +63,7 @@ async function checkClockOutTimesheet() {
       // Check if timesheet exists for this week
       const timesheet = await pool.query(
         `SELECT id, week_start, week_end, status
-         FROM erp.timesheets
+         FROM timesheets
          WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)
          LIMIT 1`,
         [clockOut.user_id, weekStartStr]
@@ -91,7 +91,7 @@ async function checkClockOutTimesheet() {
             sun_hours,
             created_at,
             updated_at
-          FROM erp.timesheet_entries
+          FROM timesheet_entries
           WHERE timesheet_id = $1
           ORDER BY updated_at DESC`,
           [timesheet.rows[0].id]
@@ -142,9 +142,9 @@ async function checkClockOutTimesheet() {
         t.week_end,
         COUNT(te.id) as entry_count,
         SUM(te.mon_hours + te.tue_hours + te.wed_hours + te.thu_hours + te.fri_hours + te.sat_hours + te.sun_hours) as total_hours
-      FROM erp.timesheets t
-      JOIN erp.users u ON t.user_id = u.id
-      LEFT JOIN erp.timesheet_entries te ON t.id = te.timesheet_id AND te.source = 'time_clock'
+      FROM timesheets t
+      JOIN users u ON t.user_id = u.id
+      LEFT JOIN timesheet_entries te ON t.id = te.timesheet_id AND te.source = 'time_clock'
       GROUP BY t.id, t.user_id, u.email, t.week_start, t.week_end
       HAVING COUNT(te.id) > 0
       ORDER BY t.week_start DESC

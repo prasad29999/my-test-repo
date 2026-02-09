@@ -19,9 +19,9 @@ export async function getAllEmployeeAssets(filters = {}) {
       u.email,
       u.full_name as user_full_name,
       a.full_name as assigned_by_name
-    FROM erp.employee_assets ea
-    LEFT JOIN erp.users u ON ea.user_id = u.id
-    LEFT JOIN erp.users a ON ea.assigned_by = a.id
+    FROM employee_assets ea
+    LEFT JOIN users u ON ea.user_id = u.id
+    LEFT JOIN users a ON ea.assigned_by = a.id
     WHERE 1=1
   `;
   const params = [];
@@ -61,9 +61,9 @@ export async function getEmployeeAssetById(id) {
       u.email,
       u.full_name as user_full_name,
       a.full_name as assigned_by_name
-    FROM erp.employee_assets ea
-    LEFT JOIN erp.users u ON ea.user_id = u.id
-    LEFT JOIN erp.users a ON ea.assigned_by = a.id
+    FROM employee_assets ea
+    LEFT JOIN users u ON ea.user_id = u.id
+    LEFT JOIN users a ON ea.assigned_by = a.id
     WHERE ea.id = $1
   `;
   const result = await pool.query(query, [id]);
@@ -86,7 +86,7 @@ export async function createEmployeeAsset(assetData) {
   } = assetData;
 
   const query = `
-    INSERT INTO erp.employee_assets (
+    INSERT INTO employee_assets (
       user_id, asset_name, asset_id, asset_category,
       assigned_date, condition_at_assignment, assigned_by, notes
     )
@@ -123,7 +123,7 @@ export async function updateEmployeeAsset(id, assetData) {
   } = assetData;
 
   const query = `
-    UPDATE erp.employee_assets
+    UPDATE employee_assets
     SET 
       asset_name = COALESCE($1, asset_name),
       asset_id = COALESCE($2, asset_id),
@@ -154,7 +154,7 @@ export async function updateEmployeeAsset(id, assetData) {
  * Delete employee asset
  */
 export async function deleteEmployeeAsset(id) {
-  const query = `DELETE FROM erp.employee_assets WHERE id = $1 RETURNING *`;
+  const query = `DELETE FROM employee_assets WHERE id = $1 RETURNING *`;
   const result = await pool.query(query, [id]);
   return result.rows[0];
 }
@@ -172,8 +172,8 @@ export async function getAllEquipment(filters = {}) {
       e.*,
       u.full_name as assigned_to_name,
       u.email as assigned_to_email
-    FROM erp.equipment e
-    LEFT JOIN erp.users u ON e.assigned_to = u.id
+    FROM equipment e
+    LEFT JOIN users u ON e.assigned_to = u.id
     WHERE 1=1
   `;
   const params = [];
@@ -212,8 +212,8 @@ export async function getEquipmentById(id) {
       e.*,
       u.full_name as assigned_to_name,
       u.email as assigned_to_email
-    FROM erp.equipment e
-    LEFT JOIN erp.users u ON e.assigned_to = u.id
+    FROM equipment e
+    LEFT JOIN users u ON e.assigned_to = u.id
     WHERE e.id = $1
   `;
   const result = await pool.query(query, [id]);
@@ -238,7 +238,7 @@ export async function createEquipment(equipmentData) {
   } = equipmentData;
 
   const query = `
-    INSERT INTO erp.equipment (
+    INSERT INTO equipment (
       name, category, model, serial_number,
       purchase_date, purchase_cost, status, location,
       assigned_to, notes
@@ -288,7 +288,7 @@ export async function updateEquipment(id, equipmentData) {
   params.push(id);
 
   const query = `
-    UPDATE erp.equipment
+    UPDATE equipment
     SET ${fields.join(', ')}
     WHERE id = $${paramCount}
     RETURNING *
@@ -302,7 +302,7 @@ export async function updateEquipment(id, equipmentData) {
  * Delete equipment
  */
 export async function deleteEquipment(id) {
-  const query = `DELETE FROM erp.equipment WHERE id = $1 RETURNING *`;
+  const query = `DELETE FROM equipment WHERE id = $1 RETURNING *`;
   const result = await pool.query(query, [id]);
   return result.rows[0];
 }
@@ -322,9 +322,9 @@ export async function getAllResourceAllocations(filters = {}) {
       u.email as user_email,
       e.name as equipment_name,
       e.category as equipment_category
-    FROM erp.resource_allocations ra
-    LEFT JOIN erp.users u ON ra.user_id = u.id
-    LEFT JOIN erp.equipment e ON ra.equipment_id = e.id
+    FROM resource_allocations ra
+    LEFT JOIN users u ON ra.user_id = u.id
+    LEFT JOIN equipment e ON ra.equipment_id = e.id
     WHERE 1=1
   `;
   const params = [];
@@ -365,9 +365,9 @@ export async function getResourceAllocationById(id) {
       u.email as user_email,
       e.name as equipment_name,
       e.category as equipment_category
-    FROM erp.resource_allocations ra
-    LEFT JOIN erp.users u ON ra.user_id = u.id
-    LEFT JOIN erp.equipment e ON ra.equipment_id = e.id
+    FROM resource_allocations ra
+    LEFT JOIN users u ON ra.user_id = u.id
+    LEFT JOIN equipment e ON ra.equipment_id = e.id
     WHERE ra.id = $1
   `;
   const result = await pool.query(query, [id]);
@@ -388,7 +388,7 @@ export async function createResourceAllocation(allocationData) {
   } = allocationData;
 
   const query = `
-    INSERT INTO erp.resource_allocations (
+    INSERT INTO resource_allocations (
       user_id, equipment_id, allocated_date,
       expected_return_date, status, notes
     )
@@ -433,7 +433,7 @@ export async function updateResourceAllocation(id, allocationData) {
   params.push(id);
 
   const query = `
-    UPDATE erp.resource_allocations
+    UPDATE resource_allocations
     SET ${fields.join(', ')}
     WHERE id = $${paramCount}
     RETURNING *
@@ -447,7 +447,7 @@ export async function updateResourceAllocation(id, allocationData) {
  * Delete resource allocation
  */
 export async function deleteResourceAllocation(id) {
-  const query = `DELETE FROM erp.resource_allocations WHERE id = $1 RETURNING *`;
+  const query = `DELETE FROM resource_allocations WHERE id = $1 RETURNING *`;
   const result = await pool.query(query, [id]);
   return result.rows[0];
 }
@@ -461,20 +461,20 @@ export async function deleteResourceAllocation(id) {
  */
 export async function getResourceSummary() {
   const queries = {
-    totalAssets: `SELECT COUNT(*) as count FROM erp.employee_assets`,
-    totalEquipment: `SELECT COUNT(*) as count FROM erp.equipment`,
-    availableEquipment: `SELECT COUNT(*) as count FROM erp.equipment WHERE status = 'available'`,
-    allocatedEquipment: `SELECT COUNT(*) as count FROM erp.equipment WHERE status = 'allocated'`,
-    activeAllocations: `SELECT COUNT(*) as count FROM erp.resource_allocations WHERE status = 'active'`,
+    totalAssets: `SELECT COUNT(*) as count FROM employee_assets`,
+    totalEquipment: `SELECT COUNT(*) as count FROM equipment`,
+    availableEquipment: `SELECT COUNT(*) as count FROM equipment WHERE status = 'available'`,
+    allocatedEquipment: `SELECT COUNT(*) as count FROM equipment WHERE status = 'allocated'`,
+    activeAllocations: `SELECT COUNT(*) as count FROM resource_allocations WHERE status = 'active'`,
     assetsByCategory: `
       SELECT asset_category, COUNT(*) as count 
-      FROM erp.employee_assets 
+      FROM employee_assets 
       WHERE asset_category IS NOT NULL
       GROUP BY asset_category
     `,
     equipmentByCategory: `
       SELECT category, COUNT(*) as count 
-      FROM erp.equipment 
+      FROM equipment 
       WHERE category IS NOT NULL
       GROUP BY category
     `
@@ -500,23 +500,23 @@ export async function getEmployeeResourceSummary(userId) {
   const queries = {
     assets: `
       SELECT COUNT(*) as count 
-      FROM erp.employee_assets 
+      FROM employee_assets 
       WHERE user_id = $1
     `,
     allocations: `
       SELECT COUNT(*) as count 
-      FROM erp.resource_allocations 
+      FROM resource_allocations 
       WHERE user_id = $1 AND status = 'active'
     `,
     assetDetails: `
-      SELECT * FROM erp.employee_assets 
+      SELECT * FROM employee_assets 
       WHERE user_id = $1 
       ORDER BY assigned_date DESC
     `,
     allocationDetails: `
       SELECT ra.*, e.name as equipment_name, e.category as equipment_category
-      FROM erp.resource_allocations ra
-      LEFT JOIN erp.equipment e ON ra.equipment_id = e.id
+      FROM resource_allocations ra
+      LEFT JOIN equipment e ON ra.equipment_id = e.id
       WHERE ra.user_id = $1 AND ra.status = 'active'
       ORDER BY ra.allocated_date DESC
     `

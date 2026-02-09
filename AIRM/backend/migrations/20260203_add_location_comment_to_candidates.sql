@@ -1,3 +1,3 @@
-ALTER TABLE erp.recruitment_candidates 
+ALTER TABLE recruitment_candidates 
 ADD COLUMN IF NOT EXISTS location VARCHAR(255),
 ADD COLUMN IF NOT EXISTS comments TEXT;

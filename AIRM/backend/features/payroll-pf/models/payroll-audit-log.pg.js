@@ -21,7 +21,7 @@ export async function addPayrollAuditLog(auditData) {
   } = auditData;
 
   const result = await pool.query(
-    `INSERT INTO erp.payroll_audit_log (
+    `INSERT INTO payroll_audit_log (
       user_id, action, entity_type, entity_id, performed_by, details, ip_address
     )
     VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -49,9 +49,9 @@ export async function getPayrollAuditLog(filters = {}) {
       u.email,
       u.full_name as user_name,
       pb.full_name as performed_by_name
-    FROM erp.payroll_audit_log pal
-    LEFT JOIN erp.users u ON pal.user_id = u.id
-    LEFT JOIN erp.users pb ON pal.performed_by = pb.id
+    FROM payroll_audit_log pal
+    LEFT JOIN users u ON pal.user_id = u.id
+    LEFT JOIN users pb ON pal.performed_by = pb.id
     WHERE 1=1
   `;
   const params = [];

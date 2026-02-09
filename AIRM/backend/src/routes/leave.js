@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 
     // Check if admin
     const roleResult = await pool.query(
-      'SELECT role FROM erp.user_roles WHERE user_id = $1',
+      'SELECT role FROM user_roles WHERE user_id = $1',
       [userId]
     );
     const isAdmin = roleResult.rows[0]?.role === 'admin';
@@ -31,8 +31,8 @@ router.get('/', async (req, res) => {
         lr.*,
         u.email as user_email,
         COALESCE(u.full_name, '') as user_full_name
-      FROM erp.leave_requests lr
-      LEFT JOIN erp.users u ON lr.user_id = u.id
+      FROM leave_requests lr
+      LEFT JOIN users u ON lr.user_id = u.id
     `;
 
     const params = [];
@@ -91,7 +91,7 @@ router.post('/', [
     }
 
     const result = await pool.query(
-      `INSERT INTO erp.leave_requests (
+      `INSERT INTO leave_requests (
         id, user_id, start_date, end_date, leave_type, session, reason, status
       )
       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'pending')
@@ -131,7 +131,7 @@ router.put('/:id/status', requireAdmin, [
     const userId = req.userId;
 
     const result = await pool.query(
-      `UPDATE erp.leave_requests 
+      `UPDATE leave_requests 
        SET status = $1,
            reviewed_by = $2,
            reviewed_at = NOW(),

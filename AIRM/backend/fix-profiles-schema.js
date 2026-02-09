@@ -13,9 +13,9 @@ async function fixSchema() {
     try {
         for (const [col, type] of columnsToAdd) {
             console.log(`Adding column ${col}...`);
-            await pool.query(`ALTER TABLE erp.profiles ADD COLUMN IF NOT EXISTS ${col} ${type}`);
+            await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ${col} ${type}`);
         }
-        console.log('✅ All missing columns added to erp.profiles');
+        console.log('✅ All missing columns added to profiles');
         process.exit(0);
     } catch (e) {
         console.error('❌ Schema fix failed:');

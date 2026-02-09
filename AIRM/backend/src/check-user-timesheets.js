@@ -13,7 +13,7 @@ async function checkUserTimesheets() {
     console.log('\n🔍 Checking timesheet data for users...\n');
 
     // Get all users
-    const users = await pool.query('SELECT id, email FROM erp.users ORDER BY email');
+    const users = await pool.query('SELECT id, email FROM users ORDER BY email');
     console.log(`Found ${users.rows.length} user(s)\n`);
 
     const weekStart = '2025-11-03'; // Current week Monday
@@ -25,7 +25,7 @@ async function checkUserTimesheets() {
       // Check timesheet for current week
       const timesheet = await pool.query(
         `SELECT id, week_start, week_end, status, created_at
-         FROM erp.timesheets
+         FROM timesheets
          WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)
          LIMIT 1`,
         [user.id, weekStart]
@@ -42,7 +42,7 @@ async function checkUserTimesheets() {
                   mon_hours, tue_hours, wed_hours, thu_hours,
                   fri_hours, sat_hours, sun_hours,
                   created_at
-           FROM erp.timesheet_entries
+           FROM timesheet_entries
            WHERE timesheet_id = $1
            ORDER BY created_at ASC`,
           [ts.id]
@@ -94,7 +94,7 @@ async function checkUserTimesheets() {
         
         // Check if there are any timesheets for this user
         const allTimesheets = await pool.query(
-          `SELECT id, week_start, week_end FROM erp.timesheets
+          `SELECT id, week_start, week_end FROM timesheets
            WHERE user_id = $1
            ORDER BY week_start DESC
            LIMIT 5`,

@@ -2,7 +2,7 @@ import pool from './shared/database/connection.js';
 
 async function testInsert() {
     try {
-        const profileRes = await pool.query('SELECT id FROM erp.profiles LIMIT 1');
+        const profileRes = await pool.query('SELECT id FROM profiles LIMIT 1');
         if (profileRes.rows.length === 0) {
             console.log('No profiles found to test with.');
             process.exit(0);
@@ -26,7 +26,7 @@ async function testInsert() {
         };
 
         const query = `
-      INSERT INTO erp.employee (
+      INSERT INTO employee (
         profile_id, start_time, completion_time, email, name, full_name, dob, joining_date,
         designation, department, marital_status, pan, adhar_no, mobile_no,
         emergency_contact_no, personal_mail_id, blood_group, bank_name,

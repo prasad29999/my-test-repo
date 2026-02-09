@@ -17,7 +17,7 @@ export async function getAllIssues(filters) {
       COUNT(DISTINCT ic.id) as comments_count,
       (
         SELECT comment
-        FROM erp.issue_comments
+        FROM issue_comments
         WHERE issue_id = i.id
         ORDER BY created_at DESC
         LIMIT 1
@@ -30,11 +30,11 @@ export async function getAllIssues(filters) {
         'name', l.name,
         'color', l.color
       )) FILTER (WHERE l.id IS NOT NULL) as labels
-    FROM erp.issues i
-    LEFT JOIN erp.issue_assignees ia ON i.id = ia.issue_id
-    LEFT JOIN erp.issue_labels il ON i.id = il.issue_id
-    LEFT JOIN erp.labels l ON il.label_id = l.id
-    LEFT JOIN erp.issue_comments ic ON i.id = ic.issue_id
+    FROM issues i
+    LEFT JOIN issue_assignees ia ON i.id = ia.issue_id
+    LEFT JOIN issue_labels il ON i.id = il.issue_id
+    LEFT JOIN labels l ON il.label_id = l.id
+    LEFT JOIN issue_comments ic ON i.id = ic.issue_id
   `;
 
   const conditions = [];
@@ -48,7 +48,7 @@ export async function getAllIssues(filters) {
 
   if (assignee && assignee !== 'all') {
     conditions.push(`EXISTS (
-      SELECT 1 FROM erp.issue_assignees 
+      SELECT 1 FROM issue_assignees 
       WHERE issue_id = i.id AND user_id = $${paramCount++}
     )`);
     params.push(assignee);
@@ -77,19 +77,19 @@ export async function getAllIssues(filters) {
  */
 export async function getIssueById(issueId) {
   const result = await pool.query(
-    'SELECT * FROM erp.issues WHERE id = $1',
+    'SELECT * FROM issues WHERE id = $1',
     [issueId]
   );
   return result.rows[0] || null;
 }
 
 /**
- * Create a new issue directly in erp.issues
+ * Create a new issue directly in issues
  */
 export async function createIssue(issueData) {
   const { title, description, status, priority, project_name, created_by, estimated_hours } = issueData;
   const result = await pool.query(
-    `INSERT INTO erp.issues (title, description, status, priority, project_name, created_by, estimated_hours)
+    `INSERT INTO issues (title, description, status, priority, project_name, created_by, estimated_hours)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
@@ -114,8 +114,8 @@ export async function getIssueAssignees(issueId) {
       ia.user_id,
       u.email,
       COALESCE(u.full_name, '') as full_name
-     FROM erp.issue_assignees ia
-     JOIN erp.users u ON ia.user_id = u.id
+     FROM issue_assignees ia
+     JOIN users u ON ia.user_id = u.id
      WHERE ia.issue_id = $1`,
     [issueId]
   );
@@ -128,8 +128,8 @@ export async function getIssueAssignees(issueId) {
 export async function getIssueLabels(issueId) {
   const result = await pool.query(
     `SELECT l.*
-     FROM erp.issue_labels il
-     JOIN erp.labels l ON il.label_id = l.id
+     FROM issue_labels il
+     JOIN labels l ON il.label_id = l.id
      WHERE il.issue_id = $1`,
     [issueId]
   );
@@ -150,8 +150,8 @@ export async function getIssueComments(issueId) {
       ic.updated_at,
       u.email,
       COALESCE(u.full_name, '') as full_name
-     FROM erp.issue_comments ic
-     JOIN erp.users u ON ic.user_id = u.id
+     FROM issue_comments ic
+     JOIN users u ON ic.user_id = u.id
      WHERE ic.issue_id = $1
      ORDER BY ic.created_at ASC`,
     [issueId]
@@ -173,8 +173,8 @@ export async function getIssueActivity(issueId) {
       ia.created_at,
       u.email,
       COALESCE(u.full_name, '') as full_name
-     FROM erp.issue_activity ia
-     LEFT JOIN erp.users u ON ia.user_id = u.id
+     FROM issue_activity ia
+     LEFT JOIN users u ON ia.user_id = u.id
      WHERE ia.issue_id = $1
      ORDER BY ia.created_at DESC`,
     [issueId]
@@ -201,7 +201,7 @@ export async function createGitLabIssue(issueData) {
   } = issueData;
 
   const result = await pool.query(
-    `INSERT INTO erp.gitlab_issues (
+    `INSERT INTO gitlab_issues (
       gitlab_issue_id, gitlab_iid, project_id, title, description, 
       status, priority, created_by, estimate_hours, start_date, due_date
     )
@@ -229,7 +229,7 @@ export async function createGitLabIssue(issueData) {
  */
 export async function getGitLabProject(projectId) {
   const result = await pool.query(
-    'SELECT gitlab_project_id, name FROM erp.gitlab_projects WHERE id = $1',
+    'SELECT gitlab_project_id, name FROM gitlab_projects WHERE id = $1',
     [projectId]
   );
   return result.rows[0] || null;
@@ -240,7 +240,7 @@ export async function getGitLabProject(projectId) {
  */
 export async function getLabelsByIds(labelIds) {
   const result = await pool.query(
-    'SELECT name FROM erp.labels WHERE id = ANY($1)',
+    'SELECT name FROM labels WHERE id = ANY($1)',
     [labelIds]
   );
   return result.rows.map(row => row.name);
@@ -254,7 +254,7 @@ export async function addIssueActivity(issueId, userId, action, details) {
   // Try gen_random_uuid() first (built-in PostgreSQL 13+), fallback to uuid_generate_v4()
   try {
     await pool.query(
-      `INSERT INTO erp.issue_activity (id, issue_id, user_id, action, details)
+      `INSERT INTO issue_activity (id, issue_id, user_id, action, details)
        VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
       [issueId, userId, action, JSON.stringify(details)]
     );
@@ -262,7 +262,7 @@ export async function addIssueActivity(issueId, userId, action, details) {
     // If gen_random_uuid() fails, try uuid_generate_v4() (requires uuid-ossp extension)
     if (error.message.includes('gen_random_uuid') || error.message.includes('function')) {
       await pool.query(
-        `INSERT INTO erp.issue_activity (id, issue_id, user_id, action, details)
+        `INSERT INTO issue_activity (id, issue_id, user_id, action, details)
          VALUES (uuid_generate_v4(), $1, $2, $3, $4)`,
         [issueId, userId, action, JSON.stringify(details)]
       );
@@ -282,7 +282,7 @@ export async function assignUsersToIssue(issueId, assigneeIds, assignedBy) {
 
     // Check if already assigned
     const existing = await pool.query(
-      'SELECT id FROM erp.issue_assignees WHERE issue_id = $1 AND user_id = $2',
+      'SELECT id FROM issue_assignees WHERE issue_id = $1 AND user_id = $2',
       [issueId, assigneeIdStr]
     );
 
@@ -290,7 +290,7 @@ export async function assignUsersToIssue(issueId, assigneeIds, assignedBy) {
       // Explicitly generate UUID to ensure id is set
       try {
         await pool.query(
-          `INSERT INTO erp.issue_assignees (id, issue_id, user_id, assigned_by)
+          `INSERT INTO issue_assignees (id, issue_id, user_id, assigned_by)
            VALUES (gen_random_uuid(), $1, $2, $3)
            ON CONFLICT (issue_id, user_id) DO NOTHING`,
           [issueId, assigneeIdStr, assignedBy]
@@ -299,7 +299,7 @@ export async function assignUsersToIssue(issueId, assigneeIds, assignedBy) {
         // If gen_random_uuid() fails, try uuid_generate_v4()
         if (error.message.includes('gen_random_uuid') || error.message.includes('function')) {
           await pool.query(
-            `INSERT INTO erp.issue_assignees (id, issue_id, user_id, assigned_by)
+            `INSERT INTO issue_assignees (id, issue_id, user_id, assigned_by)
              VALUES (uuid_generate_v4(), $1, $2, $3)
              ON CONFLICT (issue_id, user_id) DO NOTHING`,
             [issueId, assigneeIdStr, assignedBy]
@@ -319,7 +319,7 @@ export async function assignUsersToIssue(issueId, assigneeIds, assignedBy) {
  */
 export async function unassignUserFromIssue(issueId, userId) {
   const result = await pool.query(
-    `DELETE FROM erp.issue_assignees
+    `DELETE FROM issue_assignees
      WHERE issue_id = $1 AND user_id = $2`,
     [issueId, userId]
   );
@@ -333,7 +333,7 @@ export async function addLabelToIssue(issueId, labelId) {
   // Explicitly generate UUID to ensure id is set (some DBs don't have uuid default configured)
   try {
     await pool.query(
-      `INSERT INTO erp.issue_labels (id, issue_id, label_id)
+      `INSERT INTO issue_labels (id, issue_id, label_id)
        VALUES (gen_random_uuid(), $1, $2)
        ON CONFLICT (issue_id, label_id) DO NOTHING`,
       [issueId, labelId]
@@ -341,7 +341,7 @@ export async function addLabelToIssue(issueId, labelId) {
   } catch (error) {
     if (error.message?.includes('gen_random_uuid') || error.message?.includes('function')) {
       await pool.query(
-        `INSERT INTO erp.issue_labels (id, issue_id, label_id)
+        `INSERT INTO issue_labels (id, issue_id, label_id)
          VALUES (uuid_generate_v4(), $1, $2)
          ON CONFLICT (issue_id, label_id) DO NOTHING`,
         [issueId, labelId]
@@ -357,7 +357,7 @@ export async function addLabelToIssue(issueId, labelId) {
  */
 export async function removeLabelFromIssue(issueId, labelId) {
   const result = await pool.query(
-    `DELETE FROM erp.issue_labels
+    `DELETE FROM issue_labels
      WHERE issue_id = $1 AND label_id = $2`,
     [issueId, labelId]
   );
@@ -369,7 +369,7 @@ export async function removeLabelFromIssue(issueId, labelId) {
  */
 export async function getLabelById(labelId) {
   const result = await pool.query(
-    'SELECT id, name FROM erp.labels WHERE id = $1',
+    'SELECT id, name FROM labels WHERE id = $1',
     [labelId]
   );
   return result.rows[0] || null;
@@ -388,7 +388,7 @@ export async function addComment(issueId, userId, comment) {
   let result;
   try {
     result = await pool.query(
-      `INSERT INTO erp.issue_comments (id, issue_id, user_id, comment)
+      `INSERT INTO issue_comments (id, issue_id, user_id, comment)
        VALUES (gen_random_uuid(), $1, $2, $3)
        RETURNING *`,
       [issueId, userId, comment]
@@ -397,7 +397,7 @@ export async function addComment(issueId, userId, comment) {
     // If gen_random_uuid() fails, try uuid_generate_v4() (requires uuid-ossp extension)
     if (error.message.includes('gen_random_uuid') || error.message.includes('function')) {
       result = await pool.query(
-        `INSERT INTO erp.issue_comments (id, issue_id, user_id, comment)
+        `INSERT INTO issue_comments (id, issue_id, user_id, comment)
          VALUES (uuid_generate_v4(), $1, $2, $3)
          RETURNING *`,
         [issueId, userId, comment]
@@ -427,8 +427,8 @@ export async function getCommentWithUser(commentId) {
       ic.*,
       u.email,
       COALESCE(u.full_name, '') as full_name
-     FROM erp.issue_comments ic
-     JOIN erp.users u ON ic.user_id = u.id
+     FROM issue_comments ic
+     JOIN users u ON ic.user_id = u.id
      WHERE ic.id = $1`,
     [commentId]
   );
@@ -462,7 +462,7 @@ export async function getGitLabIssueInfo(issueId) {
     }
 
     const result = await pool.query(
-      'SELECT gi.gitlab_iid, gi.gitlab_issue_id, gp.gitlab_project_id FROM erp.gitlab_issues gi JOIN erp.gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
+      'SELECT gi.gitlab_iid, gi.gitlab_issue_id, gp.gitlab_project_id FROM gitlab_issues gi JOIN gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
       [issueId]
     );
     return result.rows[0] || null;
@@ -493,7 +493,7 @@ export async function getGitLabIssue(issueId) {
     }
 
     const result = await pool.query(
-      'SELECT gi.*, gp.gitlab_project_id FROM erp.gitlab_issues gi JOIN erp.gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
+      'SELECT gi.*, gp.gitlab_project_id FROM gitlab_issues gi JOIN gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
       [issueId]
     );
     return result.rows[0] || null;
@@ -505,7 +505,7 @@ export async function getGitLabIssue(issueId) {
 }
 
 /**
- * Update main issue in erp.issues table
+ * Update main issue in issues table
  */
 export async function updateIssue(issueId, updates) {
   const updateFields = [];
@@ -546,7 +546,7 @@ export async function updateIssue(issueId, updates) {
   values.push(issueId);
 
   const query = `
-    UPDATE erp.issues 
+    UPDATE issues 
     SET ${updateFields.join(', ')}
     WHERE id = $${paramCount}
     RETURNING *
@@ -575,7 +575,7 @@ export async function updateGitLabIssue(issueId, updates) {
     }
 
     const result = await pool.query(
-      `UPDATE erp.gitlab_issues 
+      `UPDATE gitlab_issues 
        SET title = COALESCE($1, title),
            description = COALESCE($2, description),
            status = COALESCE($3, status),
@@ -609,7 +609,7 @@ export async function updateGitLabIssue(issueId, updates) {
  */
 export async function checkUserExists(userId) {
   const result = await pool.query(
-    'SELECT id, email FROM erp.users WHERE id = $1',
+    'SELECT id, email FROM users WHERE id = $1',
     [userId]
   );
   return result.rows.length > 0;
@@ -620,7 +620,7 @@ export async function checkUserExists(userId) {
  */
 export async function deleteIssue(issueId) {
   const result = await pool.query(
-    'DELETE FROM erp.issues WHERE id = $1 RETURNING *',
+    'DELETE FROM issues WHERE id = $1 RETURNING *',
     [issueId]
   );
   return result.rows[0] || null;

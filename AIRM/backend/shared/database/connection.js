@@ -52,8 +52,9 @@ const createPool = () => {
 const pool = createPool();
 
 // Set default search path to ERP schema
+const schema = process.env.DB_SCHEMA || 'erp';
 pool.on('connect', async (client) => {
-  await client.query('SET search_path TO erp, public');
+  await client.query(`SET search_path TO ${schema}, public`);
 });
 
 // Test connection

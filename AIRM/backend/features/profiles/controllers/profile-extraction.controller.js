@@ -153,7 +153,7 @@ export async function extractAndSaveProfile(req, res) {
 
     if (extractedProfile.Official_Email) {
       const userCheck = await pool.query(
-        'SELECT id FROM erp.users WHERE email = $1',
+        'SELECT id FROM users WHERE email = $1',
         [extractedProfile.Official_Email]
       );
 
@@ -172,7 +172,7 @@ export async function extractAndSaveProfile(req, res) {
 
     // Check if user exists
     const userExists = await pool.query(
-      'SELECT id FROM erp.users WHERE id = $1',
+      'SELECT id FROM users WHERE id = $1',
       [targetUserId]
     );
 
@@ -187,14 +187,14 @@ export async function extractAndSaveProfile(req, res) {
     // Update user full_name if provided
     if (profileData.full_name) {
       await pool.query(
-        'UPDATE erp.users SET full_name = $1, updated_at = now() WHERE id = $2',
+        'UPDATE users SET full_name = $1, updated_at = now() WHERE id = $2',
         [profileData.full_name, targetUserId]
       );
     }
 
     // Insert or update profile
     await pool.query(
-      `INSERT INTO erp.profiles (
+      `INSERT INTO profiles (
         id, phone, skills, join_date, experience_years, 
         previous_projects, full_name,
         job_title, department, employment_type, employee_id,
@@ -295,7 +295,7 @@ function mapExtractedToProfileSchema(extracted) {
       start_date: null
     }] : [])),
 
-    // Flattened fields for erp.profiles compatibility (used by Joining Form UI)
+    // Flattened fields for profiles compatibility (used by Joining Form UI)
     date_of_birth: extracted.Personal_Details?.dob,
     gender: extracted.Gender || extracted.Personal_Details?.gender,
     marital_status: extracted.Personal_Details?.marital_status,
@@ -346,7 +346,7 @@ export async function saveEditedProfile(req, res) {
 
     if (profile.Official_Email) {
       const userCheck = await pool.query(
-        'SELECT id FROM erp.users WHERE email = $1',
+        'SELECT id FROM users WHERE email = $1',
         [profile.Official_Email]
       );
 
@@ -355,7 +355,7 @@ export async function saveEditedProfile(req, res) {
       } else {
         // Create new user if not exists
         const newUser = await pool.query(
-          'INSERT INTO erp.users (id, email, full_name, created_at, updated_at) VALUES (uuid_generate_v4(), $1, $2, now(), now()) RETURNING id',
+          'INSERT INTO users (id, email, full_name, created_at, updated_at) VALUES (uuid_generate_v4(), $1, $2, now(), now()) RETURNING id',
           [profile.Official_Email, profile.Full_Name || '']
         );
         targetUserId = newUser.rows[0].id;
@@ -365,14 +365,14 @@ export async function saveEditedProfile(req, res) {
     // Update user full_name if provided
     if (profileData.full_name) {
       await pool.query(
-        'UPDATE erp.users SET full_name = $1, updated_at = now() WHERE id = $2',
+        'UPDATE users SET full_name = $1, updated_at = now() WHERE id = $2',
         [profileData.full_name, targetUserId]
       );
     }
 
     // Insert or update profile
     await pool.query(
-      `INSERT INTO erp.profiles (
+      `INSERT INTO profiles (
         id, phone, skills, join_date, experience_years,
         previous_projects, full_name,
         job_title, department, employment_type, employee_id,
@@ -501,7 +501,7 @@ export async function uploadBatchProfiles(req, res) {
           const emailToUse = profileData.Official_Email || profileData.Personal_Email;
 
           const userCheck = await pool.query(
-            'SELECT id FROM erp.users WHERE email = $1',
+            'SELECT id FROM users WHERE email = $1',
             [emailToUse]
           );
 
@@ -510,7 +510,7 @@ export async function uploadBatchProfiles(req, res) {
           } else {
             // Create new user if not exists
             const newUser = await pool.query(
-              'INSERT INTO erp.users (id, email, full_name, created_at, updated_at) VALUES (uuid_generate_v4(), $1, $2, now(), now()) RETURNING id',
+              'INSERT INTO users (id, email, full_name, created_at, updated_at) VALUES (uuid_generate_v4(), $1, $2, now(), now()) RETURNING id',
               [emailToUse, profileData.Full_Name || '']
             );
             targetUserId = newUser.rows[0].id;
@@ -528,14 +528,14 @@ export async function uploadBatchProfiles(req, res) {
         // Update user full_name if provided
         if (mappedProfile.full_name) {
           await pool.query(
-            'UPDATE erp.users SET full_name = $1, updated_at = now() WHERE id = $2',
+            'UPDATE users SET full_name = $1, updated_at = now() WHERE id = $2',
             [mappedProfile.full_name, targetUserId]
           );
         }
 
         // Insert or update profile (with available fields)
         await pool.query(
-          `INSERT INTO erp.profiles (
+          `INSERT INTO profiles (
             id, full_name, phone, skills, join_date, experience_years, 
             previous_projects, job_title, department, employment_type, 
             employee_id, reporting_manager, personal_email, certifications,
@@ -621,20 +621,20 @@ export async function uploadBatchProfiles(req, res) {
 
         // Save to related tables for Joining Form compatibility (Family, Education)
         if (mappedProfile.family_details && Array.isArray(mappedProfile.family_details)) {
-          await pool.query('DELETE FROM erp.employee_family_members WHERE profile_id = $1', [targetUserId]);
+          await pool.query('DELETE FROM employee_family_members WHERE profile_id = $1', [targetUserId]);
           for (const member of mappedProfile.family_details) {
             await pool.query(
-              'INSERT INTO erp.employee_family_members (profile_id, member_type, member_name, contact, relation) VALUES ($1, $2, $3, $4, $5)',
+              'INSERT INTO employee_family_members (profile_id, member_type, member_name, contact, relation) VALUES ($1, $2, $3, $4, $5)',
               [targetUserId, member.relation || 'Family', member.name, member.contact || null, member.relation || null]
             );
           }
         }
 
         if (mappedProfile.education && Array.isArray(mappedProfile.education)) {
-          await pool.query('DELETE FROM erp.employee_academic_info WHERE profile_id = $1', [targetUserId]);
+          await pool.query('DELETE FROM employee_academic_info WHERE profile_id = $1', [targetUserId]);
           for (const edu of mappedProfile.education) {
             await pool.query(
-              'INSERT INTO erp.employee_academic_info (profile_id, qualification, institution_name, passout_year, grade_percentage) VALUES ($1, $2, $3, $4, $5)',
+              'INSERT INTO employee_academic_info (profile_id, qualification, institution_name, passout_year, grade_percentage) VALUES ($1, $2, $3, $4, $5)',
               [targetUserId, edu.degree, edu.college, edu.passout_year, edu.grade]
             );
           }
@@ -647,12 +647,12 @@ export async function uploadBatchProfiles(req, res) {
           message: 'Profile created/updated successfully'
         });
 
-        // Also save to erp.employee table
+        // Also save to employee table
         try {
           await saveToEmployeeTable(targetUserId, profileData._raw);
-          console.log('[batch-upload] Saved to erp.employee table');
+          console.log('[batch-upload] Saved to employee table');
         } catch (employeeTableError) {
-          console.error('[batch-upload] Error saving to erp.employee table:', employeeTableError);
+          console.error('[batch-upload] Error saving to employee table:', employeeTableError);
           // Don't fail the whole process if this fails
         }
 
@@ -688,13 +688,13 @@ export async function uploadBatchProfiles(req, res) {
 }
 
 /**
- * Save raw excel data to erp.employee table
+ * Save raw excel data to employee table
  */
 async function saveToEmployeeTable(profileId, rawRow) {
   if (!rawRow) return;
 
   // Clear existing entry to avoid duplicates
-  await pool.query('DELETE FROM erp.employee WHERE profile_id = $1', [profileId]);
+  await pool.query('DELETE FROM employee WHERE profile_id = $1', [profileId]);
 
   const getVal = (keys) => {
     if (!Array.isArray(keys)) keys = [keys];
@@ -707,7 +707,7 @@ async function saveToEmployeeTable(profileId, rawRow) {
   };
 
   const query = `
-    INSERT INTO erp.employee (
+    INSERT INTO employee (
       profile_id, start_time, completion_time, email, name, full_name, dob, joining_date,
       designation, department, marital_status, pan, adhar_no, mobile_no,
       emergency_contact_no, personal_mail_id, blood_group, bank_name,

@@ -6,7 +6,7 @@ dotenv.config();
 async function checkChethanTimesheet() {
   try {
     const userResult = await pool.query(
-      `SELECT id FROM erp.users WHERE email = 'chethan.p@techiemaya.com' LIMIT 1`
+      `SELECT id FROM users WHERE email = 'chethan.p@techiemaya.com' LIMIT 1`
     );
     
     if (userResult.rows.length === 0) {
@@ -23,7 +23,7 @@ async function checkChethanTimesheet() {
 
     // Check timesheets
     const timesheetResult = await pool.query(
-      `SELECT id, week_start, week_end FROM erp.timesheets 
+      `SELECT id, week_start, week_end FROM timesheets 
        WHERE user_id = $1 
        AND (CAST(week_start AS DATE) = CAST($2 AS DATE) OR 
             (CAST(week_start AS DATE) <= CAST($2 AS DATE) AND CAST(week_end AS DATE) >= CAST($2 AS DATE)))
@@ -39,7 +39,7 @@ async function checkChethanTimesheet() {
       
       const entriesResult = await pool.query(
         `SELECT id, project, task, mon_hours, tue_hours, wed_hours, thu_hours, fri_hours, sat_hours, sun_hours, source
-         FROM erp.timesheet_entries 
+         FROM timesheet_entries 
          WHERE timesheet_id = $1`,
         [ts.id]
       );

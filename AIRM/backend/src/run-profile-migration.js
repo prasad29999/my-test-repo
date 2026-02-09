@@ -28,7 +28,7 @@ const runMigration = async () => {
     await pool.query(migrationSQL);
     
     console.log('✅ Migration completed successfully!');
-    console.log('📊 Added columns to erp.profiles:');
+    console.log('📊 Added columns to profiles:');
     console.log('   - job_title');
     console.log('   - department');
     console.log('   - employment_type');

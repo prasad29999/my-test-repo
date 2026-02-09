@@ -23,8 +23,8 @@ const email = process.argv[2] || 'prasad.d@techiemaya.com';
 pool.query(
   `SELECT u.id, u.email, u.full_name, u.password_hash IS NOT NULL as has_password,
           ur.role
-   FROM erp.users u
-   LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
+   FROM users u
+   LEFT JOIN user_roles ur ON u.id = ur.user_id
    WHERE u.email = $1`,
   [email]
 )

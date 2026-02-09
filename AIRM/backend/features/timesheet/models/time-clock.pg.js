@@ -10,7 +10,7 @@ import pool from '../../../shared/database/connection.js';
  */
 export async function getActiveEntry(userId) {
   const result = await pool.query(
-    `SELECT * FROM erp.time_clock 
+    `SELECT * FROM time_clock 
      WHERE user_id = $1 AND status IN ('clocked_in', 'paused')
      ORDER BY clock_in DESC LIMIT 1`,
     [userId]
@@ -23,7 +23,7 @@ export async function getActiveEntry(userId) {
  */
 export async function createClockIn(userId, issueId, projectName, latitude, longitude, locationAddress) {
   const result = await pool.query(
-    `INSERT INTO erp.time_clock (
+    `INSERT INTO time_clock (
       id, user_id, issue_id, project_name, status,
       latitude, longitude, location_address, location_timestamp
     )
@@ -47,7 +47,7 @@ export async function createClockIn(userId, issueId, projectName, latitude, long
  */
 export async function updateClockOut(entryId, clockOutTime, totalHours) {
   const result = await pool.query(
-    `UPDATE erp.time_clock 
+    `UPDATE time_clock 
      SET clock_out = $1,
          total_hours = $2,
          status = 'clocked_out',
@@ -64,7 +64,7 @@ export async function updateClockOut(entryId, clockOutTime, totalHours) {
  */
 export async function pauseEntry(entryId, reason) {
   const result = await pool.query(
-    `UPDATE erp.time_clock 
+    `UPDATE time_clock 
      SET status = 'paused',
          pause_start = NOW(),
          pause_reason = $1,
@@ -81,7 +81,7 @@ export async function pauseEntry(entryId, reason) {
  */
 export async function resumeEntry(entryId, totalPausedHours) {
   const result = await pool.query(
-    `UPDATE erp.time_clock 
+    `UPDATE time_clock 
      SET status = 'clocked_in',
          paused_duration = $1,
          pause_start = NULL,
@@ -103,8 +103,8 @@ export async function getCurrentEntry(userId) {
       tc.*,
       i.title as issue_title,
       i.project_name as issue_project
-     FROM erp.time_clock tc
-     LEFT JOIN erp.issues i ON tc.issue_id = i.id
+     FROM time_clock tc
+     LEFT JOIN issues i ON tc.issue_id = i.id
      WHERE tc.user_id = $1 AND tc.status IN ('clocked_in', 'paused')
      ORDER BY tc.clock_in DESC LIMIT 1`,
     [userId]
@@ -124,9 +124,9 @@ export async function getTimeClockEntries(userId, isAdmin, filters) {
       i.title as issue_title,
       i.project_name as issue_project,
       u.email as user_email
-    FROM erp.time_clock tc
-    LEFT JOIN erp.issues i ON tc.issue_id = i.id
-    LEFT JOIN erp.users u ON tc.user_id = u.id
+    FROM time_clock tc
+    LEFT JOIN issues i ON tc.issue_id = i.id
+    LEFT JOIN users u ON tc.user_id = u.id
     WHERE 1=1
   `;
 
@@ -171,9 +171,9 @@ export async function getAllActiveEntries() {
       i.project_name as issue_project,
       u.email as user_email,
       COALESCE(u.full_name, '') as user_full_name
-    FROM erp.time_clock tc
-    LEFT JOIN erp.issues i ON tc.issue_id = i.id
-    LEFT JOIN erp.users u ON tc.user_id = u.id
+    FROM time_clock tc
+    LEFT JOIN issues i ON tc.issue_id = i.id
+    LEFT JOIN users u ON tc.user_id = u.id
     WHERE tc.status IN ('clocked_in', 'paused')
     ORDER BY tc.clock_in DESC`
   );

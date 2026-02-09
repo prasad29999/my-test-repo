@@ -15,14 +15,14 @@ async function createCurrentWeekTimesheet() {
     const currentWeekEnd = '2025-11-09';
 
     // Get all users
-    const users = await pool.query('SELECT id, email FROM erp.users');
+    const users = await pool.query('SELECT id, email FROM users');
 
     for (const user of users.rows) {
       console.log(`\n👤 User: ${user.email} (${user.id})`);
 
       // Check if timesheet for current week already exists
       const existing = await pool.query(
-        `SELECT id FROM erp.timesheets
+        `SELECT id FROM timesheets
          WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)`,
         [user.id, currentWeekStart]
       );
@@ -34,7 +34,7 @@ async function createCurrentWeekTimesheet() {
 
       // Check if there's a timesheet for Oct 27 - Nov 2 that might have entries for Nov 3-9
       const previousWeek = await pool.query(
-        `SELECT id FROM erp.timesheets
+        `SELECT id FROM timesheets
          WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)`,
         [user.id, '2025-10-27']
       );
@@ -43,7 +43,7 @@ async function createCurrentWeekTimesheet() {
       if (previousWeek.rows.length > 0) {
         // Check if it has entries that should be in current week
         const entries = await pool.query(
-          `SELECT * FROM erp.timesheet_entries WHERE timesheet_id = $1`,
+          `SELECT * FROM timesheet_entries WHERE timesheet_id = $1`,
           [previousWeek.rows[0].id]
         );
 
@@ -52,7 +52,7 @@ async function createCurrentWeekTimesheet() {
           
           // Create new timesheet for current week
           const newTimesheet = await pool.query(
-            `INSERT INTO erp.timesheets (user_id, week_start, week_end, status)
+            `INSERT INTO timesheets (user_id, week_start, week_end, status)
              VALUES ($1, $2, $3, 'draft')
              RETURNING id`,
             [user.id, currentWeekStart, currentWeekEnd]
@@ -74,7 +74,7 @@ async function createCurrentWeekTimesheet() {
             if (hasCurrentWeekHours) {
               // Check if entry already exists in new timesheet
               const existingEntry = await pool.query(
-                `SELECT id FROM erp.timesheet_entries
+                `SELECT id FROM timesheet_entries
                  WHERE timesheet_id = $1 AND project = $2 AND task = $3 AND source = $4
                  LIMIT 1`,
                 [timesheetId, entry.project, entry.task, entry.source]
@@ -83,7 +83,7 @@ async function createCurrentWeekTimesheet() {
               if (existingEntry.rows.length === 0) {
                 // Insert entry with only Mon-Fri hours (current week days)
                 await pool.query(
-                  `INSERT INTO erp.timesheet_entries
+                  `INSERT INTO timesheet_entries
                    (timesheet_id, project, task, source, mon_hours, tue_hours, wed_hours, thu_hours, fri_hours, sat_hours, sun_hours, created_at, updated_at)
                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
                   [
@@ -107,7 +107,7 @@ async function createCurrentWeekTimesheet() {
         } else {
           // No entries, just create empty timesheet
           const newTimesheet = await pool.query(
-            `INSERT INTO erp.timesheets (user_id, week_start, week_end, status)
+            `INSERT INTO timesheets (user_id, week_start, week_end, status)
              VALUES ($1, $2, $3, 'draft')
              RETURNING id`,
             [user.id, currentWeekStart, currentWeekEnd]
@@ -117,7 +117,7 @@ async function createCurrentWeekTimesheet() {
       } else {
         // No previous week timesheet, create empty one
         const newTimesheet = await pool.query(
-          `INSERT INTO erp.timesheets (user_id, week_start, week_end, status)
+          `INSERT INTO timesheets (user_id, week_start, week_end, status)
            VALUES ($1, $2, $3, 'draft')
            RETURNING id`,
           [user.id, currentWeekStart, currentWeekEnd]

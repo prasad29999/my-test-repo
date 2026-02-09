@@ -32,7 +32,7 @@ router.post('/send-magic-link', [
     // Check if user exists
     const userQuery = `
       SELECT u.id, u.email, u.full_name
-      FROM erp.users u
+      FROM users u
       WHERE u.email = $1
     `;
     const userResult = await pool.query(userQuery, [email]);
@@ -143,8 +143,8 @@ router.post('/verify-magic-link', [
     // Get user details with role
     const userQuery = `
       SELECT u.id, u.email, u.full_name, ur.role
-      FROM erp.users u
-      LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
       WHERE u.id = $1
     `;
     const userResult = await pool.query(userQuery, [decoded.userId]);
@@ -195,8 +195,8 @@ router.get('/me', authenticate, async (req, res) => {
     // Get user with role
     const userResult = await pool.query(`
       SELECT u.id, u.email, u.full_name, ur.role
-      FROM erp.users u
-      LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
       WHERE u.id = $1
     `, [req.userId]);
 

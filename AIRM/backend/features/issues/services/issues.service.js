@@ -67,7 +67,7 @@ export async function createIssue(issueData, userId) {
     due_date
   } = issueData;
 
-  // 1. Create issue in local database erp.issues (primary source of truth for UI)
+  // 1. Create issue in local database issues (primary source of truth for UI)
   const issue = await issueModel.createIssue({
     title,
     description,
@@ -102,7 +102,7 @@ export async function createIssue(issueData, userId) {
           gitlab_iid: gitlabIssue.iid
         });
 
-        // Also create entry in erp.gitlab_issues for backward compatibility/mapping
+        // Also create entry in gitlab_issues for backward compatibility/mapping
         try {
           await issueModel.createGitLabIssue({
             gitlab_issue_id: gitlabIssue.id,
@@ -118,7 +118,7 @@ export async function createIssue(issueData, userId) {
             due_date
           });
         } catch (err) {
-          console.warn('Failed to insert into erp.gitlab_issues mapping table:', err.message);
+          console.warn('Failed to insert into gitlab_issues mapping table:', err.message);
         }
 
         issue.gitlab_url = gitlabIssue.web_url;

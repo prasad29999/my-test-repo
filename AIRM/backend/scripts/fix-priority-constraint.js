@@ -5,7 +5,7 @@ async function runMigration() {
     try {
         // Remove the CHECK constraint on priority to allows custom priorities
         await pool.query(`
-            ALTER TABLE erp.issues DROP CONSTRAINT IF EXISTS issues_priority_check;
+            ALTER TABLE issues DROP CONSTRAINT IF EXISTS issues_priority_check;
         `);
 
         console.log('✅ Migration successful! Issue priority constraint removed.');

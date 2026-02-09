@@ -26,7 +26,7 @@ async function resetPassword() {
   try {
     // Find user
     const userResult = await pool.query(
-      'SELECT id, email FROM erp.users WHERE email = $1',
+      'SELECT id, email FROM users WHERE email = $1',
       [email]
     );
 
@@ -43,7 +43,7 @@ async function resetPassword() {
 
     // Update password
     await pool.query(
-      'UPDATE erp.users SET password_hash = $1 WHERE id = $2',
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
       [hashedPassword, user.id]
     );
 

@@ -303,13 +303,13 @@ export async function completeOnboarding(candidateId, joiningDate, employeeData)
     // Create user account
     const userId = uuidv4();
     await pool.query(`
-      INSERT INTO erp.users (id, email, role, created_at)
+      INSERT INTO users (id, email, role, created_at)
       VALUES ($1, $2, 'employee', NOW())
     `, [userId, candidate.email]);
 
     // Create profile
     await pool.query(`
-      INSERT INTO erp.profiles (
+      INSERT INTO profiles (
         id, full_name, phone, job_title, department, join_date,
         onboarding_status, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', NOW())

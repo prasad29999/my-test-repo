@@ -17,7 +17,7 @@ export async function sendMagicLink(email) {
   // Check if user exists
   const userQuery = `
     SELECT u.id, u.email, u.full_name
-    FROM erp.users u
+    FROM users u
     WHERE u.email = $1
   `;
   let userResult;
@@ -113,8 +113,8 @@ export async function verifyMagicLink(token) {
   // Get user details with role
   const userQuery = `
     SELECT u.id, u.email, u.full_name, ur.role
-    FROM erp.users u
-    LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
+    FROM users u
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
     WHERE u.id = $1
   `;
   const userResult = await pool.query(userQuery, [decoded.userId]);
@@ -153,8 +153,8 @@ export async function verifyMagicLink(token) {
 export async function getCurrentUser(userId) {
   const userQuery = `
     SELECT u.id, u.email, u.full_name, ur.role
-    FROM erp.users u
-    LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
+    FROM users u
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
     WHERE u.id = $1
   `;
   const userResult = await pool.query(userQuery, [userId]);

@@ -66,10 +66,10 @@ export async function getAllProfiles() {
         e.start_time,
         e.completion_time,
         p.updated_at
-      FROM erp.users u
-      LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
-      LEFT JOIN erp.profiles p ON u.id = p.id
-      LEFT JOIN erp.employee e ON p.id = e.profile_id
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN profiles p ON u.id = p.id
+      LEFT JOIN employee e ON p.id = e.profile_id
       ORDER BY p.join_date DESC NULLS LAST, u.created_at DESC`
     );
     return result.rows;
@@ -139,10 +139,10 @@ export async function getProfileById(userId) {
       e.start_time,
       e.completion_time,
       p.updated_at
-    FROM erp.users u
-    LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
-    LEFT JOIN erp.profiles p ON u.id = p.id
-    LEFT JOIN erp.employee e ON p.id = e.profile_id
+    FROM users u
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN profiles p ON u.id = p.id
+    LEFT JOIN employee e ON p.id = e.profile_id
     WHERE u.id = $1`,
     [userId]
   );
@@ -154,7 +154,7 @@ export async function getProfileById(userId) {
  */
 export async function userExists(userId) {
   const result = await pool.query(
-    'SELECT id FROM erp.users WHERE id = $1',
+    'SELECT id FROM users WHERE id = $1',
     [userId]
   );
   return result.rows.length > 0;
@@ -165,7 +165,7 @@ export async function userExists(userId) {
  */
 export async function updateUserName(userId, fullName) {
   await pool.query(
-    'UPDATE erp.users SET full_name = $1, updated_at = now() WHERE id = $2',
+    'UPDATE users SET full_name = $1, updated_at = now() WHERE id = $2',
     [fullName, userId]
   );
 }
@@ -205,7 +205,7 @@ export async function upsertProfile(profileData) {
   } = profileData;
 
   await pool.query(
-    `INSERT INTO erp.profiles (
+    `INSERT INTO profiles (
       id, phone, skills, join_date, experience_years, 
       previous_projects, bio, linkedin_url, github_url, full_name,
       job_title, department, employment_type, employee_id,
@@ -273,9 +273,9 @@ export async function upsertProfile(profileData) {
     ]
   );
 
-  // Sync with erp.employee table
+  // Sync with employee table
   await pool.query(
-    `UPDATE erp.employee SET
+    `UPDATE employee SET
       full_name = COALESCE($2, full_name),
       mobile_no = COALESCE($3, mobile_no),
       designation = COALESCE($4, designation),
@@ -294,8 +294,8 @@ export async function upsertProfile(profileData) {
 export async function deleteProfileById(userId) {
   console.log('[profiles.model] Deleting profile for userId:', userId);
   // Delete from employee table first
-  await pool.query('DELETE FROM erp.employee WHERE profile_id = $1', [userId]);
-  const result = await pool.query('DELETE FROM erp.profiles WHERE id = $1 RETURNING id', [userId]);
+  await pool.query('DELETE FROM employee WHERE profile_id = $1', [userId]);
+  const result = await pool.query('DELETE FROM profiles WHERE id = $1 RETURNING id', [userId]);
   console.log('[profiles.model] Delete result:', result.rowCount, 'rows deleted');
   return result;
 }
@@ -305,7 +305,7 @@ export async function deleteProfileById(userId) {
  */
 export async function deleteUserRoleById(userId) {
   console.log('[profiles.model] Deleting user_roles for userId:', userId);
-  const result = await pool.query('DELETE FROM erp.user_roles WHERE user_id = $1 RETURNING user_id', [userId]);
+  const result = await pool.query('DELETE FROM user_roles WHERE user_id = $1 RETURNING user_id', [userId]);
   console.log('[profiles.model] Delete user_roles result:', result.rowCount, 'rows deleted');
   return result;
 }
@@ -315,7 +315,7 @@ export async function deleteUserRoleById(userId) {
  */
 export async function deleteUserById(userId) {
   console.log('[profiles.model] Deleting user for userId:', userId);
-  const result = await pool.query('DELETE FROM erp.users WHERE id = $1 RETURNING id', [userId]);
+  const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
   console.log('[profiles.model] Delete user result:', result.rowCount, 'rows deleted');
   return result;
 }

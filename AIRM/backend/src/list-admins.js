@@ -17,8 +17,8 @@ async function listAdmins() {
         u.full_name,
         ur.role,
         u.created_at
-      FROM erp.users u
-      JOIN erp.user_roles ur ON u.id = ur.user_id
+      FROM users u
+      JOIN user_roles ur ON u.id = ur.user_id
       WHERE ur.role = 'admin'
       ORDER BY u.created_at DESC
     `);

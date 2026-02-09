@@ -15,7 +15,7 @@ async function fixWeekStarts() {
     // Get all timesheets
     const timesheets = await pool.query(
       `SELECT id, user_id, week_start, week_end, created_at 
-       FROM erp.timesheets 
+       FROM timesheets 
        ORDER BY created_at DESC`
     );
 
@@ -63,7 +63,7 @@ async function fixWeekStarts() {
 
       // Update the timesheet
       await pool.query(
-        `UPDATE erp.timesheets 
+        `UPDATE timesheets 
          SET week_start = $1, week_end = $2 
          WHERE id = $3`,
         [correctWeekStartStr, correctWeekEndStr, timesheet.id]
@@ -78,7 +78,7 @@ async function fixWeekStarts() {
     const verifyResult = await pool.query(
       `SELECT id, week_start, week_end, 
               EXTRACT(DOW FROM week_start) as day_of_week
-       FROM erp.timesheets 
+       FROM timesheets 
        ORDER BY week_start DESC`
     );
 

@@ -30,7 +30,7 @@ async function changeRole() {
 
     // Find user
     const userResult = await pool.query(
-      `SELECT id, email FROM erp.users WHERE LOWER(email) = LOWER($1)`,
+      `SELECT id, email FROM users WHERE LOWER(email) = LOWER($1)`,
       [targetEmail]
     );
 
@@ -50,7 +50,7 @@ async function changeRole() {
 
     // Get current role
     const currentRoleResult = await pool.query(
-      `SELECT role FROM erp.user_roles WHERE user_id = $1`,
+      `SELECT role FROM user_roles WHERE user_id = $1`,
       [user.id]
     );
 
@@ -71,11 +71,11 @@ async function changeRole() {
     console.log(`🔄 Updating role...`);
 
     // Delete existing roles
-    await pool.query('DELETE FROM erp.user_roles WHERE user_id = $1', [user.id]);
+    await pool.query('DELETE FROM user_roles WHERE user_id = $1', [user.id]);
 
     // Insert new role
     await pool.query(
-      'INSERT INTO erp.user_roles (id, user_id, role) VALUES (gen_random_uuid(), $1, $2)',
+      'INSERT INTO user_roles (id, user_id, role) VALUES (gen_random_uuid(), $1, $2)',
       [user.id, newRole]
     );
 
@@ -83,7 +83,7 @@ async function changeRole() {
 
     // Verify
     const verifyResult = await pool.query(
-      `SELECT role FROM erp.user_roles WHERE user_id = $1`,
+      `SELECT role FROM user_roles WHERE user_id = $1`,
       [user.id]
     );
 

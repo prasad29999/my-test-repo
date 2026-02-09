@@ -17,10 +17,10 @@ export async function getPayslips(filters = {}) {
       u.full_name,
       pr.full_name as created_by_name,
       rb.full_name as released_by_name
-    FROM erp.payslips p
-    LEFT JOIN erp.users u ON p.user_id = u.id
-    LEFT JOIN erp.users pr ON p.created_by = pr.id
-    LEFT JOIN erp.users rb ON p.released_by = rb.id
+    FROM payslips p
+    LEFT JOIN users u ON p.user_id = u.id
+    LEFT JOIN users pr ON p.created_by = pr.id
+    LEFT JOIN users rb ON p.released_by = rb.id
     WHERE 1=1
   `;
   const params = [];
@@ -52,7 +52,7 @@ export async function getPayslips(filters = {}) {
 
   if (filters.department) {
     query += ` AND EXISTS (
-      SELECT 1 FROM erp.profiles pr 
+      SELECT 1 FROM profiles pr 
       WHERE pr.id = p.user_id AND pr.department = $${paramCount}
     )`;
     params.push(filters.department);
@@ -97,10 +97,10 @@ export async function getPayslipById(payslipId) {
       u.full_name,
       pr.full_name as created_by_name,
       rb.full_name as released_by_name
-    FROM erp.payslips p
-    LEFT JOIN erp.users u ON p.user_id = u.id
-    LEFT JOIN erp.users pr ON p.created_by = pr.id
-    LEFT JOIN erp.users rb ON p.released_by = rb.id
+    FROM payslips p
+    LEFT JOIN users u ON p.user_id = u.id
+    LEFT JOIN users pr ON p.created_by = pr.id
+    LEFT JOIN users rb ON p.released_by = rb.id
     WHERE p.id = $1`,
     [payslipId]
   );
@@ -246,7 +246,7 @@ export async function upsertPayslip(payslipData) {
   if (payslipId) {
     // Check if payslip exists and is locked
     const existing = await pool.query(
-      'SELECT id, is_locked, status FROM erp.payslips WHERE id = $1',
+      'SELECT id, is_locked, status FROM payslips WHERE id = $1',
       [payslipId]
     );
 
@@ -261,7 +261,7 @@ export async function upsertPayslip(payslipData) {
 
     // Update existing payslip
     const result = await pool.query(
-      `UPDATE erp.payslips SET
+      `UPDATE payslips SET
         user_id = $2,
         employee_id = $3,
         month = $4,
@@ -336,7 +336,7 @@ export async function upsertPayslip(payslipData) {
 
   // Insert new payslip
   const result = await pool.query(
-    `INSERT INTO erp.payslips (${insertColumns})
+    `INSERT INTO payslips (${insertColumns})
     VALUES (${insertValues})
     ON CONFLICT (user_id, month, year) DO UPDATE SET
       base_salary = EXCLUDED.base_salary,
@@ -406,7 +406,7 @@ export async function updatePayslipStatus(payslipId, status, releasedBy = null) 
   values.push(payslipId);
 
   const result = await pool.query(
-    `UPDATE erp.payslips 
+    `UPDATE payslips 
      SET ${fields.join(', ')}
      WHERE id = $${paramCount}
      RETURNING *`,

@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
     }
 
     let query = `
-      SELECT * FROM erp.notifications
+      SELECT * FROM notifications
       WHERE user_id = $1
     `;
 
@@ -68,7 +68,7 @@ router.put('/:id/read', async (req, res) => {
     const userId = req.userId;
 
     const result = await pool.query(
-      `UPDATE erp.notifications 
+      `UPDATE notifications 
        SET read = true
        WHERE id = $1 AND user_id = $2
        RETURNING *`,
@@ -101,7 +101,7 @@ router.put('/read-all', async (req, res) => {
     const userId = req.userId;
 
     await pool.query(
-      `UPDATE erp.notifications 
+      `UPDATE notifications 
        SET read = true
        WHERE user_id = $1 AND read = false`,
       [userId]
@@ -128,7 +128,7 @@ router.get('/unread-count', async (req, res) => {
     const userId = req.userId;
 
     const result = await pool.query(
-      'SELECT erp.get_unread_notification_count($1) as count',
+      'SELECT get_unread_notification_count($1) as count',
       [userId]
     );
 

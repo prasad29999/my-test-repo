@@ -17,9 +17,9 @@ export async function getAllUsers() {
       u.created_at,
       ur.role,
       p.full_name as profile_name
-    FROM erp.users u
-    LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
-    LEFT JOIN erp.profiles p ON u.id = p.id
+    FROM users u
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN profiles p ON u.id = p.id
     ORDER BY u.created_at DESC`
   );
 
@@ -36,7 +36,7 @@ export async function getAllUsers() {
  * Get all users with roles (using function)
  */
 export async function getAllUsersWithRoles() {
-  const result = await pool.query('SELECT * FROM erp.get_all_users_with_roles()');
+  const result = await pool.query('SELECT * FROM get_all_users_with_roles()');
   return result.rows;
 }
 
@@ -51,8 +51,8 @@ export async function getUserById(userId) {
       u.full_name,
       u.created_at,
       ur.role
-    FROM erp.users u
-    LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
+    FROM users u
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
     WHERE u.id = $1`,
     [userId]
   );
@@ -74,7 +74,7 @@ export async function updateUserRole(userId, role) {
 
   // Check if user exists
   const userCheck = await pool.query(
-    'SELECT id FROM erp.users WHERE id = $1',
+    'SELECT id FROM users WHERE id = $1',
     [userId]
   );
 
@@ -83,11 +83,11 @@ export async function updateUserRole(userId, role) {
   }
 
   // Delete existing roles to ensure user has only one role
-  await pool.query('DELETE FROM erp.user_roles WHERE user_id = $1', [userId]);
+  await pool.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
 
   // Insert new role
   await pool.query(
-    `INSERT INTO erp.user_roles (id, user_id, role)
+    `INSERT INTO user_roles (id, user_id, role)
      VALUES (gen_random_uuid(), $1, $2)`,
     [userId, role]
   );

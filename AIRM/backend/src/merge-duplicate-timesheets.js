@@ -15,7 +15,7 @@ async function mergeDuplicateTimesheets() {
     // Find duplicate timesheets (same user, same week_start)
     const duplicates = await pool.query(
       `SELECT user_id, week_start, COUNT(*) as count, array_agg(id) as timesheet_ids
-       FROM erp.timesheets
+       FROM timesheets
        GROUP BY user_id, CAST(week_start AS DATE)
        HAVING COUNT(*) > 1
        ORDER BY user_id, week_start`
@@ -40,7 +40,7 @@ async function mergeDuplicateTimesheets() {
       // Get all entries from timesheets to merge
       for (const mergeId of mergeIds) {
         const entries = await pool.query(
-          `SELECT * FROM erp.timesheet_entries WHERE timesheet_id = $1`,
+          `SELECT * FROM timesheet_entries WHERE timesheet_id = $1`,
           [mergeId]
         );
 
@@ -49,7 +49,7 @@ async function mergeDuplicateTimesheets() {
         for (const entry of entries.rows) {
           // Check if entry with same project/task/source exists in kept timesheet
           const existing = await pool.query(
-            `SELECT id FROM erp.timesheet_entries
+            `SELECT id FROM timesheet_entries
              WHERE timesheet_id = $1 AND project = $2 AND task = $3 AND source = $4
              LIMIT 1`,
             [keepId, entry.project, entry.task, entry.source]
@@ -58,7 +58,7 @@ async function mergeDuplicateTimesheets() {
           if (existing.rows.length > 0) {
             // Merge hours - add all hours together
             await pool.query(
-              `UPDATE erp.timesheet_entries
+              `UPDATE timesheet_entries
                SET mon_hours = mon_hours + $1,
                    tue_hours = tue_hours + $2,
                    wed_hours = wed_hours + $3,
@@ -83,7 +83,7 @@ async function mergeDuplicateTimesheets() {
           } else {
             // Move entry to kept timesheet
             await pool.query(
-              `UPDATE erp.timesheet_entries
+              `UPDATE timesheet_entries
                SET timesheet_id = $1, updated_at = NOW()
                WHERE id = $2`,
               [keepId, entry.id]
@@ -93,7 +93,7 @@ async function mergeDuplicateTimesheets() {
         }
 
         // Delete merged timesheet
-        await pool.query('DELETE FROM erp.timesheets WHERE id = $1', [mergeId]);
+        await pool.query('DELETE FROM timesheets WHERE id = $1', [mergeId]);
         console.log(`   ✅ Deleted timesheet ${mergeId}`);
       }
     }

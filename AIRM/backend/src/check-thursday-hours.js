@@ -46,9 +46,9 @@ async function checkThursdayHours() {
         t.week_start,
         t.week_end,
         u.email
-      FROM erp.timesheet_entries te
-      JOIN erp.timesheets t ON te.timesheet_id = t.id
-      JOIN erp.users u ON t.user_id = u.id
+      FROM timesheet_entries te
+      JOIN timesheets t ON te.timesheet_id = t.id
+      JOIN users u ON t.user_id = u.id
       WHERE CAST(t.week_start AS DATE) = CAST($1 AS DATE)
         AND (te.thu_hours > 0 OR te.source = 'time_clock')
       ORDER BY te.updated_at DESC`,
@@ -76,9 +76,9 @@ async function checkThursdayHours() {
           te.sun_hours,
           t.week_start,
           u.email
-        FROM erp.timesheet_entries te
-        JOIN erp.timesheets t ON te.timesheet_id = t.id
-        JOIN erp.users u ON t.user_id = u.id
+        FROM timesheet_entries te
+        JOIN timesheets t ON te.timesheet_id = t.id
+        JOIN users u ON t.user_id = u.id
         WHERE CAST(t.week_start AS DATE) = CAST($1 AS DATE)
         ORDER BY te.updated_at DESC`,
         [weekStartStr]
@@ -153,8 +153,8 @@ async function checkThursdayHours() {
         u.email,
         DATE(tc.clock_out) as clock_out_date,
         EXTRACT(DOW FROM tc.clock_out) as day_of_week
-      FROM erp.time_clock tc
-      JOIN erp.users u ON tc.user_id = u.id
+      FROM time_clock tc
+      JOIN users u ON tc.user_id = u.id
       WHERE tc.clock_out IS NOT NULL
         AND tc.clock_out >= NOW() - INTERVAL '7 days'
       ORDER BY tc.clock_out DESC

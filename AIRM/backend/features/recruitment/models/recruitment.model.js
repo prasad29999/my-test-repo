@@ -4,7 +4,7 @@
 export async function addCandidateCalendarEvent(candidateId, { title, description, start_time, end_time, event_type = 'interview' }) {
   const id = uuidv4();
   const result = await pool.query(`
-    INSERT INTO erp.candidate_calendar_events (
+    INSERT INTO candidate_calendar_events (
       id, candidate_id, event_type, title, description, start_time, end_time
     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *
@@ -47,7 +47,7 @@ export async function getAllCandidates() {
       verification_status,
       final_status,
       created_at
-    FROM erp.recruitment_candidates
+    FROM recruitment_candidates
     ORDER BY created_at DESC
   `);
   return result.rows;
@@ -58,7 +58,7 @@ export async function getAllCandidates() {
  */
 export async function getCandidateById(id) {
   const candidateResult = await pool.query(`
-    SELECT * FROM erp.recruitment_candidates WHERE id = $1
+    SELECT * FROM recruitment_candidates WHERE id = $1
   `, [id]);
 
   if (candidateResult.rows.length === 0) {
@@ -69,14 +69,14 @@ export async function getCandidateById(id) {
 
   // Get interview rounds
   const interviewsResult = await pool.query(`
-    SELECT * FROM erp.recruitment_interviews 
+    SELECT * FROM recruitment_interviews 
     WHERE candidate_id = $1 
     ORDER BY created_at
   `, [id]);
 
   // Get background verifications
   const verificationsResult = await pool.query(`
-    SELECT * FROM erp.recruitment_verifications 
+    SELECT * FROM recruitment_verifications 
     WHERE candidate_id = $1 
     ORDER BY created_at
   `, [id]);
@@ -182,7 +182,7 @@ export async function getCandidateById(id) {
     // If the valid code currently runs, then `res.candidate` MUST have a `candidate_info` property.
     // Which implies `pool.query` returns it? IMPOSSIBLE if columns are flat.
 
-    // Is it possible that `erp.recruitment_candidates` has a `candidate_info` JSON column 
+    // Is it possible that `recruitment_candidates` has a `candidate_info` JSON column 
     // AND flat columns?
     // `createCandidate` inserts into `full_name` etc.
 
@@ -211,7 +211,7 @@ export async function getCandidateById(id) {
 export async function createCandidate(candidateInfo) {
   const id = uuidv4();
   const result = await pool.query(`
-    INSERT INTO erp.recruitment_candidates (
+    INSERT INTO recruitment_candidates (
       id, full_name, email, phone, position_applied, department,
       experience_years, current_company, current_ctc, expected_ctc, notice_period,
       resume_url, photo_url, location, comments,
@@ -267,7 +267,7 @@ export async function updateCandidate(id, data) {
   values.push(id);
 
   const result = await pool.query(`
-    UPDATE erp.recruitment_candidates 
+    UPDATE recruitment_candidates 
     SET ${fields.join(', ')}
     WHERE id = $${paramIndex}
     RETURNING *
@@ -280,9 +280,9 @@ export async function updateCandidate(id, data) {
  * Delete candidate
  */
 export async function deleteCandidate(id) {
-  await pool.query(`DELETE FROM erp.recruitment_verifications WHERE candidate_id = $1`, [id]);
-  await pool.query(`DELETE FROM erp.recruitment_interviews WHERE candidate_id = $1`, [id]);
-  await pool.query(`DELETE FROM erp.recruitment_candidates WHERE id = $1`, [id]);
+  await pool.query(`DELETE FROM recruitment_verifications WHERE candidate_id = $1`, [id]);
+  await pool.query(`DELETE FROM recruitment_interviews WHERE candidate_id = $1`, [id]);
+  await pool.query(`DELETE FROM recruitment_candidates WHERE id = $1`, [id]);
 }
 
 /**
@@ -291,7 +291,7 @@ export async function deleteCandidate(id) {
 export async function addInterviewRound(candidateId, roundData) {
   const id = uuidv4();
   const result = await pool.query(`
-    INSERT INTO erp.recruitment_interviews (
+    INSERT INTO recruitment_interviews (
       id, candidate_id, round_name, interviewer_name, interview_date,
       status, result, feedback, score
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -328,7 +328,7 @@ export async function updateInterviewRound(candidateId, roundId, data) {
   });
 
   if (fields.length === 0) {
-    const result = await pool.query(`SELECT * FROM erp.recruitment_interviews WHERE id = $1`, [roundId]);
+    const result = await pool.query(`SELECT * FROM recruitment_interviews WHERE id = $1`, [roundId]);
     return result.rows[0];
   }
 
@@ -336,7 +336,7 @@ export async function updateInterviewRound(candidateId, roundId, data) {
   values.push(roundId);
 
   const result = await pool.query(`
-    UPDATE erp.recruitment_interviews 
+    UPDATE recruitment_interviews 
     SET ${fields.join(', ')}
     WHERE id = $${paramIndex}
     RETURNING *
@@ -349,7 +349,7 @@ export async function updateInterviewRound(candidateId, roundId, data) {
  * Delete interview round
  */
 export async function deleteInterviewRound(candidateId, roundId) {
-  await pool.query(`DELETE FROM erp.recruitment_interviews WHERE id = $1 AND candidate_id = $2`, [roundId, candidateId]);
+  await pool.query(`DELETE FROM recruitment_interviews WHERE id = $1 AND candidate_id = $2`, [roundId, candidateId]);
 }
 
 /**
@@ -358,7 +358,7 @@ export async function deleteInterviewRound(candidateId, roundId) {
 export async function addVerification(candidateId, verificationData) {
   const id = uuidv4();
   const result = await pool.query(`
-    INSERT INTO erp.recruitment_verifications (
+    INSERT INTO recruitment_verifications (
       id, candidate_id, verification_type, verification_name,
       status, verified_by, verified_at, notes, documents
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -400,7 +400,7 @@ export async function updateVerification(candidateId, verificationId, data) {
   });
 
   if (fields.length === 0) {
-    const result = await pool.query(`SELECT * FROM erp.recruitment_verifications WHERE id = $1`, [verificationId]);
+    const result = await pool.query(`SELECT * FROM recruitment_verifications WHERE id = $1`, [verificationId]);
     return result.rows[0];
   }
 
@@ -408,7 +408,7 @@ export async function updateVerification(candidateId, verificationId, data) {
   values.push(verificationId);
 
   const result = await pool.query(`
-    UPDATE erp.recruitment_verifications 
+    UPDATE recruitment_verifications 
     SET ${fields.join(', ')}
     WHERE id = $${paramIndex}
     RETURNING *
@@ -421,7 +421,7 @@ export async function updateVerification(candidateId, verificationId, data) {
  * Delete verification
  */
 export async function deleteVerification(candidateId, verificationId) {
-  await pool.query(`DELETE FROM erp.recruitment_verifications WHERE id = $1 AND candidate_id = $2`, [verificationId, candidateId]);
+  await pool.query(`DELETE FROM recruitment_verifications WHERE id = $1 AND candidate_id = $2`, [verificationId, candidateId]);
 }
 
 /**
@@ -433,7 +433,7 @@ export async function completeInterviewStage(id, passed, notes) {
   const finalStatus = passed ? 'pending' : 'rejected';
 
   const result = await pool.query(`
-    UPDATE erp.recruitment_candidates 
+    UPDATE recruitment_candidates 
     SET interview_status = $1, 
         current_stage = $2,
         final_status = $3,
@@ -455,7 +455,7 @@ export async function completeVerificationStage(id, passed, notes) {
   const finalStatus = passed ? 'pending' : 'rejected';
 
   const result = await pool.query(`
-    UPDATE erp.recruitment_candidates 
+    UPDATE recruitment_candidates 
     SET verification_status = $1, 
         current_stage = $2,
         final_status = $3,
@@ -473,7 +473,7 @@ export async function completeVerificationStage(id, passed, notes) {
  */
 export async function completeOnboarding(id, joiningDate) {
   const result = await pool.query(`
-    UPDATE erp.recruitment_candidates 
+    UPDATE recruitment_candidates 
     SET onboarding_status = 'passed',
         final_status = 'hired',
         joining_date = $1,
@@ -490,7 +490,7 @@ export async function completeOnboarding(id, joiningDate) {
  */
 export async function rejectCandidate(id, reason) {
   const result = await pool.query(`
-    UPDATE erp.recruitment_candidates 
+    UPDATE recruitment_candidates 
     SET final_status = 'rejected',
         rejection_reason = $1,
         updated_at = NOW()

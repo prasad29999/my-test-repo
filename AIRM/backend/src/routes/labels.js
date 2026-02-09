@@ -14,7 +14,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM erp.labels ORDER BY name'
+      'SELECT * FROM labels ORDER BY name'
     );
 
     res.json({
@@ -52,7 +52,7 @@ router.post('/', [
     const userId = req.userId;
 
     const result = await pool.query(
-      `INSERT INTO erp.labels (name, color, description, created_by)
+      `INSERT INTO labels (name, color, description, created_by)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
       [name, color, description || null, userId]

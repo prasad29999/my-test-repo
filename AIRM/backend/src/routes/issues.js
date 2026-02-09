@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
 
     // Check if user is admin
     const roleResult = await pool.query(
-      'SELECT role FROM erp.user_roles WHERE user_id = $1',
+      'SELECT role FROM user_roles WHERE user_id = $1',
       [userId]
     );
     const isAdmin = roleResult.rows[0]?.role === 'admin';
@@ -57,10 +57,10 @@ router.get('/', async (req, res) => {
           'name', l.name,
           'color', l.color
         )) FILTER (WHERE l.id IS NOT NULL) as labels
-      FROM erp.issues i
-      LEFT JOIN erp.issue_assignees ia ON i.id = ia.issue_id
-      LEFT JOIN erp.issue_labels il ON i.id = il.issue_id
-      LEFT JOIN erp.labels l ON il.label_id = l.id
+      FROM issues i
+      LEFT JOIN issue_assignees ia ON i.id = ia.issue_id
+      LEFT JOIN issue_labels il ON i.id = il.issue_id
+      LEFT JOIN labels l ON il.label_id = l.id
     `;
 
     const conditions = [];
@@ -77,14 +77,14 @@ router.get('/', async (req, res) => {
     if (assignee && assignee !== 'all') {
       if (isAdmin) {
         conditions.push(`EXISTS (
-          SELECT 1 FROM erp.issue_assignees 
+          SELECT 1 FROM issue_assignees 
           WHERE issue_id = i.id AND user_id = $${paramCount++}
         )`);
         params.push(assignee);
       } else {
         // Non-admin can only see assigned issues
         conditions.push(`EXISTS (
-          SELECT 1 FROM erp.issue_assignees 
+          SELECT 1 FROM issue_assignees 
           WHERE issue_id = i.id AND user_id = $${paramCount++}
         )`);
         params.push(userId);
@@ -92,7 +92,7 @@ router.get('/', async (req, res) => {
     } else if (!isAdmin) {
       // Non-admin without filter sees only assigned issues
       conditions.push(`EXISTS (
-        SELECT 1 FROM erp.issue_assignees 
+        SELECT 1 FROM issue_assignees 
         WHERE issue_id = i.id AND user_id = $${paramCount++}
       )`);
       params.push(userId);
@@ -154,7 +154,7 @@ router.get('/:id', async (req, res) => {
 
     // Get issue
     const issueResult = await pool.query(
-      'SELECT * FROM erp.issues WHERE id = $1',
+      'SELECT * FROM issues WHERE id = $1',
       [issueId]
     );
 
@@ -171,8 +171,8 @@ router.get('/:id', async (req, res) => {
         ia.user_id,
         u.email,
         COALESCE(u.full_name, '') as full_name
-       FROM erp.issue_assignees ia
-       JOIN erp.users u ON ia.user_id = u.id
+       FROM issue_assignees ia
+       JOIN users u ON ia.user_id = u.id
        WHERE ia.issue_id = $1`,
       [issueId]
     );
@@ -181,8 +181,8 @@ router.get('/:id', async (req, res) => {
     // Get labels
     const labelsResult = await pool.query(
       `SELECT l.*
-       FROM erp.issue_labels il
-       JOIN erp.labels l ON il.label_id = l.id
+       FROM issue_labels il
+       JOIN labels l ON il.label_id = l.id
        WHERE il.issue_id = $1`,
       [issueId]
     );
@@ -201,8 +201,8 @@ router.get('/:id', async (req, res) => {
           ic.updated_at,
           u.email,
           COALESCE(u.full_name, '') as full_name
-         FROM erp.issue_comments ic
-         JOIN erp.users u ON ic.user_id = u.id
+         FROM issue_comments ic
+         JOIN users u ON ic.user_id = u.id
          WHERE ic.issue_id = $1
          ORDER BY ic.created_at ASC`,
         [issueId]
@@ -228,8 +228,8 @@ router.get('/:id', async (req, res) => {
         ia.created_at,
         u.email,
         COALESCE(u.full_name, '') as full_name
-       FROM erp.issue_activity ia
-       LEFT JOIN erp.users u ON ia.user_id = u.id
+       FROM issue_activity ia
+       LEFT JOIN users u ON ia.user_id = u.id
        WHERE ia.issue_id = $1
        ORDER BY ia.created_at DESC`,
       [issueId]
@@ -296,7 +296,7 @@ router.post('/', requireAdmin, [
 
     // Get project info
     const projectQuery = await pool.query(
-      'SELECT gitlab_project_id, name FROM erp.gitlab_projects WHERE id = $1',
+      'SELECT gitlab_project_id, name FROM gitlab_projects WHERE id = $1',
       [project_id]
     );
 
@@ -332,7 +332,7 @@ router.post('/', requireAdmin, [
 
     // Create issue in local database
     const result = await pool.query(
-      `INSERT INTO erp.gitlab_issues (
+      `INSERT INTO gitlab_issues (
         gitlab_issue_id, gitlab_iid, project_id, title, description, 
         status, priority, created_by, estimate_hours, start_date, due_date
       )
@@ -357,7 +357,7 @@ router.post('/', requireAdmin, [
 
     // Add activity
     await pool.query(
-      `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+      `INSERT INTO issue_activity (issue_id, user_id, action, details)
        VALUES ($1, $2, $3, $4)`,
       [issue.id, userId, 'created', JSON.stringify({ title, gitlab_iid: gitlabIssue.iid })]
     );
@@ -366,7 +366,7 @@ router.post('/', requireAdmin, [
     if (assignee_ids && Array.isArray(assignee_ids)) {
       for (const assigneeId of assignee_ids) {
         await pool.query(
-          `INSERT INTO erp.issue_assignees (issue_id, user_id, assigned_by)
+          `INSERT INTO issue_assignees (issue_id, user_id, assigned_by)
            VALUES ($1, $2, $3)
            ON CONFLICT (issue_id, user_id) DO NOTHING`,
           [issue.id, assigneeId, userId]
@@ -378,7 +378,7 @@ router.post('/', requireAdmin, [
     if (label_ids && Array.isArray(label_ids)) {
       for (const labelId of label_ids) {
         await pool.query(
-          `INSERT INTO erp.issue_labels (issue_id, label_id)
+          `INSERT INTO issue_labels (issue_id, label_id)
            VALUES ($1, $2)
            ON CONFLICT (issue_id, label_id) DO NOTHING`,
           [issue.id, labelId]
@@ -412,7 +412,7 @@ async function getLabelsFromIds(labelIds) {
   }
   
   const labels = await pool.query(
-    'SELECT name FROM erp.labels WHERE id = ANY($1)',
+    'SELECT name FROM labels WHERE id = ANY($1)',
     [labelIds]
   );
   
@@ -445,7 +445,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
     // Get existing issue
     const existing = await pool.query(
-      'SELECT gi.*, gp.gitlab_project_id FROM erp.gitlab_issues gi JOIN erp.gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
+      'SELECT gi.*, gp.gitlab_project_id FROM gitlab_issues gi JOIN gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
       [issueId]
     );
 
@@ -479,7 +479,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
     // Update issue in local database
     const result = await pool.query(
-      `UPDATE erp.gitlab_issues 
+      `UPDATE gitlab_issues 
        SET title = COALESCE($1, title),
            description = COALESCE($2, description),
            status = COALESCE($3, status),
@@ -498,7 +498,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     // Track status change
     if (status && status !== existing.rows[0].status) {
       await pool.query(
-        `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+        `INSERT INTO issue_activity (issue_id, user_id, action, details)
          VALUES ($1, $2, $3, $4)`,
         [issueId, userId, 'status_changed', JSON.stringify({
           old_status: existing.rows[0].status,
@@ -544,7 +544,7 @@ router.post('/:id/comments', [
 
     // Get issue info for GitLab
     const issueCheck = await pool.query(
-      'SELECT gi.gitlab_iid, gi.gitlab_issue_id, gp.gitlab_project_id FROM erp.gitlab_issues gi JOIN erp.gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
+      'SELECT gi.gitlab_iid, gi.gitlab_issue_id, gp.gitlab_project_id FROM gitlab_issues gi JOIN gitlab_projects gp ON gi.project_id = gp.gitlab_project_id WHERE gi.id = $1',
       [issueId]
     );
 
@@ -567,7 +567,7 @@ router.post('/:id/comments', [
 
     // Add comment locally
     const result = await pool.query(
-      `INSERT INTO erp.issue_comments (issue_id, user_id, comment)
+      `INSERT INTO issue_comments (issue_id, user_id, comment)
        VALUES ($1, $2, $3)
        RETURNING *`,
       [issueId, userId, comment]
@@ -579,15 +579,15 @@ router.post('/:id/comments', [
         ic.*,
         u.email,
         COALESCE(u.full_name, '') as full_name
-       FROM erp.issue_comments ic
-       JOIN erp.users u ON ic.user_id = u.id
+       FROM issue_comments ic
+       JOIN users u ON ic.user_id = u.id
        WHERE ic.id = $1`,
       [result.rows[0].id]
     );
 
     // Add activity
     await pool.query(
-      `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+      `INSERT INTO issue_activity (issue_id, user_id, action, details)
        VALUES ($1, $2, $3, $4)`,
       [issueId, userId, 'commented', JSON.stringify({ comment: comment.substring(0, 100) })]
     );
@@ -671,7 +671,7 @@ router.post('/:id/assign', requireAdmin, async (req, res) => {
 
     // Verify issue exists
     const issueCheck = await pool.query(
-      'SELECT id FROM erp.issues WHERE id = $1',
+      'SELECT id FROM issues WHERE id = $1',
       [issueId]
     );
 
@@ -707,7 +707,7 @@ router.post('/:id/assign', requireAdmin, async (req, res) => {
 
         // Verify user exists - no casting needed
         const userCheck = await pool.query(
-          'SELECT id, email FROM erp.users WHERE id = $1',
+          'SELECT id, email FROM users WHERE id = $1',
           [assigneeIdStr]
         );
 
@@ -719,7 +719,7 @@ router.post('/:id/assign', requireAdmin, async (req, res) => {
 
         // Check if already assigned - no casting needed
         const existingCheck = await pool.query(
-          'SELECT id FROM erp.issue_assignees WHERE issue_id = $1 AND user_id = $2',
+          'SELECT id FROM issue_assignees WHERE issue_id = $1 AND user_id = $2',
           [issueId, assigneeIdStr]
         );
 
@@ -754,7 +754,7 @@ router.post('/:id/assign', requireAdmin, async (req, res) => {
         // Insert assignment - no casting, let PostgreSQL handle it
         // Pass integer as number, UUIDs as strings
         const insertResult = await pool.query(
-          `INSERT INTO erp.issue_assignees (issue_id, user_id, assigned_by)
+          `INSERT INTO issue_assignees (issue_id, user_id, assigned_by)
            VALUES ($1, $2, $3)
            RETURNING id`,
           [issueId, assigneeIdStr, userIdStr]
@@ -763,7 +763,7 @@ router.post('/:id/assign', requireAdmin, async (req, res) => {
 
         // Add activity - no casting needed
         const activityResult = await pool.query(
-          `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+          `INSERT INTO issue_activity (issue_id, user_id, action, details)
            VALUES ($1, $2, $3, $4)
            RETURNING id`,
           [issueId, userIdStr, 'assigned_user', JSON.stringify({ assigned_user_id: assigneeIdStr })]
@@ -819,7 +819,7 @@ router.delete('/:id/assign/:user_id', requireAdmin, async (req, res) => {
 
     // Verify issue exists
     const issueCheck = await pool.query(
-      'SELECT id FROM erp.issues WHERE id = $1',
+      'SELECT id FROM issues WHERE id = $1',
       [issueId]
     );
 
@@ -829,7 +829,7 @@ router.delete('/:id/assign/:user_id', requireAdmin, async (req, res) => {
 
     // Remove assignment
     const result = await pool.query(
-      `DELETE FROM erp.issue_assignees
+      `DELETE FROM issue_assignees
        WHERE issue_id = $1 AND user_id = $2`,
       [issueId, user_id]
     );
@@ -840,7 +840,7 @@ router.delete('/:id/assign/:user_id', requireAdmin, async (req, res) => {
 
     // Add activity
     await pool.query(
-      `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+      `INSERT INTO issue_activity (issue_id, user_id, action, details)
        VALUES ($1, $2, $3, $4)`,
       [issueId, userId, 'unassigned_user', JSON.stringify({ unassigned_user_id: user_id })]
     );
@@ -878,7 +878,7 @@ router.post('/:id/labels', requireAdmin, async (req, res) => {
 
     // Verify issue exists
     const issueCheck = await pool.query(
-      'SELECT id FROM erp.issues WHERE id = $1',
+      'SELECT id FROM issues WHERE id = $1',
       [issueId]
     );
 
@@ -888,7 +888,7 @@ router.post('/:id/labels', requireAdmin, async (req, res) => {
 
     // Verify label exists
     const labelCheck = await pool.query(
-      'SELECT id, name FROM erp.labels WHERE id = $1',
+      'SELECT id, name FROM labels WHERE id = $1',
       [label_id]
     );
 
@@ -898,7 +898,7 @@ router.post('/:id/labels', requireAdmin, async (req, res) => {
 
     // Check if label already assigned
     const existingCheck = await pool.query(
-      'SELECT id FROM erp.issue_labels WHERE issue_id = $1 AND label_id = $2',
+      'SELECT id FROM issue_labels WHERE issue_id = $1 AND label_id = $2',
       [issueId, label_id]
     );
 
@@ -908,14 +908,14 @@ router.post('/:id/labels', requireAdmin, async (req, res) => {
 
     // Add label
     await pool.query(
-      `INSERT INTO erp.issue_labels (issue_id, label_id)
+      `INSERT INTO issue_labels (issue_id, label_id)
        VALUES ($1, $2)`,
       [issueId, label_id]
     );
 
     // Add activity
     await pool.query(
-      `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+      `INSERT INTO issue_activity (issue_id, user_id, action, details)
        VALUES ($1, $2, $3, $4)`,
       [issueId, userId, 'added_label', JSON.stringify({ label_id, label_name: labelCheck.rows[0].name })]
     );
@@ -949,7 +949,7 @@ router.delete('/:id/labels/:label_id', requireAdmin, async (req, res) => {
 
     // Verify issue exists
     const issueCheck = await pool.query(
-      'SELECT id FROM erp.issues WHERE id = $1',
+      'SELECT id FROM issues WHERE id = $1',
       [issueId]
     );
 
@@ -959,13 +959,13 @@ router.delete('/:id/labels/:label_id', requireAdmin, async (req, res) => {
 
     // Get label name for activity
     const labelCheck = await pool.query(
-      'SELECT name FROM erp.labels WHERE id = $1',
+      'SELECT name FROM labels WHERE id = $1',
       [label_id]
     );
 
     // Remove label
     const result = await pool.query(
-      `DELETE FROM erp.issue_labels
+      `DELETE FROM issue_labels
        WHERE issue_id = $1 AND label_id = $2`,
       [issueId, label_id]
     );
@@ -976,7 +976,7 @@ router.delete('/:id/labels/:label_id', requireAdmin, async (req, res) => {
 
     // Add activity
     await pool.query(
-      `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+      `INSERT INTO issue_activity (issue_id, user_id, action, details)
        VALUES ($1, $2, $3, $4)`,
       [issueId, userId, 'removed_label', JSON.stringify({ 
         label_id, 

@@ -10,7 +10,7 @@ dotenv.config();
 
 const checkColumns = async () => {
   try {
-    console.log('🔍 Checking erp.profiles table columns...\n');
+    console.log('🔍 Checking profiles table columns...\n');
     
     const result = await pool.query(`
       SELECT column_name, data_type, is_nullable
@@ -25,7 +25,7 @@ const checkColumns = async () => {
       return;
     }
     
-    console.log(`✅ Found ${result.rows.length} columns in erp.profiles:\n`);
+    console.log(`✅ Found ${result.rows.length} columns in profiles:\n`);
     result.rows.forEach((col, index) => {
       console.log(`${index + 1}. ${col.column_name} (${col.data_type}) - ${col.is_nullable === 'YES' ? 'nullable' : 'NOT NULL'}`);
     });

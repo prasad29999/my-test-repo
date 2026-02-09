@@ -20,8 +20,8 @@ async function checkBurnoutScores() {
           WHEN p.burnout_score <= 80 THEN 'High Risk'
           ELSE 'Critical Risk'
         END as risk_level
-      FROM erp.users u
-      LEFT JOIN erp.profiles p ON u.id = p.id
+      FROM users u
+      LEFT JOIN profiles p ON u.id = p.id
       ORDER BY p.burnout_score DESC NULLS LAST
     `);
 

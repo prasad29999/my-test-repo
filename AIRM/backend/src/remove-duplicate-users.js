@@ -29,7 +29,7 @@ async function removeDuplicates() {
         u.id,
         u.email,
         u.created_at
-      FROM erp.users u
+      FROM users u
       WHERE LOWER(u.email) = LOWER($1)
       ORDER BY u.created_at DESC`,
       [targetEmail]
@@ -52,7 +52,7 @@ async function removeDuplicates() {
     // Check for duplicate roles for each user
     for (const user of usersResult.rows) {
       const rolesResult = await pool.query(
-        `SELECT role FROM erp.user_roles WHERE user_id = $1 ORDER BY role`,
+        `SELECT role FROM user_roles WHERE user_id = $1 ORDER BY role`,
         [user.id]
       );
 
@@ -71,11 +71,11 @@ async function removeDuplicates() {
         console.log(`🗑️  Removing duplicate roles for user ${user.id}...`);
         
         // Delete all roles first
-        await pool.query('DELETE FROM erp.user_roles WHERE user_id = $1', [user.id]);
+        await pool.query('DELETE FROM user_roles WHERE user_id = $1', [user.id]);
         
         // Insert only the role to keep
         await pool.query(
-          'INSERT INTO erp.user_roles (user_id, role) VALUES ($1, $2)',
+          'INSERT INTO user_roles (user_id, role) VALUES ($1, $2)',
           [user.id, roleToKeep]
         );
         
@@ -84,7 +84,7 @@ async function removeDuplicates() {
         // If no role exists, set default to 'user'
         console.log(`⚠️  User ${user.id} (${user.email}) has no role, setting to 'user'`);
         await pool.query(
-          'INSERT INTO erp.user_roles (user_id, role) VALUES ($1, $2)',
+          'INSERT INTO user_roles (user_id, role) VALUES ($1, $2)',
           [user.id, 'user']
         );
         console.log(`   ✅ Set role to: user\n`);
@@ -118,18 +118,18 @@ async function removeDuplicates() {
         // First, delete related data that might have foreign key constraints
         // Delete in order: issue_comments, issue_assignments, etc.
         try {
-          await pool.query('DELETE FROM erp.issue_comments WHERE user_id = $1', [userId]);
-          await pool.query('DELETE FROM erp.issue_assignments WHERE user_id = $1', [userId]);
-          await pool.query('DELETE FROM erp.issue_activity WHERE user_id = $1', [userId]);
-          await pool.query('DELETE FROM erp.user_roles WHERE user_id = $1', [userId]);
-          await pool.query('DELETE FROM erp.notifications WHERE user_id = $1', [userId]);
-          await pool.query('DELETE FROM erp.leave_requests WHERE user_id = $1', [userId]);
-          await pool.query('DELETE FROM erp.time_clock WHERE user_id = $1', [userId]);
-          await pool.query('DELETE FROM erp.timesheets WHERE user_id = $1', [userId]);
+          await pool.query('DELETE FROM issue_comments WHERE user_id = $1', [userId]);
+          await pool.query('DELETE FROM issue_assignments WHERE user_id = $1', [userId]);
+          await pool.query('DELETE FROM issue_activity WHERE user_id = $1', [userId]);
+          await pool.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+          await pool.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+          await pool.query('DELETE FROM leave_requests WHERE user_id = $1', [userId]);
+          await pool.query('DELETE FROM time_clock WHERE user_id = $1', [userId]);
+          await pool.query('DELETE FROM timesheets WHERE user_id = $1', [userId]);
           
           // Finally delete the user
           const deleteResult = await pool.query(
-            'DELETE FROM erp.users WHERE id = $1 RETURNING id, email',
+            'DELETE FROM users WHERE id = $1 RETURNING id, email',
             [userId]
           );
 
@@ -148,8 +148,8 @@ async function removeDuplicates() {
         u.id,
         u.email,
         COALESCE(ur.role, 'user') as role
-      FROM erp.users u
-      LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
       WHERE LOWER(u.email) = LOWER($1)`,
       [targetEmail]
     );

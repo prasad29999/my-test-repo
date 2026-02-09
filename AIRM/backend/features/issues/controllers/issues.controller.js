@@ -17,7 +17,7 @@ export async function getAllIssues(req, res) {
 
     // Check if user is admin
     const roleResult = await pool.query(
-      'SELECT role FROM erp.user_roles WHERE user_id = $1',
+      'SELECT role FROM user_roles WHERE user_id = $1',
       [userId]
     );
     const isAdmin = roleResult.rows[0]?.role === 'admin';
@@ -417,7 +417,7 @@ export async function logTime(req, res) {
 
     // Add activity record
     await pool.query(
-      `INSERT INTO erp.issue_activity (issue_id, user_id, action, details)
+      `INSERT INTO issue_activity (issue_id, user_id, action, details)
        VALUES ($1, $2, $3, $4)`,
       [
         issueId,
@@ -449,7 +449,7 @@ export async function updateActivity(req, res) {
     const { duration, comment } = req.body;
 
     const currentRes = await pool.query(
-      'SELECT details FROM erp.issue_activity WHERE id::text = $1',
+      'SELECT details FROM issue_activity WHERE id::text = $1',
       [activityId]
     );
 
@@ -468,7 +468,7 @@ export async function updateActivity(req, res) {
     };
 
     await pool.query(
-      'UPDATE erp.issue_activity SET details = $1, updated_at = NOW() WHERE id::text = $2',
+      'UPDATE issue_activity SET details = $1, updated_at = NOW() WHERE id::text = $2',
       [JSON.stringify(newDetails), activityId]
     );
 

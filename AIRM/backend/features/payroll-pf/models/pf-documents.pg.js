@@ -16,9 +16,9 @@ export async function getPfDocuments(filters = {}) {
       u.email,
       u.full_name,
       upd.full_name as uploaded_by_name
-    FROM erp.pf_documents pfd
-    LEFT JOIN erp.users u ON pfd.user_id = u.id
-    LEFT JOIN erp.users upd ON pfd.uploaded_by = upd.id
+    FROM pf_documents pfd
+    LEFT JOIN users u ON pfd.user_id = u.id
+    LEFT JOIN users upd ON pfd.uploaded_by = upd.id
     WHERE 1=1
   `;
   const params = [];
@@ -56,7 +56,7 @@ export async function addPfDocument(documentData) {
   } = documentData;
 
   const result = await pool.query(
-    `INSERT INTO erp.pf_documents (
+    `INSERT INTO pf_documents (
       user_id, pf_detail_id, document_type, document_name, document_url, uploaded_by
     )
     VALUES ($1, $2, $3, $4, $5, $6)

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS erp.employee (
+CREATE TABLE IF NOT EXISTS employee (
     id SERIAL PRIMARY KEY,
     start_time TIMESTAMP,
     completion_time TIMESTAMP,

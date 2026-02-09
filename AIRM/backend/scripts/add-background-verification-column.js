@@ -21,7 +21,7 @@ const pool = new Pool({
 async function addBackgroundVerificationColumn() {
   const client = await pool.connect();
   try {
-    console.log('🔄 Adding background_verification column to erp.profiles...');
+    console.log('🔄 Adding background_verification column to profiles...');
     
     // Check if column already exists
     const checkResult = await client.query(`
@@ -39,11 +39,11 @@ async function addBackgroundVerificationColumn() {
     
     // Add the column
     await client.query(`
-      ALTER TABLE erp.profiles 
+      ALTER TABLE profiles 
       ADD COLUMN background_verification TEXT
     `);
     
-    console.log('✅ Successfully added background_verification column to erp.profiles');
+    console.log('✅ Successfully added background_verification column to profiles');
     
   } catch (error) {
     console.error('❌ Error adding column:', error.message);

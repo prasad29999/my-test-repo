@@ -23,35 +23,35 @@ async function addPayslipLopFields() {
 
         // Add base_salary column (editable base salary)
         await client.query(`
-      ALTER TABLE erp.payslips 
+      ALTER TABLE payslips 
       ADD COLUMN IF NOT EXISTS base_salary DECIMAL(10,2) DEFAULT 0
     `);
         console.log('✓ Added base_salary column');
 
         // Add lop_days column (number of LOP days)
         await client.query(`
-      ALTER TABLE erp.payslips 
+      ALTER TABLE payslips 
       ADD COLUMN IF NOT EXISTS lop_days DECIMAL(5,2) DEFAULT 0
     `);
         console.log('✓ Added lop_days column');
 
         // Add lop_deduction column (amount deducted for LOP)
         await client.query(`
-      ALTER TABLE erp.payslips 
+      ALTER TABLE payslips 
       ADD COLUMN IF NOT EXISTS lop_deduction DECIMAL(10,2) DEFAULT 0
     `);
         console.log('✓ Added lop_deduction column');
 
         // Add paid_days column (number of paid working days)
         await client.query(`
-      ALTER TABLE erp.payslips 
+      ALTER TABLE payslips 
       ADD COLUMN IF NOT EXISTS paid_days DECIMAL(5,2) DEFAULT 0
     `);
         console.log('✓ Added paid_days column');
 
         // Add attendance_summary JSONB column (detailed breakdown)
         await client.query(`
-      ALTER TABLE erp.payslips 
+      ALTER TABLE payslips 
       ADD COLUMN IF NOT EXISTS attendance_summary JSONB DEFAULT '{}'::jsonb
     `);
         console.log('✓ Added attendance_summary column');

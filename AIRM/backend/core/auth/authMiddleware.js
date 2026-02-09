@@ -30,7 +30,7 @@ export const authenticate = async (req, res, next) => {
 
     // Get user from database
     const result = await pool.query(
-      'SELECT id, email, full_name FROM erp.users WHERE id = $1',
+      'SELECT id, email, full_name FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -43,13 +43,13 @@ export const authenticate = async (req, res, next) => {
 
     // Check if user is admin
     const adminCheck = await pool.query(
-      'SELECT role FROM erp.user_roles WHERE user_id = $1 AND role = $2',
+      'SELECT role FROM user_roles WHERE user_id = $1 AND role = $2',
       [decoded.userId, 'admin']
     );
 
     // Check if user is HR
     const hrCheck = await pool.query(
-      'SELECT role FROM erp.user_roles WHERE user_id = $1 AND role = $2',
+      'SELECT role FROM user_roles WHERE user_id = $1 AND role = $2',
       [decoded.userId, 'hr']
     );
 
@@ -96,7 +96,7 @@ export const requireAdmin = async (req, res, next) => {
 
     // Check if user is admin
     const result = await pool.query(
-      'SELECT role FROM erp.user_roles WHERE user_id = $1 AND role = $2',
+      'SELECT role FROM user_roles WHERE user_id = $1 AND role = $2',
       [req.userId, 'admin']
     );
 
@@ -130,7 +130,7 @@ export const optionalAuth = async (req, res, next) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       
       const result = await pool.query(
-        'SELECT id, email, full_name FROM erp.users WHERE id = $1',
+        'SELECT id, email, full_name FROM users WHERE id = $1',
         [decoded.userId]
       );
 

@@ -177,7 +177,7 @@ export async function getEntries(req, res) {
     let isAdmin = false;
     try {
       const roleResult = await pool.query(
-        'SELECT role FROM erp.user_roles WHERE user_id = $1',
+        'SELECT role FROM user_roles WHERE user_id = $1',
         [userId]
       );
       isAdmin = roleResult.rows[0]?.role === 'admin' || false;

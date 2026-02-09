@@ -16,14 +16,14 @@ async function ensureCurrentWeek() {
     const currentWeekEnd = '2025-11-09';   // Sunday Nov 9, 2025
 
     // Get all users
-    const users = await pool.query('SELECT id, email FROM erp.users ORDER BY email');
+    const users = await pool.query('SELECT id, email FROM users ORDER BY email');
 
     console.log(`Found ${users.rows.length} user(s)\n`);
 
     for (const user of users.rows) {
       // Check if timesheet exists
       const existing = await pool.query(
-        `SELECT id FROM erp.timesheets
+        `SELECT id FROM timesheets
          WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)`,
         [user.id, currentWeekStart]
       );
@@ -31,7 +31,7 @@ async function ensureCurrentWeek() {
       if (existing.rows.length === 0) {
         // Create timesheet
         const result = await pool.query(
-          `INSERT INTO erp.timesheets (user_id, week_start, week_end, status)
+          `INSERT INTO timesheets (user_id, week_start, week_end, status)
            VALUES ($1, $2, $3, 'draft')
            RETURNING id`,
           [user.id, currentWeekStart, currentWeekEnd]

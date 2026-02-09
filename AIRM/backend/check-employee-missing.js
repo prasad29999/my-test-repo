@@ -29,7 +29,7 @@ async function checkEmployeeMissingCols() {
     `);
         const existingCols = new Set(res.rows.map(r => r.column_name));
         const missing = desiredCols.filter(c => !existingCols.has(c));
-        console.log('Missing columns in erp.employee:', missing);
+        console.log('Missing columns in employee:', missing);
         process.exit(0);
     } catch (e) {
         console.error(e);

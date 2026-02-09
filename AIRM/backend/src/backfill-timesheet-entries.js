@@ -42,7 +42,7 @@ async function backfillTimesheetEntries() {
     // Get all clock-out entries
     const clockOuts = await pool.query(
       `SELECT id, user_id, issue_id, project_name, clock_out, total_hours
-       FROM erp.time_clock
+       FROM time_clock
        WHERE status = 'clocked_out' AND clock_out IS NOT NULL AND total_hours > 0
        ORDER BY clock_out DESC`
     );
@@ -78,7 +78,7 @@ async function backfillTimesheetEntries() {
         
         // Get or create timesheet
         let timesheetResult = await pool.query(
-          `SELECT id FROM erp.timesheets
+          `SELECT id FROM timesheets
            WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)
            LIMIT 1`,
           [clockOut.user_id, weekStartStr]
@@ -89,7 +89,7 @@ async function backfillTimesheetEntries() {
           timesheetId = timesheetResult.rows[0].id;
         } else {
           const newTimesheet = await pool.query(
-            `INSERT INTO erp.timesheets (user_id, week_start, week_end, status)
+            `INSERT INTO timesheets (user_id, week_start, week_end, status)
              VALUES ($1, $2, $3, 'draft')
              RETURNING id`,
             [clockOut.user_id, weekStartStr, weekEndStr]
@@ -104,7 +104,7 @@ async function backfillTimesheetEntries() {
 
         if (clockOut.issue_id) {
           const issueResult = await pool.query(
-            `SELECT title, project_name FROM erp.issues WHERE id = $1`,
+            `SELECT title, project_name FROM issues WHERE id = $1`,
             [clockOut.issue_id]
           );
           if (issueResult.rows.length > 0) {
@@ -122,7 +122,7 @@ async function backfillTimesheetEntries() {
 
         // Check if entry exists
         const existingEntry = await pool.query(
-          `SELECT id, ${dayColumn} as current_hours FROM erp.timesheet_entries
+          `SELECT id, ${dayColumn} as current_hours FROM timesheet_entries
            WHERE timesheet_id = $1 AND project = $2 AND task = $3 AND source = 'time_clock'
            LIMIT 1`,
           [timesheetId, project, task]
@@ -135,7 +135,7 @@ async function backfillTimesheetEntries() {
           const newHours = Math.round((currentHours + roundedHours) * 100) / 100;
           
           await pool.query(
-            `UPDATE erp.timesheet_entries
+            `UPDATE timesheet_entries
              SET ${dayColumn} = $1, updated_at = NOW()
              WHERE id = $2`,
             [newHours, entryId]
@@ -156,7 +156,7 @@ async function backfillTimesheetEntries() {
           const hours = hoursArray[dayColumn] || [0, 0, 0, 0, 0, 0, 0];
           
           await pool.query(
-            `INSERT INTO erp.timesheet_entries
+            `INSERT INTO timesheet_entries
              (timesheet_id, project, task, mon_hours, tue_hours, wed_hours, thu_hours, fri_hours, sat_hours, sun_hours, source, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'time_clock', NOW(), NOW())`,
             [timesheetId, project, task, ...hours]

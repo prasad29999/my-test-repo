@@ -5,7 +5,7 @@
 -- Stage 3: Final Onboarding
 
 -- Main candidates table
-CREATE TABLE IF NOT EXISTS erp.recruitment_candidates (
+CREATE TABLE IF NOT EXISTS recruitment_candidates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     -- Candidate Information
     full_name VARCHAR(255) NOT NULL,
@@ -46,9 +46,9 @@ CREATE TABLE IF NOT EXISTS erp.recruitment_candidates (
 );
 
 -- Interview rounds table
-CREATE TABLE IF NOT EXISTS erp.recruitment_interviews (
+CREATE TABLE IF NOT EXISTS recruitment_interviews (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    candidate_id UUID NOT NULL REFERENCES erp.recruitment_candidates(id) ON DELETE CASCADE,
+    candidate_id UUID NOT NULL REFERENCES recruitment_candidates(id) ON DELETE CASCADE,
     round_name VARCHAR(255) NOT NULL,
     interviewer_name VARCHAR(255) NOT NULL,
     interview_date TIMESTAMP WITH TIME ZONE,
@@ -61,9 +61,9 @@ CREATE TABLE IF NOT EXISTS erp.recruitment_interviews (
 );
 
 -- Background verification table
-CREATE TABLE IF NOT EXISTS erp.recruitment_verifications (
+CREATE TABLE IF NOT EXISTS recruitment_verifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    candidate_id UUID NOT NULL REFERENCES erp.recruitment_candidates(id) ON DELETE CASCADE,
+    candidate_id UUID NOT NULL REFERENCES recruitment_candidates(id) ON DELETE CASCADE,
     verification_type VARCHAR(50) NOT NULL CHECK (verification_type IN ('identity', 'education', 'employment', 'criminal', 'reference')),
     verification_name VARCHAR(255) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'verified', 'failed')),
@@ -76,14 +76,14 @@ CREATE TABLE IF NOT EXISTS erp.recruitment_verifications (
 );
 
 -- Indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_recruitment_candidates_email ON erp.recruitment_candidates(email);
-CREATE INDEX IF NOT EXISTS idx_recruitment_candidates_stage ON erp.recruitment_candidates(current_stage);
-CREATE INDEX IF NOT EXISTS idx_recruitment_candidates_status ON erp.recruitment_candidates(final_status);
-CREATE INDEX IF NOT EXISTS idx_recruitment_interviews_candidate ON erp.recruitment_interviews(candidate_id);
-CREATE INDEX IF NOT EXISTS idx_recruitment_verifications_candidate ON erp.recruitment_verifications(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_recruitment_candidates_email ON recruitment_candidates(email);
+CREATE INDEX IF NOT EXISTS idx_recruitment_candidates_stage ON recruitment_candidates(current_stage);
+CREATE INDEX IF NOT EXISTS idx_recruitment_candidates_status ON recruitment_candidates(final_status);
+CREATE INDEX IF NOT EXISTS idx_recruitment_interviews_candidate ON recruitment_interviews(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_recruitment_verifications_candidate ON recruitment_verifications(candidate_id);
 
 -- Trigger function for updated_at
-CREATE OR REPLACE FUNCTION erp.update_recruitment_updated_at()
+CREATE OR REPLACE FUNCTION update_recruitment_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -92,25 +92,25 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers
-DROP TRIGGER IF EXISTS update_recruitment_candidates_updated_at ON erp.recruitment_candidates;
+DROP TRIGGER IF EXISTS update_recruitment_candidates_updated_at ON recruitment_candidates;
 CREATE TRIGGER update_recruitment_candidates_updated_at
-    BEFORE UPDATE ON erp.recruitment_candidates
+    BEFORE UPDATE ON recruitment_candidates
     FOR EACH ROW
-    EXECUTE FUNCTION erp.update_recruitment_updated_at();
+    EXECUTE FUNCTION update_recruitment_updated_at();
 
-DROP TRIGGER IF EXISTS update_recruitment_interviews_updated_at ON erp.recruitment_interviews;
+DROP TRIGGER IF EXISTS update_recruitment_interviews_updated_at ON recruitment_interviews;
 CREATE TRIGGER update_recruitment_interviews_updated_at
-    BEFORE UPDATE ON erp.recruitment_interviews
+    BEFORE UPDATE ON recruitment_interviews
     FOR EACH ROW
-    EXECUTE FUNCTION erp.update_recruitment_updated_at();
+    EXECUTE FUNCTION update_recruitment_updated_at();
 
-DROP TRIGGER IF EXISTS update_recruitment_verifications_updated_at ON erp.recruitment_verifications;
+DROP TRIGGER IF EXISTS update_recruitment_verifications_updated_at ON recruitment_verifications;
 CREATE TRIGGER update_recruitment_verifications_updated_at
-    BEFORE UPDATE ON erp.recruitment_verifications
+    BEFORE UPDATE ON recruitment_verifications
     FOR EACH ROW
-    EXECUTE FUNCTION erp.update_recruitment_updated_at();
+    EXECUTE FUNCTION update_recruitment_updated_at();
 
 -- Comment on tables
-COMMENT ON TABLE erp.recruitment_candidates IS '3-stage hiring process - main candidates table';
-COMMENT ON TABLE erp.recruitment_interviews IS 'Interview rounds for candidates (Stage 1)';
-COMMENT ON TABLE erp.recruitment_verifications IS 'Background verification checks (Stage 2)';
+COMMENT ON TABLE recruitment_candidates IS '3-stage hiring process - main candidates table';
+COMMENT ON TABLE recruitment_interviews IS 'Interview rounds for candidates (Stage 1)';
+COMMENT ON TABLE recruitment_verifications IS 'Background verification checks (Stage 2)';

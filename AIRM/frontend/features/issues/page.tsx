@@ -68,7 +68,7 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
 
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterAssignee, setFilterAssignee] = useState<string>('all');
-  const [filterProject, setFilterProject] = useState<string>('all');
+  const [filterProject, setFilterProject] = useState<string>(initialProject);
   const [view, setView] = useState<'list' | 'kanban' | 'burnout'>('kanban');
 
   // Custom columns support
@@ -122,12 +122,11 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
         const results = await Promise.all([
           loadLabels(),
           loadUsers(),
-          loadIssues(),
           api.auth.getMe(),
           loadProjects()
         ]) as any;
 
-        const currentUserData = results[3];
+        const currentUserData = results[2];
         const lsUserData = JSON.parse(localStorage.getItem('user') || '{}');
         setIsAdmin(
           currentUserData?.user?.role === 'admin' ||
@@ -303,7 +302,7 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
 
     try {
       // First create the issue
-      const issue = await api.issues.create({
+      const response = await api.issues.create({
         title: newIssueTitle,
         description: newIssueDescription,
         project_name: newIssueProjectName,
@@ -312,10 +311,12 @@ export default function Issues({ initialProject = 'all' }: { initialProject?: st
         estimated_hours: parseFloat(newIssueEstimatedHours) || 0
       }) as any;
 
+      const createdIssue = response.issue || response;
+
       // Then add labels if any
-      if (newIssueLabels.length > 0) {
+      if (newIssueLabels.length > 0 && createdIssue?.id) {
         await Promise.all(newIssueLabels.map(labelId =>
-          api.issues.addLabel(String(issue.id), labelId)
+          api.issues.addLabel(String(createdIssue.id), labelId)
         ));
       }
 

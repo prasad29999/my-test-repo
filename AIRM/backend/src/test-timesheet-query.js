@@ -20,8 +20,8 @@ async function testQuery() {
         t.week_start,
         t.week_end,
         COUNT(te.id) as entry_count
-      FROM erp.timesheets t
-      LEFT JOIN erp.timesheet_entries te ON t.id = te.timesheet_id
+      FROM timesheets t
+      LEFT JOIN timesheet_entries te ON t.id = te.timesheet_id
       WHERE t.user_id = $1
       AND (
         CAST(t.week_start AS DATE) = CAST($2 AS DATE) OR
@@ -43,7 +43,7 @@ async function testQuery() {
       
       // Check entries directly
       const directCheck = await pool.query(
-        `SELECT COUNT(*) as count FROM erp.timesheet_entries WHERE timesheet_id = $1`,
+        `SELECT COUNT(*) as count FROM timesheet_entries WHERE timesheet_id = $1`,
         [row.id]
       );
       const directCount = parseInt(directCheck.rows[0].count);
@@ -52,7 +52,7 @@ async function testQuery() {
       if (directCount > 0) {
         const entries = await pool.query(
           `SELECT id, project, task, thu_hours, fri_hours, source 
-           FROM erp.timesheet_entries WHERE timesheet_id = $1`,
+           FROM timesheet_entries WHERE timesheet_id = $1`,
           [row.id]
         );
         entries.rows.forEach((e, idx) => {

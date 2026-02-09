@@ -2,13 +2,13 @@
 export async function createEmptyProfile(profileId, email) {
   // First, create a user row (to satisfy FK constraint)
   await pool.query(`
-    INSERT INTO erp.users (id, full_name, email, created_at, updated_at)
+    INSERT INTO users (id, full_name, email, created_at, updated_at)
     VALUES ($1, '', $2, now(), now())
     ON CONFLICT (id) DO NOTHING
   `, [profileId, email]);
   // Then, create the profile row
   await pool.query(`
-    INSERT INTO erp.profiles (id, onboarding_status, created_at, updated_at)
+    INSERT INTO profiles (id, onboarding_status, created_at, updated_at)
     VALUES ($1, 'pending', now(), now())
   `, [profileId]);
 }
@@ -53,8 +53,8 @@ export async function getAllJoiningForms() {
       p.onboarding_completed_at,
       u.created_at,
       COALESCE(p.updated_at, u.updated_at) as updated_at
-    FROM erp.users u
-    LEFT JOIN erp.profiles p ON u.id = p.id
+    FROM users u
+    LEFT JOIN profiles p ON u.id = p.id
     ORDER BY u.created_at DESC
   `);
   return result.rows;
@@ -96,8 +96,8 @@ export async function getJoiningFormById(profileId) {
       p.personal_email,
       p.emergency_contact,
       p.background_verification
-    FROM erp.users u
-    LEFT JOIN erp.profiles p ON u.id = p.id
+    FROM users u
+    LEFT JOIN profiles p ON u.id = p.id
     WHERE u.id = $1
   `, [profileId]);
 
@@ -108,7 +108,7 @@ export async function getJoiningFormById(profileId) {
   // Get family members
   const familyResult = await pool.query(`
     SELECT id, member_type, member_name, contact, location, relation
-    FROM erp.employee_family_members
+    FROM employee_family_members
     WHERE profile_id = $1
     ORDER BY created_at
   `, [profileId]);
@@ -116,7 +116,7 @@ export async function getJoiningFormById(profileId) {
   // Get academic info
   const academicResult = await pool.query(`
     SELECT id, qualification, specialization, institution_name, board_university, passout_year, grade_percentage
-    FROM erp.employee_academic_info
+    FROM employee_academic_info
     WHERE profile_id = $1
     ORDER BY passout_year DESC
   `, [profileId]);
@@ -124,7 +124,7 @@ export async function getJoiningFormById(profileId) {
   // Get previous employment
   const employmentResult = await pool.query(`
     SELECT id, employer_name, designation, duration_from, duration_to, salary, reason_for_leaving
-    FROM erp.employee_previous_employment
+    FROM employee_previous_employment
     WHERE profile_id = $1
     ORDER BY duration_to DESC
   `, [profileId]);
@@ -201,7 +201,7 @@ export async function upsertEmployeeInfo(profileId, data) {
   const normalizedJoinDate = normalizeDateString(join_date);
 
   await pool.query(`
-    INSERT INTO erp.profiles (
+    INSERT INTO profiles (
       id, full_name, employee_id, date_of_birth, gender, join_date,
       job_title, department, marital_status, phone, personal_email,
       bank_name, bank_ifsc, bank_branch, bank_account_number,
@@ -268,7 +268,7 @@ export async function upsertEmployeeInfo(profileId, data) {
   // Sync full_name to users table if provided
   if (full_name) {
     await pool.query(
-      'UPDATE erp.users SET full_name = $1 WHERE id = $2',
+      'UPDATE users SET full_name = $1 WHERE id = $2',
       [full_name, profileId]
     );
   }
@@ -281,7 +281,7 @@ export async function upsertEmployeeInfo(profileId, data) {
 export async function addFamilyMember(profileId, data) {
   const { member_type, member_name, contact, location, relation } = data;
   const result = await pool.query(`
-    INSERT INTO erp.employee_family_members (profile_id, member_type, member_name, contact, location, relation)
+    INSERT INTO employee_family_members (profile_id, member_type, member_name, contact, location, relation)
     VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *
   `, [profileId, member_type, member_name, contact || null, location || null, relation || null]);
@@ -294,7 +294,7 @@ export async function addFamilyMember(profileId, data) {
 export async function updateFamilyMember(memberId, data) {
   const { member_type, member_name, contact, location, relation } = data;
   const result = await pool.query(`
-    UPDATE erp.employee_family_members
+    UPDATE employee_family_members
     SET member_type = $1, member_name = $2, contact = $3, location = $4, relation = $5, updated_at = now()
     WHERE id = $6
     RETURNING *
@@ -306,7 +306,7 @@ export async function updateFamilyMember(memberId, data) {
  * Delete family member
  */
 export async function deleteFamilyMember(memberId) {
-  await pool.query('DELETE FROM erp.employee_family_members WHERE id = $1', [memberId]);
+  await pool.query('DELETE FROM employee_family_members WHERE id = $1', [memberId]);
 }
 
 /**
@@ -315,7 +315,7 @@ export async function deleteFamilyMember(memberId) {
 export async function addAcademicInfo(profileId, data) {
   const { qualification, specialization, institution_name, board_university, passout_year, grade_percentage } = data;
   const result = await pool.query(`
-    INSERT INTO erp.employee_academic_info (profile_id, qualification, specialization, institution_name, board_university, passout_year, grade_percentage)
+    INSERT INTO employee_academic_info (profile_id, qualification, specialization, institution_name, board_university, passout_year, grade_percentage)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *
   `, [profileId, qualification, specialization || null, institution_name, board_university, passout_year, grade_percentage]);
@@ -328,7 +328,7 @@ export async function addAcademicInfo(profileId, data) {
 export async function updateAcademicInfo(academicId, data) {
   const { qualification, specialization, institution_name, board_university, passout_year, grade_percentage } = data;
   const result = await pool.query(`
-    UPDATE erp.employee_academic_info
+    UPDATE employee_academic_info
     SET qualification = $1, specialization = $2, institution_name = $3, board_university = $4, passout_year = $5, grade_percentage = $6, updated_at = now()
     WHERE id = $7
     RETURNING *
@@ -340,7 +340,7 @@ export async function updateAcademicInfo(academicId, data) {
  * Delete academic qualification
  */
 export async function deleteAcademicInfo(academicId) {
-  await pool.query('DELETE FROM erp.employee_academic_info WHERE id = $1', [academicId]);
+  await pool.query('DELETE FROM employee_academic_info WHERE id = $1', [academicId]);
 }
 
 /**
@@ -349,7 +349,7 @@ export async function deleteAcademicInfo(academicId) {
 export async function addPreviousEmployment(profileId, data) {
   const { employer_name, designation, duration_from, duration_to, salary, reason_for_leaving } = data;
   const result = await pool.query(`
-    INSERT INTO erp.employee_previous_employment (profile_id, employer_name, designation, duration_from, duration_to, salary, reason_for_leaving)
+    INSERT INTO employee_previous_employment (profile_id, employer_name, designation, duration_from, duration_to, salary, reason_for_leaving)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *
   `, [profileId, employer_name, designation, duration_from, duration_to, salary || null, reason_for_leaving || null]);
@@ -362,7 +362,7 @@ export async function addPreviousEmployment(profileId, data) {
 export async function updatePreviousEmployment(employmentId, data) {
   const { employer_name, designation, duration_from, duration_to, salary, reason_for_leaving } = data;
   const result = await pool.query(`
-    UPDATE erp.employee_previous_employment
+    UPDATE employee_previous_employment
     SET employer_name = $1, designation = $2, duration_from = $3, duration_to = $4, salary = $5, reason_for_leaving = $6, updated_at = now()
     WHERE id = $7
     RETURNING *
@@ -374,7 +374,7 @@ export async function updatePreviousEmployment(employmentId, data) {
  * Delete previous employment
  */
 export async function deletePreviousEmployment(employmentId) {
-  await pool.query('DELETE FROM erp.employee_previous_employment WHERE id = $1', [employmentId]);
+  await pool.query('DELETE FROM employee_previous_employment WHERE id = $1', [employmentId]);
 }
 
 /**
@@ -382,7 +382,7 @@ export async function deletePreviousEmployment(employmentId) {
  */
 export async function saveFamilyMembers(profileId, members) {
   // Delete existing
-  await pool.query('DELETE FROM erp.employee_family_members WHERE profile_id = $1', [profileId]);
+  await pool.query('DELETE FROM employee_family_members WHERE profile_id = $1', [profileId]);
 
   // Insert new
   for (const member of members) {
@@ -395,7 +395,7 @@ export async function saveFamilyMembers(profileId, members) {
  */
 export async function saveAcademicInfo(profileId, academics) {
   // Delete existing
-  await pool.query('DELETE FROM erp.employee_academic_info WHERE profile_id = $1', [profileId]);
+  await pool.query('DELETE FROM employee_academic_info WHERE profile_id = $1', [profileId]);
 
   // Insert new
   for (const academic of academics) {
@@ -408,7 +408,7 @@ export async function saveAcademicInfo(profileId, academics) {
  */
 export async function savePreviousEmployment(profileId, employments) {
   // Delete existing
-  await pool.query('DELETE FROM erp.employee_previous_employment WHERE profile_id = $1', [profileId]);
+  await pool.query('DELETE FROM employee_previous_employment WHERE profile_id = $1', [profileId]);
 
   // Insert new
   for (const employment of employments) {
@@ -421,7 +421,7 @@ export async function savePreviousEmployment(profileId, employments) {
  */
 export async function completeOnboarding(profileId) {
   await pool.query(`
-    UPDATE erp.profiles
+    UPDATE profiles
     SET onboarding_status = 'completed', onboarding_completed_at = now(), updated_at = now()
     WHERE id = $1
   `, [profileId]);
@@ -441,8 +441,8 @@ export async function getPendingOnboarding() {
       p.job_title AS designation,
       COALESCE(p.onboarding_status, 'pending') as onboarding_status,
       u.created_at
-    FROM erp.users u
-    LEFT JOIN erp.profiles p ON u.id = p.id
+    FROM users u
+    LEFT JOIN profiles p ON u.id = p.id
     WHERE p.onboarding_status != 'completed' OR p.onboarding_status IS NULL
     ORDER BY u.created_at DESC
   `);

@@ -17,14 +17,14 @@ async function makeAdmin() {
 
     // Check if user exists
     const userCheck = await pool.query(
-      'SELECT id, email FROM erp.users WHERE email = $1',
+      'SELECT id, email FROM users WHERE email = $1',
       [email]
     );
 
     if (userCheck.rows.length === 0) {
       console.error(`❌ User with email ${email} not found!`);
       console.log('\nAvailable users:');
-      const allUsers = await pool.query('SELECT email FROM erp.users');
+      const allUsers = await pool.query('SELECT email FROM users');
       allUsers.rows.forEach(user => {
         console.log(`  - ${user.email}`);
       });
@@ -35,13 +35,13 @@ async function makeAdmin() {
 
     // Delete any existing roles for this user
     await pool.query(
-      'DELETE FROM erp.user_roles WHERE user_id = $1',
+      'DELETE FROM user_roles WHERE user_id = $1',
       [userId]
     );
 
     // Insert admin role (using ON CONFLICT to handle duplicates)
     await pool.query(
-      `INSERT INTO erp.user_roles (id, user_id, role)
+      `INSERT INTO user_roles (id, user_id, role)
        VALUES (uuid_generate_v4(), $1, 'admin')
        ON CONFLICT (user_id, role) DO NOTHING`,
       [userId]
@@ -51,7 +51,7 @@ async function makeAdmin() {
     
     // Verify
     const roleCheck = await pool.query(
-      'SELECT role FROM erp.user_roles WHERE user_id = $1',
+      'SELECT role FROM user_roles WHERE user_id = $1',
       [userId]
     );
     

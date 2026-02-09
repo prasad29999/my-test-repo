@@ -40,7 +40,7 @@ async function fixAllWeekStarts() {
     // Get all timesheets
     const allTimesheets = await pool.query(
       `SELECT id, user_id, week_start, week_end, status
-       FROM erp.timesheets
+       FROM timesheets
        ORDER BY week_start, user_id`
     );
 
@@ -77,7 +77,7 @@ async function fixAllWeekStarts() {
 
       // Check if a timesheet with correct week_start already exists for this user
       const existingCorrect = await pool.query(
-        `SELECT id FROM erp.timesheets
+        `SELECT id FROM timesheets
          WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)`,
         [timesheet.user_id, correctWeekStart]
       );
@@ -90,7 +90,7 @@ async function fixAllWeekStarts() {
 
         // Get all entries from old timesheet
         const oldEntries = await pool.query(
-          `SELECT * FROM erp.timesheet_entries WHERE timesheet_id = $1`,
+          `SELECT * FROM timesheet_entries WHERE timesheet_id = $1`,
           [timesheet.id]
         );
 
@@ -99,7 +99,7 @@ async function fixAllWeekStarts() {
         for (const oldEntry of oldEntries.rows) {
           // Check if entry with same project/task/source exists in correct timesheet
           const existingEntry = await pool.query(
-            `SELECT id FROM erp.timesheet_entries
+            `SELECT id FROM timesheet_entries
              WHERE timesheet_id = $1 AND project = $2 AND task = $3 AND source = $4
              LIMIT 1`,
             [correctTimesheetId, oldEntry.project, oldEntry.task, oldEntry.source]
@@ -108,7 +108,7 @@ async function fixAllWeekStarts() {
           if (existingEntry.rows.length > 0) {
             // Update existing entry - add hours
             await pool.query(
-              `UPDATE erp.timesheet_entries
+              `UPDATE timesheet_entries
                SET mon_hours = mon_hours + $1,
                    tue_hours = tue_hours + $2,
                    wed_hours = wed_hours + $3,
@@ -133,7 +133,7 @@ async function fixAllWeekStarts() {
           } else {
             // Insert as new entry
             await pool.query(
-              `INSERT INTO erp.timesheet_entries
+              `INSERT INTO timesheet_entries
                (timesheet_id, project, task, source, mon_hours, tue_hours, wed_hours, thu_hours, fri_hours, sat_hours, sun_hours, created_at, updated_at)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
               [
@@ -155,15 +155,15 @@ async function fixAllWeekStarts() {
         }
 
         // Delete old timesheet and its entries
-        await pool.query('DELETE FROM erp.timesheet_entries WHERE timesheet_id = $1', [timesheet.id]);
-        await pool.query('DELETE FROM erp.timesheets WHERE id = $1', [timesheet.id]);
+        await pool.query('DELETE FROM timesheet_entries WHERE timesheet_id = $1', [timesheet.id]);
+        await pool.query('DELETE FROM timesheets WHERE id = $1', [timesheet.id]);
         console.log(`   ✅ Deleted old timesheet ${timesheet.id}`);
         merged.push({ old: timesheet.id, new: correctTimesheetId });
       } else {
         // Update week_start and week_end
         try {
           await pool.query(
-            `UPDATE erp.timesheets
+            `UPDATE timesheets
              SET week_start = $1, week_end = $2, updated_at = NOW()
              WHERE id = $3`,
             [correctWeekStart, correctWeekEnd, timesheet.id]

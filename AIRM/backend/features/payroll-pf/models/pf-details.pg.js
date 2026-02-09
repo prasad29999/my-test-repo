@@ -16,9 +16,9 @@ export async function getPfDetails(userId) {
       u.email,
       u.full_name,
       upd.full_name as updated_by_name
-    FROM erp.pf_details pf
-    LEFT JOIN erp.users u ON pf.user_id = u.id
-    LEFT JOIN erp.users upd ON pf.updated_by = upd.id
+    FROM pf_details pf
+    LEFT JOIN users u ON pf.user_id = u.id
+    LEFT JOIN users upd ON pf.updated_by = upd.id
     WHERE pf.user_id = $1`,
     [userId]
   );
@@ -43,7 +43,7 @@ export async function upsertPfDetails(pfData) {
   } = pfData;
 
   const result = await pool.query(
-    `INSERT INTO erp.pf_details (
+    `INSERT INTO pf_details (
       user_id, uan_number, pf_account_number, enrollment_date, status,
       employee_contribution_percent, employer_contribution_percent, pf_base_salary, notes, updated_by, updated_at
     )

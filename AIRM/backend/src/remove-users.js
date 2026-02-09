@@ -18,14 +18,14 @@ async function removeUsers() {
 
     // First, get the user to keep
     const keepUserResult = await pool.query(
-      'SELECT id, email FROM erp.users WHERE email = $1',
+      'SELECT id, email FROM users WHERE email = $1',
       [keepEmail]
     );
 
     if (keepUserResult.rows.length === 0) {
       console.error(`❌ User with email ${keepEmail} not found!`);
       console.log('\nAvailable users:');
-      const allUsers = await pool.query('SELECT id, email FROM erp.users');
+      const allUsers = await pool.query('SELECT id, email FROM users');
       allUsers.rows.forEach(user => {
         console.log(`  - ${user.email}`);
       });
@@ -37,7 +37,7 @@ async function removeUsers() {
 
     // Get all users except the one to keep
     const allUsersResult = await pool.query(
-      'SELECT id, email FROM erp.users WHERE id != $1',
+      'SELECT id, email FROM users WHERE id != $1',
       [keepUserId]
     );
 
@@ -67,7 +67,7 @@ async function removeUsers() {
 
     // Delete all users except the one to keep
     const deleteResult = await pool.query(
-      'DELETE FROM erp.users WHERE id != $1 RETURNING id, email',
+      'DELETE FROM users WHERE id != $1 RETURNING id, email',
       [keepUserId]
     );
 
@@ -77,7 +77,7 @@ async function removeUsers() {
     });
 
     // Verify
-    const remainingUsers = await pool.query('SELECT id, email FROM erp.users');
+    const remainingUsers = await pool.query('SELECT id, email FROM users');
     console.log(`\n✅ Remaining users (${remainingUsers.rows.length}):`);
     remainingUsers.rows.forEach(user => {
       console.log(`   - ${user.email}`);

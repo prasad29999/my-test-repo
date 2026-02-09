@@ -41,7 +41,7 @@ async function fixAllTimesheetWeeks() {
 
     const allTimesheets = await pool.query(
       `SELECT id, user_id, week_start, week_end
-       FROM erp.timesheets
+       FROM timesheets
        ORDER BY week_start, user_id`
     );
 
@@ -68,7 +68,7 @@ async function fixAllTimesheetWeeks() {
 
       // Check if timesheet with correct week_start already exists
       const existing = await pool.query(
-        `SELECT id FROM erp.timesheets
+        `SELECT id FROM timesheets
          WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)`,
         [ts.user_id, correctWeekStart]
       );
@@ -76,13 +76,13 @@ async function fixAllTimesheetWeeks() {
       if (existing.rows.length > 0) {
         // Merge entries
         const entries = await pool.query(
-          `SELECT * FROM erp.timesheet_entries WHERE timesheet_id = $1`,
+          `SELECT * FROM timesheet_entries WHERE timesheet_id = $1`,
           [ts.id]
         );
 
         for (const entry of entries.rows) {
           const existingEntry = await pool.query(
-            `SELECT id FROM erp.timesheet_entries
+            `SELECT id FROM timesheet_entries
              WHERE timesheet_id = $1 AND project = $2 AND task = $3 AND source = $4
              LIMIT 1`,
             [existing.rows[0].id, entry.project, entry.task, entry.source]
@@ -91,7 +91,7 @@ async function fixAllTimesheetWeeks() {
           if (existingEntry.rows.length > 0) {
             // Add hours
             await pool.query(
-              `UPDATE erp.timesheet_entries
+              `UPDATE timesheet_entries
                SET mon_hours = mon_hours + $1,
                    tue_hours = tue_hours + $2,
                    wed_hours = wed_hours + $3,
@@ -114,19 +114,19 @@ async function fixAllTimesheetWeeks() {
             );
           } else {
             await pool.query(
-              `UPDATE erp.timesheet_entries SET timesheet_id = $1 WHERE id = $2`,
+              `UPDATE timesheet_entries SET timesheet_id = $1 WHERE id = $2`,
               [existing.rows[0].id, entry.id]
             );
           }
         }
 
-        await pool.query('DELETE FROM erp.timesheets WHERE id = $1', [ts.id]);
+        await pool.query('DELETE FROM timesheets WHERE id = $1', [ts.id]);
         console.log(`   ✅ Merged into timesheet ${existing.rows[0].id}`);
         merged.push({ from: ts.id, to: existing.rows[0].id });
       } else {
         // Update week_start
         await pool.query(
-          `UPDATE erp.timesheets
+          `UPDATE timesheets
            SET week_start = $1, week_end = $2, updated_at = NOW()
            WHERE id = $3`,
           [correctWeekStart, correctWeekEnd, ts.id]

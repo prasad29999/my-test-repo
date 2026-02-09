@@ -16,9 +16,9 @@ export async function getPfContributions(filters = {}) {
       u.email,
       u.full_name,
       pf.uan_number
-    FROM erp.pf_contributions pfc
-    LEFT JOIN erp.users u ON pfc.user_id = u.id
-    LEFT JOIN erp.pf_details pf ON pfc.pf_detail_id = pf.id
+    FROM pf_contributions pfc
+    LEFT JOIN users u ON pfc.user_id = u.id
+    LEFT JOIN pf_details pf ON pfc.pf_detail_id = pf.id
     WHERE 1=1
   `;
   const params = [];
@@ -68,7 +68,7 @@ export async function createPfContribution(contributionData) {
   } = contributionData;
 
   const result = await pool.query(
-    `INSERT INTO erp.pf_contributions (
+    `INSERT INTO pf_contributions (
       user_id, pf_detail_id, month, year, basic_salary,
       employee_contribution, employer_contribution, total_contribution,
       payslip_id, contribution_date, status, remarks

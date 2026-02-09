@@ -77,20 +77,20 @@ export async function syncUsers() {
   for (const gitUser of gitlabUsers) {
     try {
       const existingUser = await pool.query(
-        'SELECT id FROM erp.users WHERE email = $1 OR gitlab_id = $2',
+        'SELECT id FROM users WHERE email = $1 OR gitlab_id = $2',
         [gitUser.email, gitUser.id]
       );
 
       if (existingUser.rows.length === 0) {
         const insertResult = await pool.query(
-          `INSERT INTO erp.users (email, full_name, gitlab_id, gitlab_username, created_at) 
+          `INSERT INTO users (email, full_name, gitlab_id, gitlab_username, created_at) 
            VALUES ($1, $2, $3, $4, NOW()) RETURNING id`,
           [gitUser.email, gitUser.name, gitUser.id, gitUser.username]
         );
         
         if (insertResult.rows.length > 0) {
           await pool.query(
-            `INSERT INTO erp.user_roles (user_id, role, created_at) 
+            `INSERT INTO user_roles (user_id, role, created_at) 
              VALUES ($1, 'user', NOW())`,
             [insertResult.rows[0].id]
           );
@@ -98,7 +98,7 @@ export async function syncUsers() {
         syncedCount++;
       } else {
         await pool.query(
-          `UPDATE erp.users SET 
+          `UPDATE users SET 
            gitlab_id = $1, 
            gitlab_username = $2, 
            full_name = COALESCE(NULLIF($3, ''), full_name)
@@ -126,14 +126,14 @@ export async function syncIssues() {
   for (const gitIssue of gitlabIssues) {
     try {
       const existingIssue = await pool.query(
-        'SELECT id FROM erp.issues WHERE gitlab_id = $1',
+        'SELECT id FROM issues WHERE gitlab_id = $1',
         [gitIssue.id]
       );
 
       let assignedUserId = null;
       if (gitIssue.assignee) {
         const assignedUser = await pool.query(
-          'SELECT id FROM erp.users WHERE gitlab_id = $1',
+          'SELECT id FROM users WHERE gitlab_id = $1',
           [gitIssue.assignee.id]
         );
         if (assignedUser.rows.length > 0) {
@@ -143,7 +143,7 @@ export async function syncIssues() {
 
       let authorId = null;
       const author = await pool.query(
-        'SELECT id FROM erp.users WHERE gitlab_id = $1',
+        'SELECT id FROM users WHERE gitlab_id = $1',
         [gitIssue.author.id]
       );
       if (author.rows.length > 0) {
@@ -152,7 +152,7 @@ export async function syncIssues() {
 
       if (existingIssue.rows.length === 0) {
         await pool.query(
-          `INSERT INTO erp.issues (title, description, status, priority, gitlab_id, gitlab_iid, 
+          `INSERT INTO issues (title, description, status, priority, gitlab_id, gitlab_iid, 
            created_by, assigned_to, created_at, updated_at) 
            VALUES ($1, $2, $3, 'medium', $4, $5, $6, $7, $8, $9)`,
           [
@@ -170,7 +170,7 @@ export async function syncIssues() {
         syncedCount++;
       } else {
         await pool.query(
-          `UPDATE erp.issues SET 
+          `UPDATE issues SET 
            title = $1, 
            description = $2, 
            status = $3,
@@ -201,8 +201,8 @@ export async function syncIssues() {
 export async function getMappedUsers() {
   const result = await pool.query(
     `SELECT u.id, u.email, u.full_name, u.gitlab_id, u.gitlab_username, ur.role, u.created_at
-     FROM erp.users u
-     LEFT JOIN erp.user_roles ur ON u.id = ur.user_id
+     FROM users u
+     LEFT JOIN user_roles ur ON u.id = ur.user_id
      WHERE u.gitlab_id IS NOT NULL
      ORDER BY u.full_name`
   );

@@ -27,8 +27,8 @@ export async function getEmployeeDocuments(employeeId) {
         d.updated_at,
         u.email as uploaded_by_email,
         u.full_name as uploaded_by_name
-      FROM erp.employee_documents d
-      LEFT JOIN erp.users u ON d.uploaded_by = u.id
+      FROM employee_documents d
+      LEFT JOIN users u ON d.uploaded_by = u.id
       WHERE d.employee_id = $1
       ORDER BY d.created_at DESC`,
       [employeeId]
@@ -62,8 +62,8 @@ export async function getDocumentById(documentId) {
       d.updated_at,
       u.email as uploaded_by_email,
       u.full_name as uploaded_by_name
-    FROM erp.employee_documents d
-    LEFT JOIN erp.users u ON d.uploaded_by = u.id
+    FROM employee_documents d
+    LEFT JOIN users u ON d.uploaded_by = u.id
     WHERE d.id = $1`,
     [documentId]
   );
@@ -85,7 +85,7 @@ export async function createDocument(documentData) {
   } = documentData;
 
   const result = await pool.query(
-    `INSERT INTO erp.employee_documents (
+    `INSERT INTO employee_documents (
       employee_id,
       document_category,
       document_type,
@@ -114,7 +114,7 @@ export async function createDocument(documentData) {
  */
 export async function updateDocumentStatus(documentId, verificationStatus, remarks = null) {
   const result = await pool.query(
-    `UPDATE erp.employee_documents
+    `UPDATE employee_documents
      SET verification_status = $1,
          remarks = $2,
          updated_at = now()
@@ -130,7 +130,7 @@ export async function updateDocumentStatus(documentId, verificationStatus, remar
  */
 export async function deleteDocument(documentId) {
   const result = await pool.query(
-    'DELETE FROM erp.employee_documents WHERE id = $1 RETURNING *',
+    'DELETE FROM employee_documents WHERE id = $1 RETURNING *',
     [documentId]
   );
   return result.rows[0] || null;
@@ -159,9 +159,9 @@ export async function getDocumentsByStatus(verificationStatus) {
       u.full_name as employee_name,
       up.email as uploaded_by_email,
       up.full_name as uploaded_by_name
-    FROM erp.employee_documents d
-    LEFT JOIN erp.users u ON d.employee_id = u.id
-    LEFT JOIN erp.users up ON d.uploaded_by = up.id
+    FROM employee_documents d
+    LEFT JOIN users u ON d.employee_id = u.id
+    LEFT JOIN users up ON d.uploaded_by = up.id
     WHERE d.verification_status = $1
     ORDER BY d.created_at DESC`,
     [verificationStatus]
@@ -192,9 +192,9 @@ export async function getAllDocuments() {
       u.full_name as employee_name,
       up.email as uploaded_by_email,
       up.full_name as uploaded_by_name
-    FROM erp.employee_documents d
-    LEFT JOIN erp.users u ON d.employee_id = u.id
-    LEFT JOIN erp.users up ON d.uploaded_by = up.id
+    FROM employee_documents d
+    LEFT JOIN users u ON d.employee_id = u.id
+    LEFT JOIN users up ON d.uploaded_by = up.id
     ORDER BY d.created_at DESC`
   );
   return result.rows;
@@ -205,7 +205,7 @@ export async function getAllDocuments() {
  */
 export async function documentExists(documentId) {
   const result = await pool.query(
-    'SELECT id FROM erp.employee_documents WHERE id = $1',
+    'SELECT id FROM employee_documents WHERE id = $1',
     [documentId]
   );
   return result.rows.length > 0;
@@ -232,8 +232,8 @@ export async function getEmployeeDocumentsByCategory(employeeId, category) {
       d.updated_at,
       u.email as uploaded_by_email,
       u.full_name as uploaded_by_name
-    FROM erp.employee_documents d
-    LEFT JOIN erp.users u ON d.uploaded_by = u.id
+    FROM employee_documents d
+    LEFT JOIN users u ON d.uploaded_by = u.id
     WHERE d.employee_id = $1 AND d.document_category = $2
     ORDER BY d.created_at DESC`,
     [employeeId, category]

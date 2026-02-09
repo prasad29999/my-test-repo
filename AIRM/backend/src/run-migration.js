@@ -20,9 +20,9 @@ const runMigration = async () => {
     
     console.log('✅ Migration completed successfully!');
     console.log('📊 Created tables:');
-    console.log('   - erp.gitlab_projects');
-    console.log('   - erp.project_members');
-    console.log('   - Updated erp.gitlab_issues');
+    console.log('   - gitlab_projects');
+    console.log('   - project_members');
+    console.log('   - Updated gitlab_issues');
     console.log('   - Updated foreign key constraints');
     
   } catch (error) {

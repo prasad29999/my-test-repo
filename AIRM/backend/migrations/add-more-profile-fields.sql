@@ -1,4 +1,4 @@
-ALTER TABLE erp.profiles
+ALTER TABLE profiles
 ADD COLUMN IF NOT EXISTS family_details JSONB DEFAULT '[]',
 ADD COLUMN IF NOT EXISTS bank_details JSONB DEFAULT '{}',
 ADD COLUMN IF NOT EXISTS personal_details JSONB DEFAULT '{}',

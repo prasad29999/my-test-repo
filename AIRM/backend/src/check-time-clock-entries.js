@@ -14,7 +14,7 @@ async function checkTimeClockEntries() {
     // Get recent clock-out entries
     const clockOuts = await pool.query(
       `SELECT id, user_id, issue_id, project_name, clock_in, clock_out, total_hours, status
-       FROM erp.time_clock
+       FROM time_clock
        WHERE status = 'clocked_out' AND clock_out IS NOT NULL
        ORDER BY clock_out DESC
        LIMIT 20`
@@ -43,7 +43,7 @@ async function checkTimeClockEntries() {
 
       // Check if timesheet exists for this week
       const timesheet = await pool.query(
-        `SELECT id FROM erp.timesheets
+        `SELECT id FROM timesheets
          WHERE user_id = $1 AND CAST(week_start AS DATE) = CAST($2 AS DATE)`,
         [entry.user_id, weekStartStr]
       );
@@ -55,7 +55,7 @@ async function checkTimeClockEntries() {
         // Check for entries in this timesheet
         const timesheetEntries = await pool.query(
           `SELECT id, project, task, source, ${['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'][dayOfWeek]}_hours as day_hours
-           FROM erp.timesheet_entries
+           FROM timesheet_entries
            WHERE timesheet_id = $1 AND source = 'time_clock'`,
           [tsId]
         );

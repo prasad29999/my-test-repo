@@ -10,7 +10,7 @@ import pool from '../../../shared/database/connection.js';
  */
 export async function getLeaveBalances(userId) {
   const result = await pool.query(
-    `SELECT * FROM erp.leave_balances
+    `SELECT * FROM leave_balances
      WHERE user_id = $1
      ORDER BY leave_type, financial_year DESC`,
     [userId]
@@ -25,9 +25,9 @@ export async function getUserJoinDate(userId) {
   const result = await pool.query(
     `SELECT 
       COALESCE(p.join_date, (CASE WHEN e.joining_date IS NOT NULL AND e.joining_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN e.joining_date::date ELSE NULL END)) as join_date
-     FROM erp.users u
-     LEFT JOIN erp.profiles p ON u.id = p.id
-     LEFT JOIN erp.employee e ON p.id = e.profile_id
+     FROM users u
+     LEFT JOIN profiles p ON u.id = p.id
+     LEFT JOIN employee e ON p.id = e.profile_id
      WHERE u.id = $1`,
     [userId]
   );
@@ -41,7 +41,7 @@ export async function updateLeaveBalance(balanceData) {
   const { user_id, leave_type, financial_year, opening_balance, availed, balance } = balanceData;
 
   const result = await pool.query(
-    `INSERT INTO erp.leave_balances (
+    `INSERT INTO leave_balances (
       user_id, leave_type, financial_year, opening_balance, availed, balance
     ) VALUES ($1, $2, $3, $4, $5, $6)
     ON CONFLICT (user_id, leave_type, financial_year)
@@ -62,8 +62,8 @@ export async function updateLeaveBalance(balanceData) {
 export async function getShiftRoster(startDate, endDate) {
   const result = await pool.query(
     `SELECT sr.*, u.email, u.full_name
-     FROM erp.shift_roster sr
-     JOIN erp.users u ON sr.user_id = u.id
+     FROM shift_roster sr
+     JOIN users u ON sr.user_id = u.id
      WHERE sr.date BETWEEN $1 AND $2
      ORDER BY sr.date, u.full_name`,
     [startDate, endDate]
@@ -77,7 +77,7 @@ export async function getShiftRoster(startDate, endDate) {
 export async function updateShiftRoster(shiftData) {
   const { user_id, date, shift_type, start_time, end_time } = shiftData;
   const result = await pool.query(
-    `INSERT INTO erp.shift_roster (user_id, date, shift_type, start_time, end_time)
+    `INSERT INTO shift_roster (user_id, date, shift_type, start_time, end_time)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (user_id, date)
      DO UPDATE SET
@@ -106,7 +106,7 @@ export async function getAttendance(startDate, endDate) {
   // Get all employees (active profiles with join_date)
   const userRows = await pool.query(`
     SELECT u.id, u.email, u.full_name
-    FROM erp.users u
+    FROM users u
   `);
   const users = userRows.rows;
 
@@ -129,9 +129,9 @@ export async function getAttendance(startDate, endDate) {
          WHEN MAX(tc.clock_out) IS NULL THEN 'present'
          ELSE 'absent'
        END as status
-     FROM erp.time_clock tc
-     JOIN erp.users u ON tc.user_id = u.id
-     LEFT JOIN erp.shift_roster sr ON tc.user_id = sr.user_id AND DATE(tc.clock_in) = sr.date
+     FROM time_clock tc
+     JOIN users u ON tc.user_id = u.id
+     LEFT JOIN shift_roster sr ON tc.user_id = sr.user_id AND DATE(tc.clock_in) = sr.date
      WHERE DATE(tc.clock_in) BETWEEN $1 AND $2
      GROUP BY tc.user_id, u.email, u.full_name, DATE(tc.clock_in), sr.shift_type
      ORDER BY DATE(tc.clock_in) DESC, u.full_name`,
@@ -144,7 +144,7 @@ export async function getAttendance(startDate, endDate) {
 
   // Get all approved leave requests in the range
   const leaveRows = await pool.query(
-    `SELECT user_id, start_date, end_date FROM erp.leave_requests WHERE status = 'approved' AND start_date <= $2 AND end_date >= $1`,
+    `SELECT user_id, start_date, end_date FROM leave_requests WHERE status = 'approved' AND start_date <= $2 AND end_date >= $1`,
     [startDate, endDate]
   );
   const leaveMap = {};
@@ -228,7 +228,7 @@ export async function updateAttendanceRecord(attendanceData) {
   const { user_id, date, shift_id, clock_in, clock_out, total_hours, status, notes } = attendanceData;
 
   const result = await pool.query(
-    `INSERT INTO erp.attendance (
+    `INSERT INTO attendance (
       user_id, date, shift_id, clock_in, clock_out, total_hours, status, notes
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     ON CONFLICT (user_id, date)
@@ -255,8 +255,8 @@ export async function getAllLeaveRequests(userId, isAdmin) {
       lr.*,
       u.email as user_email,
       COALESCE(u.full_name, '') as user_full_name
-    FROM erp.leave_requests lr
-    LEFT JOIN erp.users u ON lr.user_id = u.id
+    FROM leave_requests lr
+    LEFT JOIN users u ON lr.user_id = u.id
   `;
 
   const params = [];
@@ -277,7 +277,7 @@ export async function getAllLeaveRequests(userId, isAdmin) {
  */
 export async function createLeaveRequest(userId, startDate, endDate, leaveType, reason, session) {
   const result = await pool.query(
-    `INSERT INTO erp.leave_requests (
+    `INSERT INTO leave_requests (
       id, user_id, start_date, end_date, leave_type, reason, status, session
     )
     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending', $6)
@@ -292,7 +292,7 @@ export async function createLeaveRequest(userId, startDate, endDate, leaveType, 
  */
 export async function updateLeaveRequestStatus(id, status, reviewedBy, adminNotes) {
   const result = await pool.query(
-    `UPDATE erp.leave_requests 
+    `UPDATE leave_requests 
      SET status = $1,
          reviewed_by = $2,
          reviewed_at = NOW(),
@@ -320,7 +320,7 @@ export async function getLeaveHistory(userId) {
       status,
       admin_notes,
       created_at
-    FROM erp.leave_requests
+    FROM leave_requests
     WHERE user_id = $1
     ORDER BY start_date DESC
   `;
@@ -349,9 +349,9 @@ export async function getMonthlyAttendanceReport(month, year) {
         (make_date($2, $1, 1) + '1 month'::interval - '1 day'::interval)::date,
         '1 day'::interval
       )::date AS date) AS d
-    CROSS JOIN erp.users u
-    LEFT JOIN erp.attendance a ON d.date = a.date AND u.id = a.user_id
-    LEFT JOIN erp.leave_requests lr ON u.id = lr.user_id AND d.date BETWEEN lr.start_date AND lr.end_date AND lr.status = 'approved'
+    CROSS JOIN users u
+    LEFT JOIN attendance a ON d.date = a.date AND u.id = a.user_id
+    LEFT JOIN leave_requests lr ON u.id = lr.user_id AND d.date BETWEEN lr.start_date AND lr.end_date AND lr.status = 'approved'
     ORDER BY u.id, d.date;
   `;
   const result = await pool.query(query, [month, year]);
@@ -367,9 +367,9 @@ export async function getShiftWiseAttendanceAnalysis(startDate, endDate) {
       sr.shift_type,
       sr.date,
       COUNT(a.id) as present_count,
-      (SELECT COUNT(DISTINCT u.id) FROM erp.shift_roster u WHERE u.date = sr.date AND u.shift_type = sr.shift_type) - COUNT(a.id) as absent_count
-    FROM erp.shift_roster sr
-    LEFT JOIN erp.attendance a ON sr.user_id = a.user_id AND sr.date = a.date AND a.status = 'present'
+      (SELECT COUNT(DISTINCT u.id) FROM shift_roster u WHERE u.date = sr.date AND u.shift_type = sr.shift_type) - COUNT(a.id) as absent_count
+    FROM shift_roster sr
+    LEFT JOIN attendance a ON sr.user_id = a.user_id AND sr.date = a.date AND a.status = 'present'
     WHERE sr.date BETWEEN $1 AND $2
     GROUP BY sr.date, sr.shift_type
     ORDER BY sr.date, sr.shift_type;

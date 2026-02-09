@@ -10,7 +10,7 @@ import pool from '../../../shared/database/connection.js';
  */
 export async function getAllProjectNames() {
   const result = await pool.query(
-    'SELECT DISTINCT project_name FROM erp.issues WHERE project_name IS NOT NULL AND project_name != \'\''
+    'SELECT DISTINCT project_name FROM issues WHERE project_name IS NOT NULL AND project_name != \'\''
   );
   return result.rows.map(r => r.project_name);
 }
@@ -27,7 +27,7 @@ export async function getAllProjects() {
       COUNT(CASE WHEN status = 'open' THEN 1 END) as open_issues,
       COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed_issues,
       MIN(created_at) as created_at
-    FROM erp.issues 
+    FROM issues 
     WHERE project_name IS NOT NULL AND project_name != ''
     GROUP BY project_name`
   );
@@ -45,7 +45,7 @@ export async function getAllProjects() {
 
     if (tableCheck.rows[0]?.exists) {
       gitlabProjects = await pool.query(
-        'SELECT * FROM erp.gitlab_projects ORDER BY created_at DESC'
+        'SELECT * FROM gitlab_projects ORDER BY created_at DESC'
       );
     }
   } catch (err) {
@@ -108,8 +108,8 @@ export async function getProjectById(id) {
       COUNT(CASE WHEN status = 'open' THEN 1 END) as open_issues,
       COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed_issues,
       MIN(created_at) as created_at
-    FROM erp.issues 
-    WHERE ${isNumeric ? 'id = $1 OR project_name = (SELECT project_name FROM erp.issues WHERE id = $1)' : 'project_name = $1'}
+    FROM issues 
+    WHERE ${isNumeric ? 'id = $1 OR project_name = (SELECT project_name FROM issues WHERE id = $1)' : 'project_name = $1'}
     GROUP BY project_name, description`;
 
   const result = await pool.query(query, [id]);
@@ -121,7 +121,7 @@ export async function getProjectById(id) {
  */
 export async function createProject(name, description, userId) {
   const result = await pool.query(
-    `INSERT INTO erp.issues (title, description, status, priority, project_name, created_by)
+    `INSERT INTO issues (title, description, status, priority, project_name, created_by)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
     [
@@ -154,7 +154,7 @@ export async function getGitLabProject(id) {
     }
 
     const result = await pool.query(
-      'SELECT * FROM erp.gitlab_projects WHERE id = $1',
+      'SELECT * FROM gitlab_projects WHERE id = $1',
       [id]
     );
     return result.rows[0] || null;
@@ -184,7 +184,7 @@ export async function updateGitLabProject(id, updates) {
 
   updateValues.push(id);
   const updateQuery = `
-    UPDATE erp.gitlab_projects 
+    UPDATE gitlab_projects 
     SET ${updateFields.join(', ')}, updated_at = NOW()
     WHERE id = $${paramCount}
     RETURNING *
@@ -212,7 +212,7 @@ export async function deleteGitLabProject(id) {
       // Get the gitlab_project_id first
       const project = await getGitLabProject(id);
       if (project) {
-        await pool.query('DELETE FROM erp.gitlab_issues WHERE project_id = $1', [project.gitlab_project_id]);
+        await pool.query('DELETE FROM gitlab_issues WHERE project_id = $1', [project.gitlab_project_id]);
       }
     }
   } catch (err) {
@@ -220,7 +220,7 @@ export async function deleteGitLabProject(id) {
   }
 
   const result = await pool.query(
-    'DELETE FROM erp.gitlab_projects WHERE id = $1 RETURNING *',
+    'DELETE FROM gitlab_projects WHERE id = $1 RETURNING *',
     [id]
   );
   return result.rows[0] || null;
@@ -234,7 +234,7 @@ export async function getProjectByName(name) {
     `SELECT 
       project_name as name,
       MIN(created_at) as created_at
-    FROM erp.issues 
+    FROM issues 
     WHERE project_name = $1
     GROUP BY project_name`,
     [name]
@@ -247,7 +247,7 @@ export async function getProjectByName(name) {
  */
 export async function deleteProjectByName(name) {
   const result = await pool.query(
-    'DELETE FROM erp.issues WHERE project_name = $1 RETURNING *',
+    'DELETE FROM issues WHERE project_name = $1 RETURNING *',
     [name]
   );
   return result.rows;
