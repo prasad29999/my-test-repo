@@ -13,5 +13,33 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': [
+            'react',
+            'react-dom',
+            'react-router-dom',
+            '@tanstack/react-query'
+          ],
+          'ui-libs': [
+            'lucide-react',
+            'date-fns',
+            'clsx',
+            'tailwind-merge'
+          ],
+          'document-libs': [
+            'jspdf',
+            'docx-preview',
+            'docxtemplater',
+            'pizzip'
+          ]
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000,
   },
+  esbuild: {
+    drop: ['console', 'debugger'], // Removes logs in production automatically
+  }
 })

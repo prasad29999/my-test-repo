@@ -113,9 +113,6 @@ export default function LeaveCalendar() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Debug - render immediately to check if component mounts
-  console.log('🔵 LeaveCalendar component MOUNTED');
-
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -175,17 +172,14 @@ export default function LeaveCalendar() {
     const initPage = async () => {
       try {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        console.log('Leave Calendar - User data:', userData);
 
         if (!userData.id) {
-          console.log('Leave Calendar - No user ID, redirecting to auth');
           navigate("/auth");
           return;
         }
 
         setCurrentUser(userData);
         const currentUserResp = await api.auth.getMe() as any;
-        console.log('Leave Calendar - Current user response:', currentUserResp);
 
         // Check admin status from API response or localStorage
         const adminStatus = currentUserResp?.user?.role === 'admin' || userData?.role === 'admin';

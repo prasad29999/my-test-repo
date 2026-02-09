@@ -201,7 +201,6 @@ const Timesheet = () => {
     // Also reload when window gains focus (user switches back to tab)
     const handleFocus = () => {
       if (user && selectedUserId) {
-        console.log('👁️ Window gained focus, reloading timesheet...');
         loadTimesheet(selectedUserId || user.id);
       }
     };
@@ -216,23 +215,15 @@ const Timesheet = () => {
 
   const loadTimesheet = async (userId: string) => {
     try {
-      console.log('🚀 loadTimesheet called with userId:', userId);
       setLoading(true);
       const weekStartStr = format(weekStart, "yyyy-MM-dd");
       const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
-      // Build API parameters - for admin viewing another user, always pass user_id
       const apiParams: any = { week_start: weekStartStr };
 
-      // If admin and viewing another user, pass user_id to backend
       if (isAdmin && user && userId !== user.id) {
         apiParams.user_id = userId;
-        console.log('👑 Admin viewing timesheet for user:', userId);
-      } else {
-        console.log('👤 User viewing own timesheet:', userId);
       }
-
-      console.log('📞 API params:', apiParams);
 
       // Load all data in parallel
       const [timesheetResult, leaveResult, issuesResult, clockInResult] = await Promise.allSettled([
@@ -269,7 +260,6 @@ const Timesheet = () => {
           timingsByDay[date] = entry;
         }
       });
-      console.log('⏰ Processed clock-in timings for', userId, ':', timingsByDay);
       setClockInTimings(timingsByDay);
 
       if (timesheetResult.status === 'rejected') {
