@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1116,6 +1117,8 @@ const RecruitmentPage = () => {
                 <TableHead>Department</TableHead>
                 <TableHead>Current Stage</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Applied On</TableHead>
+                <TableHead>Last Updated</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -1147,6 +1150,12 @@ const RecruitmentPage = () => {
                       ) : (
                         getStatusBadge(candidate.interview_status)
                       )}
+                    </TableCell>
+                    <TableCell className="text-xs text-gray-500">
+                      {candidate.created_at ? format(new Date(candidate.created_at), "dd MMM yyyy") : '-'}
+                    </TableCell>
+                    <TableCell className="text-xs text-gray-500">
+                      {candidate.updated_at ? format(new Date(candidate.updated_at), "dd MMM yyyy HH:mm") : (candidate.created_at ? format(new Date(candidate.created_at), "dd MMM yyyy HH:mm") : '-')}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

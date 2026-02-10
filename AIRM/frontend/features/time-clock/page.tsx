@@ -578,9 +578,9 @@ const TimeClock = () => {
                   <p className="text-sm text-muted-foreground">
                     Started: {format(new Date(currentEntry.clock_in), "PPp")}
                   </p>
-                  {currentEntry.paused_duration && currentEntry.paused_duration > 0 && (
+                  {currentEntry.paused_duration && Number(currentEntry.paused_duration) > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Paused time: {currentEntry.paused_duration.toFixed(2)} hours
+                      Paused time: {Number(currentEntry.paused_duration).toFixed(2)} hours
                     </p>
                   )}
                   {currentEntry.notes && (

@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,6 +189,7 @@ const JoiningFormList = () => {
                 <TableHead>Department</TableHead>
                 <TableHead>Designation</TableHead>
                 <TableHead>Join Date</TableHead>
+                <TableHead>Created At</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
@@ -212,7 +214,10 @@ const JoiningFormList = () => {
                     <TableCell>{form.department || "-"}</TableCell>
                     <TableCell>{form.designation || "-"}</TableCell>
                     <TableCell>
-                      {form.join_date ? new Date(form.join_date).toLocaleDateString() : "-"}
+                      {form.join_date ? format(new Date(form.join_date), "dd MMM yyyy") : "-"}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-500">
+                      {form.created_at ? format(new Date(form.created_at), "dd MMM yyyy") : "-"}
                     </TableCell>
                     <TableCell>{getStatusBadge(form.onboarding_status)}</TableCell>
                     <TableCell>

@@ -75,4 +75,5 @@ export interface CandidateSummary {
   verification_status: RecruitmentStatus;
   final_status: 'pending' | 'hired' | 'rejected';
   created_at: string;
+  updated_at: string;
 }
