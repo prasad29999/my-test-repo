@@ -117,6 +117,7 @@ export async function getAllCandidates() {
       verification_status: c.verification_status,
       final_status: c.final_status,
       created_at: c.created_at,
+      updated_at: c.updated_at,
     }));
   } catch (error) {
     console.error('[recruitment] Error getting candidates:', error);

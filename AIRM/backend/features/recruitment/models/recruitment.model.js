@@ -46,7 +46,8 @@ export async function getAllCandidates() {
       interview_status,
       verification_status,
       final_status,
-      created_at
+      created_at,
+      updated_at
     FROM recruitment_candidates
     ORDER BY created_at DESC
   `);
