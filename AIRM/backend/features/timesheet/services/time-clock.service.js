@@ -212,26 +212,40 @@ export async function resumeTime(userId) {
     throw new Error('No paused entry');
   }
 
-  const pauseStart = new Date(pausedEntry.pause_start);
   const now = new Date();
-  const pauseDurationMs = now.getTime() - pauseStart.getTime();
-  const pauseDurationHours = pauseDurationMs / (1000 * 60 * 60);
-  const totalPausedHours = (pausedEntry.paused_duration || 0) + pauseDurationHours;
+  const pauseStart = pausedEntry.pause_start ? new Date(pausedEntry.pause_start) : now;
+
+  // Calculate duration, ensuring we don't get NaN
+  const pauseStartMs = pauseStart.getTime();
+  const pauseDurationMs = isNaN(pauseStartMs) ? 0 : now.getTime() - pauseStartMs;
+  const pauseDurationHours = Math.max(0, pauseDurationMs / (1000 * 60 * 60));
+
+  // Use parseFloat and fallback to 0 to ensure we don't do string concatenation or get NaN
+  const existingPausedHours = parseFloat(pausedEntry.paused_duration || 0) || 0;
+  const totalPausedHours = Math.round((existingPausedHours + pauseDurationHours) * 10000) / 10000;
+
+  console.log('🔄 Resuming time:', {
+    entryId: pausedEntry.id,
+    pauseStart,
+    pauseDurationHours,
+    existingPausedHours,
+    totalPausedHours
+  });
 
   return await timeClockModel.resumeEntry(pausedEntry.id, totalPausedHours);
 }
 
 /**
- * Get current time entry
+ * Helper to ensure numeric fields are numbers
  */
-export async function getCurrentEntry(userId) {
-  const entry = await timeClockModel.getCurrentEntry(userId);
-  if (!entry) {
-    return null;
-  }
-
+function mapEntry(entry) {
+  if (!entry) return null;
   return {
     ...entry,
+    paused_duration: entry.paused_duration ? parseFloat(entry.paused_duration) : 0,
+    total_hours: entry.total_hours ? parseFloat(entry.total_hours) : null,
+    latitude: entry.latitude ? parseFloat(entry.latitude) : null,
+    longitude: entry.longitude ? parseFloat(entry.longitude) : null,
     issue: entry.issue_id ? {
       id: entry.issue_id,
       title: entry.issue_title,
@@ -241,19 +255,19 @@ export async function getCurrentEntry(userId) {
 }
 
 /**
+ * Get current time entry
+ */
+export async function getCurrentEntry(userId) {
+  const entry = await timeClockModel.getCurrentEntry(userId);
+  return mapEntry(entry);
+}
+
+/**
  * Get time clock entries
  */
 export async function getTimeClockEntries(userId, isAdmin, filters) {
   const entries = await timeClockModel.getTimeClockEntries(userId, isAdmin, filters);
-
-  return entries.map(entry => ({
-    ...entry,
-    issue: entry.issue_id ? {
-      id: entry.issue_id,
-      title: entry.issue_title,
-      project_name: entry.issue_project,
-    } : null,
-  }));
+  return entries.map(mapEntry);
 }
 
 /**
@@ -261,14 +275,6 @@ export async function getTimeClockEntries(userId, isAdmin, filters) {
  */
 export async function getAllActiveEntries() {
   const entries = await timeClockModel.getAllActiveEntries();
-
-  return entries.map(entry => ({
-    ...entry,
-    issue: entry.issue_id ? {
-      id: entry.issue_id,
-      title: entry.issue_title,
-      project_name: entry.issue_project,
-    } : null,
-  }));
+  return entries.map(mapEntry);
 }
 

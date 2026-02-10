@@ -139,10 +139,11 @@ export async function resume(req, res) {
       throw error;
     }
   } catch (error) {
-    console.error('Resume error:', error);
+    console.error('❌ Resume error:', error.message);
+    console.error('❌ Resume error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to resume',
-      message: 'Internal server error'
+      message: error.message || 'Internal server error'
     });
   }
 }
