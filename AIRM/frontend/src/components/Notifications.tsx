@@ -25,24 +25,13 @@ interface Notification {
 export function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [profiles, setProfiles] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
-  const loadProfiles = async () => {
-    try {
-      const response = await api.profiles.getAll() as any;
-      setProfiles(response.profiles || response || []);
-    } catch (error) {
-      console.error("Error loading profiles for notifications:", error);
-    }
-  };
-
   useEffect(() => {
-    loadProfiles();
     loadNotifications();
 
-    // Poll for new notifications every 60 seconds (reduced frequency)
+    // Poll for new notifications every 60 seconds
     const interval = setInterval(() => {
       loadNotifications();
     }, 60000);
@@ -50,7 +39,7 @@ export function Notifications() {
     return () => {
       clearInterval(interval);
     };
-  }, [profiles]); // Reload when profiles are loaded
+  }, []); // Remove profiles dependency to prevent redundant re-loads
 
   const loadNotifications = async () => {
     try {
@@ -60,36 +49,8 @@ export function Notifications() {
       const response = await api.notifications.getAll() as any;
       const data = response.notifications || response || [];
 
-      // Generate virtual anniversary notifications
-      const today = new Date();
-      const anniversaryNotifications = profiles.filter(p => {
-        if (!p.join_date) return false;
-        // Check if join_date is a valid date string before parsing
-        const joinDateStr = p.join_date;
-        const joinDate = new Date(joinDateStr);
-        if (isNaN(joinDate.getTime())) return false;
-
-        return joinDate.getDate() === today.getDate() &&
-          joinDate.getMonth() === today.getMonth() &&
-          joinDate.getFullYear() < today.getFullYear();
-      }).map(p => {
-        const years = today.getFullYear() - new Date(p.join_date).getFullYear();
-        return {
-          id: `anniversary-${p.id}-${today.getFullYear()}`,
-          title: "Work Anniversary! 🎉",
-          message: `${p.full_name} is celebrating ${years} ${years === 1 ? 'year' : 'years'} with us today!`,
-          type: "anniversary",
-          link: `/profile/${p.id}`,
-          read: false,
-          created_at: new Date(today.setHours(0, 0, 0, 0)).toISOString(),
-          related_id: p.id
-        };
-      });
-
-      const combinedData = [...anniversaryNotifications, ...(Array.isArray(data) ? data : [])];
-
       // Sort by created_at descending and limit to 15
-      const sortedData = combinedData.sort((a: any, b: any) =>
+      const sortedData = (Array.isArray(data) ? data : []).sort((a: any, b: any) =>
         new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()
       ).slice(0, 15);
 

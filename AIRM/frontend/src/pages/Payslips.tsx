@@ -1,52 +1,44 @@
 /**
- * Payslips Page
- * Employee view: View and download own payslips
- * HR/Admin view: Manage all payslips
- * LAD Architecture: Uses SDK hooks only
+ * Payslips Page - Employee Salary Management & Payslip Generation
+ * Shows all employees with bank details, salary info, and per-employee actions
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { usePayslips, usePayslip, usePayrollMutation } from '@/sdk/features/payroll-pf';
-import type { Payslip } from '@/sdk/features/payroll-pf';
 import {
-  FileText,
-  Download,
+  useEmployeesSalaryInfo,
+  usePayrollMutation,
+  type EmployeeSalaryInfo
+} from '@/sdk/features/payroll-pf';
+import {
   Search,
-  Calendar,
-  RefreshCw,
-  Plus,
-  Lock,
-  Unlock,
-  Eye,
-  Edit,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Building,
   DollarSign,
+  Building2,
+  CreditCard,
+  Edit,
+  Save,
+  X,
   Wand2,
+  RefreshCw,
+  FileText,
+  Calendar,
 } from 'lucide-react';
-import { format } from 'date-fns';
 
 const Payslips = () => {
-  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [selectedPayslip, setSelectedPayslip] = useState<string | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
-  const [monthFilter, setMonthFilter] = useState<number | ''>('');
-  const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear());
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingSalary, setEditingSalary] = useState<string | null>(null);
+  const [salaryForm, setSalaryForm] = useState<number>(0);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeSalaryInfo | null>(null);
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -54,96 +46,78 @@ const Payslips = () => {
     setIsAdmin(userData.role === 'admin' || userData.role === 'hr');
   }, []);
 
-  const filters: any = {
-    year: yearFilter,
-  };
-
-  if (monthFilter) {
-    filters.month = monthFilter;
-  }
-
-  if (statusFilter !== 'all') {
-    filters.status = statusFilter;
-  }
-
-  // Employees can only see their own payslips
-  if (!isAdmin) {
-    filters.user_id = currentUser?.id;
-  }
-
-  const { data: payslips = [], isLoading, refetch } = usePayslips(filters);
-  const { data: payslipDetail, isLoading: detailLoading } = usePayslip(selectedPayslip);
+  const { data: employees = [], isLoading, refetch } = useEmployeesSalaryInfo();
   const mutations = usePayrollMutation();
 
-  // Filter by search query
-  const filteredPayslips = payslips.filter((payslip) => {
+  // Filter employees by search query
+  const filteredEmployees = employees.filter((emp) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
-      payslip.full_name?.toLowerCase().includes(query) ||
-      payslip.email?.toLowerCase().includes(query) ||
-      payslip.employee_id?.toLowerCase().includes(query) ||
-      payslip.payslip_id?.toLowerCase().includes(query)
+      emp.full_name?.toLowerCase().includes(query) ||
+      emp.email?.toLowerCase().includes(query) ||
+      emp.department?.toLowerCase().includes(query) ||
+      emp.account_number?.toLowerCase().includes(query)
     );
   });
 
-  const handleRelease = async (id: string) => {
+  const handleEditSalary = (employee: EmployeeSalaryInfo) => {
+    setEditingSalary(employee.id);
+    setSalaryForm(employee.pf_base_salary || 0);
+  };
+
+  const handleSaveSalary = async (employeeId: string) => {
     try {
-      await mutations.releasePayslip.mutateAsync(id);
+      await mutations.updateEmployeeSalary.mutateAsync({
+        userId: employeeId,
+        pf_base_salary: salaryForm,
+      });
       toast({
         title: 'Success',
-        description: 'Payslip released successfully',
+        description: 'Salary updated successfully',
       });
-      setIsDetailOpen(false);
+      setEditingSalary(null);
       refetch();
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to release payslip',
+        description: error.message || 'Failed to update salary',
         variant: 'destructive',
       });
     }
   };
 
-  const handleLock = async (id: string) => {
+  const handleCancelEdit = () => {
+    setEditingSalary(null);
+    setSalaryForm(0);
+  };
+
+  const handleGeneratePayslip = (employee: EmployeeSalaryInfo) => {
+    setSelectedEmployee(employee);
+    setIsGenerateOpen(true);
+  };
+
+  const handleConfirmGenerate = async () => {
+    if (!selectedEmployee) return;
+
     try {
-      await mutations.lockPayslip.mutateAsync(id);
+      await mutations.generatePayslipForEmployee.mutateAsync({
+        employee_id: selectedEmployee.id,
+        month,
+        year,
+      });
       toast({
         title: 'Success',
-        description: 'Payslip locked successfully',
+        description: `Payslip generated for ${selectedEmployee.full_name}`,
       });
-      setIsDetailOpen(false);
-      refetch();
+      setIsGenerateOpen(false);
+      setSelectedEmployee(null);
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to lock payslip',
+        description: error.message || 'Failed to generate payslip',
         variant: 'destructive',
       });
-    }
-  };
-
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'released':
-        return 'bg-green-100 text-green-800';
-      case 'generated':
-        return 'bg-blue-100 text-blue-800';
-      case 'locked':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-yellow-100 text-yellow-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'released':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'locked':
-        return <Lock className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
     }
   };
 
@@ -152,141 +126,196 @@ const Payslips = () => {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
+  if (!isAdmin) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-12 text-center">
+            <p className="text-gray-500">You do not have permission to access this page.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Payslips</h1>
+          <h1 className="text-3xl font-bold">Employee Salary Management</h1>
           <p className="text-gray-500 mt-1">
-            {isAdmin ? 'Manage employee payslips' : 'View and download your payslips'}
+            Manage employee salaries, bank details, and generate payslips
           </p>
         </div>
-        {isAdmin && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsGenerateOpen(true)}>
-              <Wand2 className="h-4 w-4 mr-2" />
-              Generate from Attendance
-            </Button>
-            <Button onClick={() => setIsCreateOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Payslip
-            </Button>
-          </div>
-        )}
       </div>
 
-      {/* Filters */}
+      {/* Search */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search by name, email, or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div>
-              <select
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value ? parseInt(e.target.value) : '')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Months</option>
-                {monthNames.map((month, idx) => (
-                  <option key={idx} value={idx + 1}>{month}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Input
-                type="number"
-                placeholder="Year"
-                value={yearFilter}
-                onChange={(e) => setYearFilter(parseInt(e.target.value) || new Date().getFullYear())}
-                className="w-full"
-              />
-            </div>
-            {isAdmin && (
-              <div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="generated">Generated</option>
-                  <option value="released">Released</option>
-                  <option value="locked">Locked</option>
-                </select>
-              </div>
-            )}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by name, email, department, or account number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Payslips List */}
+      {/* Employee List */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
-          </div>
-        ) : filteredPayslips.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <RefreshCw className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Loading employees...</p>
+            </CardContent>
+          </Card>
+        ) : filteredEmployees.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No payslips found</p>
+              <p className="text-gray-500">No employees found</p>
             </CardContent>
           </Card>
         ) : (
-          filteredPayslips.map((payslip) => (
-            <Card
-              key={payslip.id}
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => {
-                setSelectedPayslip(payslip.id);
-                setIsDetailOpen(true);
-              }}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-blue-900 flex items-center justify-center text-white font-semibold">
-                      {payslip.full_name?.charAt(0) || 'E'}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="font-semibold">{payslip.full_name || payslip.email}</h3>
-                        {payslip.employee_id && (
-                          <span className="text-xs text-gray-500">({payslip.employee_id})</span>
+          filteredEmployees.map((employee) => (
+            <Card key={employee.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Employee Info - 3 cols */}
+                  <div className="lg:col-span-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 rounded-full bg-blue-900 flex items-center justify-center text-white font-semibold text-lg">
+                        {employee.full_name?.charAt(0) || 'E'}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{employee.full_name || 'Unknown'}</h3>
+                        <p className="text-sm text-gray-500">{employee.email}</p>
+                        {employee.department && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            <Building2 className="h-3 w-3 inline mr-1" />
+                            {employee.department}
+                          </p>
                         )}
                       </div>
-                      <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                        <span className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>
-                            {monthNames[payslip.month - 1]} {payslip.year}
-                          </span>
-                        </span>
-                        <span className="flex items-center space-x-1">
-                          <DollarSign className="h-3 w-3" />
-                          <span>₹{payslip.net_pay.toLocaleString()}</span>
-                        </span>
+                    </div>
+                  </div>
+
+                  {/* Bank Details - 3 cols */}
+                  <div className="lg:col-span-3 border-l pl-6">
+                    <Label className="text-xs text-gray-500 mb-2 block">
+                      <CreditCard className="h-3 w-3 inline mr-1" />
+                      Bank Details
+                    </Label>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">
+                        {employee.bank_name || 'N/A'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        A/C: {employee.account_number || 'N/A'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        IFSC: {employee.ifsc || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Salary Details - 4 cols */}
+                  <div className="lg:col-span-4 border-l pl-6">
+                    <Label className="text-xs text-gray-500 mb-2 block">
+                      <DollarSign className="h-3 w-3 inline mr-1" />
+                      Salary Breakdown
+                    </Label>
+                    {editingSalary === employee.id ? (
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs">Gross Salary</Label>
+                          <Input
+                            type="number"
+                            value={salaryForm}
+                            onChange={(e) => setSalaryForm(parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <span className="text-gray-500">Basic (50%)</span>
+                            <p className="font-medium">₹{Math.round(salaryForm * 0.5).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">HRA (45%)</span>
+                            <p className="font-medium">₹{Math.round(salaryForm * 0.45).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Other (5%)</span>
+                            <p className="font-medium">₹{Math.round(salaryForm * 0.05).toLocaleString()}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveSalary(employee.id)}
+                            disabled={mutations.updateEmployeeSalary.isPending}
+                          >
+                            <Save className="h-3 w-3 mr-1" />
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCancelEdit}
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Cancel
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(
-                          payslip.status
-                        )}`}
-                      >
-                        {getStatusIcon(payslip.status)}
-                        <span>{payslip.status.toUpperCase()}</span>
-                      </span>
-                    </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-blue-600">
+                            ₹{employee.gross_salary.toLocaleString()}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditSalary(employee)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <span className="text-gray-500">Basic</span>
+                            <p className="font-medium">₹{employee.basic_salary.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">HRA</span>
+                            <p className="font-medium">₹{employee.hra.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Other</span>
+                            <p className="font-medium">₹{employee.other_allowances.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions - 2 cols */}
+                  <div className="lg:col-span-2 border-l pl-6 flex items-center justify-center">
+                    <Button
+                      onClick={() => handleGeneratePayslip(employee)}
+                      disabled={mutations.generatePayslipForEmployee.isPending}
+                      className="w-full"
+                    >
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Generate Payslip
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -295,386 +324,93 @@ const Payslips = () => {
         )}
       </div>
 
-      {/* Payslip Detail Dialog */}
-      {selectedPayslip && (
-        <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Payslip Details</DialogTitle>
-            </DialogHeader>
-            {detailLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+      {/* Generate Payslip Dialog */}
+      <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Payslip from Attendance</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-gray-500">
+              Generate payslip for <strong>{selectedEmployee?.full_name}</strong> based on attendance records for the selected period.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Month</Label>
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(parseInt(e.target.value))}
+                  className="w-full p-2 border rounded mt-1"
+                >
+                  {monthNames.map((m, i) => (
+                    <option key={i} value={i + 1}>{m}</option>
+                  ))}
+                </select>
               </div>
-            ) : payslipDetail ? (
-              <div className="space-y-6">
-                {/* Employee Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Employee Information</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-xs text-gray-500">Employee Name</Label>
-                        <p className="text-sm font-medium">{payslipDetail.payslip.full_name || payslipDetail.payslip.email}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-gray-500">Employee ID</Label>
-                        <p className="text-sm font-medium">{payslipDetail.payslip.employee_id || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-gray-500">Payslip ID</Label>
-                        <p className="text-sm font-medium">{payslipDetail.payslip.payslip_id || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-gray-500">Period</Label>
-                        <p className="text-sm font-medium">
-                          {monthNames[payslipDetail.payslip.month - 1]} {payslipDetail.payslip.year}
-                        </p>
-                      </div>
+              <div>
+                <Label>Year</Label>
+                <Input
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(parseInt(e.target.value))}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            {selectedEmployee && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-4">
+                  <Label className="text-xs text-gray-600 mb-2 block">Expected Salary Breakdown</Label>
+                  <div className="grid grid-cols-4 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-600">Gross</span>
+                      <p className="font-semibold">₹{selectedEmployee.gross_salary.toLocaleString()}</p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Earnings */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Earnings</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Basic Pay</span>
-                        <span className="text-sm font-medium">₹{payslipDetail.payslip.basic_pay.toLocaleString()}</span>
-                      </div>
-                      {payslipDetail.payslip.hra > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">HRA</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.hra.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.special_allowance > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">Special Allowance</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.special_allowance.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.bonus > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">Bonus</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.bonus.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.incentives > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">Incentives</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.incentives.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.other_earnings > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">Other Earnings</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.other_earnings.toLocaleString()}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between pt-2 border-t font-semibold">
-                        <span>Total Earnings</span>
-                        <span>₹{payslipDetail.payslip.total_earnings.toLocaleString()}</span>
-                      </div>
+                    <div>
+                      <span className="text-gray-600">Basic</span>
+                      <p className="font-semibold">₹{selectedEmployee.basic_salary.toLocaleString()}</p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Deductions */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Deductions</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {payslipDetail.payslip.pf_employee > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">PF (Employee)</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.pf_employee.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.pf_employer > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">PF (Employer)</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.pf_employer.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.esi_employee > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">ESI (Employee)</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.esi_employee.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.esi_employer > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">ESI (Employer)</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.esi_employer.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.professional_tax > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">Professional Tax</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.professional_tax.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.tds > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">TDS</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.tds.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {payslipDetail.payslip.other_deductions > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-sm">Other Deductions</span>
-                          <span className="text-sm font-medium">₹{payslipDetail.payslip.other_deductions.toLocaleString()}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between pt-2 border-t font-semibold">
-                        <span>Total Deductions</span>
-                        <span>₹{payslipDetail.payslip.total_deductions.toLocaleString()}</span>
-                      </div>
+                    <div>
+                      <span className="text-gray-600">HRA</span>
+                      <p className="font-semibold">₹{selectedEmployee.hra.toLocaleString()}</p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Net Pay */}
-                <Card className="bg-blue-50">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold">Net Pay</span>
-                      <span className="text-2xl font-bold text-blue-600">
-                        ₹{payslipDetail.payslip.net_pay.toLocaleString()}
-                      </span>
+                    <div>
+                      <span className="text-gray-600">Other</span>
+                      <p className="font-semibold">₹{selectedEmployee.other_allowances.toLocaleString()}</p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Actions */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {isAdmin && payslipDetail.payslip.status === 'generated' && (
-                      <Button
-                        onClick={() => handleRelease(payslipDetail.payslip.id)}
-                        variant="default"
-                        disabled={mutations.releasePayslip.isPending}
-                      >
-                        {mutations.releasePayslip.isPending ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            Releasing...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Release Payslip
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    {isAdmin && payslipDetail.payslip.status === 'released' && !payslipDetail.payslip.is_locked && (
-                      <Button
-                        onClick={() => handleLock(payslipDetail.payslip.id)}
-                        variant="outline"
-                        disabled={mutations.lockPayslip.isPending}
-                      >
-                        {mutations.lockPayslip.isPending ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            Locking...
-                          </>
-                        ) : (
-                          <>
-                            <Lock className="h-4 w-4 mr-2" />
-                            Lock Payslip
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    {payslipDetail.payslip.document_url && (
-                      <Button
-                        variant="outline"
-                        onClick={() => payslipDetail.payslip.document_url && window.open(payslipDetail.payslip.document_url, '_blank')}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download PDF
-                      </Button>
-                    )}
                   </div>
-                  <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
-                    Close
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-500">Failed to load payslip details</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    * Actual payslip will be prorated based on attendance and LOP days
+                  </p>
+                </CardContent>
+              </Card>
             )}
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Generate Payslip Dialog (Admin/HR only) */}
-      {isAdmin && (
-        <GeneratePayslipsDialog
-          isOpen={isGenerateOpen}
-          onClose={() => setIsGenerateOpen(false)}
-          onSuccess={() => {
-            setIsGenerateOpen(false);
-            refetch();
-          }}
-        />
-      )}
-
-      {/* Create Payslip Dialog (Admin/HR only) */}
-      {isAdmin && (
-        <CreatePayslipDialog
-          isOpen={isCreateOpen}
-          onClose={() => setIsCreateOpen(false)}
-          onSuccess={() => {
-            setIsCreateOpen(false);
-            refetch();
-          }}
-        />
-      )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmGenerate}
+              disabled={mutations.generatePayslipForEmployee.isPending}
+            >
+              {mutations.generatePayslipForEmployee.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Generate Payslip
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-const GeneratePayslipsDialog = ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) => {
-  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
-  const [year, setYear] = useState<number>(new Date().getFullYear());
-  const mutations = usePayrollMutation(); // Now includes generatePayslips due to SDK update logic (even if TS might be slightly delayed in detecting type, assuming runtime works) 
-  // Note: If usePayrollMutation type isn't updated in this file context, we might assume it returns any.
-  // However, we updated the hook file. 
-
-  // To safe guard type if not yet picked up
-  const generateMutation = (mutations as any).generatePayslips;
-
-  const handleSubmit = async () => {
-    try {
-      await generateMutation.mutateAsync({
-        month,
-        year
-      });
-      toast({
-        title: 'Success',
-        description: 'Payslips generation started successfully',
-      });
-      onSuccess();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to generate payslips',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Generate Payslips from Attendance</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <p className="text-sm text-gray-500">
-            This will generate draft payslips for all employees based on their attendance for the selected period.
-            Existing locked payslips will be skipped.
-          </p>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Month</Label>
-              <select
-                value={month}
-                onChange={(e) => setMonth(parseInt(e.target.value))}
-                className="w-full p-2 border rounded mt-1"
-              >
-                {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
-                  <option key={i} value={i + 1}>{m}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Year</Label>
-              <Input
-                type="number"
-                value={year}
-                onChange={(e) => setYear(parseInt(e.target.value))}
-                className="mt-1"
-              />
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={generateMutation?.isPending}>
-            {generateMutation?.isPending ? 'Generating...' : 'Generate Payslips'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-/**
- * Create Payslip Dialog Component
- */
-import EmployeeDataForm from '../../features/hr-documents/components/EmployeeDataForm';
-import { EmployeeData, defaultEmployeeData } from '../../features/hr-documents/types';
-
-const CreatePayslipDialog = ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) => {
-  const [employeeData, setEmployeeData] = useState<EmployeeData>(defaultEmployeeData);
-  const mutations = usePayrollMutation();
-
-  const handleSubmit = async () => {
-    try {
-      await mutations.upsertPayslip.mutateAsync({
-        ...employeeData,
-        status: 'generated',
-        user_id: employeeData.employee_id || '',
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
-        basic_pay: Number(employeeData.basic_salary) || 0,
-        hra: Number(employeeData.hra) || 0,
-      });
-      toast({
-        title: 'Success',
-        description: 'Payslip created successfully',
-      });
-      onSuccess();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to create payslip',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create Payslip</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {/* Only show template fields for payslip creation */}
-          <EmployeeDataForm data={employeeData} onChange={setEmployeeData} />
-        </div>
-        <DialogFooter>
-          <Button onClick={handleSubmit} type="button">Create Payslip</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-
-
 export default Payslips;
-

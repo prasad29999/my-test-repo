@@ -9,6 +9,8 @@ import * as auditLogModel from '../models/payroll-audit-log.pg.js';
 import * as leaveService from '../../leave-calendar/services/leave-calendar.service.js';
 import * as pfModel from '../models/pf-details.pg.js';
 
+console.log('🚀 Payslips Service Module Loaded');
+
 /**
  * Transform raw payslip to DTO
  */
@@ -214,13 +216,17 @@ export async function lockPayslip(payslipId, lockedBy) {
  * Generate payslips based on attendance
  */
 export async function generatePayslipsFromAttendance(month, year, generatedBy, targetUserId = null) {
+  console.log('!!! ENTRY generatePayslipsFromAttendance !!!');
   try {
+    console.log(`[payroll] Calling generatePayslipsFromAttendance for ${month}/${year}, target: ${targetUserId}`);
     console.log(`[payroll] Generating payslips for ${month}/${year}`);
 
     // 1. Get Attendance Report (aggregated by SQL logic in leave-calendar, but returns daily rows)
     const report = await leaveService.getMonthlyAttendanceReport(month, year);
+    console.log(`[payroll] Report fetched: ${report?.length || 0} rows`);
 
     if (!report || report.length === 0) {
+      console.log('[payroll] Report is empty');
       // Return empty result, controller will handle message
       return [];
     }
@@ -228,8 +234,14 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
     // 2. Aggregate per user
     const userStats = {};
     const daysInMonth = new Date(year, month, 0).getDate();
+    console.log(`[payroll] Days in month: ${daysInMonth}`);
 
+    let logOnce = true;
     report.forEach(record => {
+      if (logOnce) {
+        console.log(`[payroll] Sample record user_id: ${record.user_id}, type: ${typeof record.user_id}`);
+        logOnce = false;
+      }
       if (!userStats[record.user_id]) {
         userStats[record.user_id] = {
           user_id: record.user_id,
@@ -284,11 +296,13 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
 
     // Filter users if targetUserId is specific
     const usersToProcess = targetUserId ? [targetUserId] : Object.keys(userStats);
+    console.log(`[payroll] Users to process: ${usersToProcess.length}, Target: ${targetUserId || 'All'}`);
+    console.log(`[payroll] userStats keys: ${Object.keys(userStats).length}`);
 
     // 3. Generate Payslip for each user
     for (const userId of usersToProcess) {
       if (!userStats[userId]) {
-        console.warn(`[payroll] No attendance data found for target user ${userId} in ${month}/${year}`);
+        console.warn(`[payroll] No attendance data found for target user ${userId} in ${month}/${year}. userId in userStats: ${userId in userStats}`);
         continue;
       }
       const stats = userStats[userId];
@@ -326,10 +340,11 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
       const pfDetails = await pfModel.getPfDetails(userId);
       const baseSalary = pfDetails?.pf_base_salary ? parseFloat(pfDetails.pf_base_salary) : 15000; // Default 15k if missing
 
-      // Standard Structure
-      const stdBasic = baseSalary;
-      const stdHRA = baseSalary * 0.40;
-      const stdGross = stdBasic + stdHRA;
+      // Standard Structure (Based on user request: Basic 5k, HRA 4.5k, Other 0.5k for 10k Gross)
+      const stdGross = baseSalary;
+      const stdBasic = baseSalary * 0.50;
+      const stdHRA = baseSalary * 0.45;
+      const stdOther = baseSalary * 0.05;
 
       // Proration Ratio based on paid days
       const ratio = stats.paid_days / daysInMonth;
@@ -337,17 +352,17 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
       // Actual Earnings
       const actBasic = Math.round(stdBasic * ratio);
       const actHRA = Math.round(stdHRA * ratio);
-      const actGross = actBasic + actHRA;
+      const actOther = Math.round(stdOther * ratio);
+      const actGross = actBasic + actHRA + actOther;
 
-      // Deductions
-      const pf = Math.round(actBasic * 0.12);
-      const esi = Math.round(actGross * 0.0075);
+      // Deductions (only Professional Tax - LOP is already accounted for in prorated earnings)
       const pt = actGross > 15000 ? 200 : 0;
 
-      // Calculate LOP deduction (amount deducted from salary)
+      // LOP amount (informational only - already reflected in reduced earnings via proration)
       const lopDeduction = Math.round((stdGross / daysInMonth) * stats.lop_days);
 
-      const totalDeductions = pf + esi + pt + lopDeduction;
+      // Only PT is an actual deduction (LOP is NOT deducted again since earnings are prorated)
+      const totalDeductions = pt;
 
       const netPay = actGross - totalDeductions;
 
@@ -362,17 +377,17 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
         special_allowance: 0,
         bonus: 0,
         incentives: 0,
-        other_earnings: 0,
+        other_earnings: actOther,
         total_earnings: actGross,
-        pf_employee: pf,
-        pf_employer: pf,
-        esi_employee: esi,
-        esi_employer: Math.round(actGross * 0.0325),
+        pf_employee: 0,
+        pf_employer: 0,
+        esi_employee: 0,
+        esi_employer: 0,
         professional_tax: pt,
         tds: 0,
-        other_deductions: lopDeduction,
-        lop_days: stats.lop_days, // Track LOP days
-        lop_deduction: lopDeduction, // Track LOP amount
+        other_deductions: 0,
+        lop_days: stats.lop_days, // Track LOP days (informational)
+        lop_deduction: lopDeduction, // Track LOP amount (informational - already in prorated earnings)
         paid_days: stats.paid_days, // Track paid days
         total_deductions: totalDeductions,
         net_pay: netPay,
@@ -407,3 +422,53 @@ export async function generatePayslipsFromAttendance(month, year, generatedBy, t
   }
 }
 
+/**
+ * Get all employees with salary and bank details
+ * Uses existing profiles and pf_details tables
+ */
+export async function getEmployeesSalaryInfo() {
+  try {
+    const employees = await payslipModel.getEmployeesSalaryInfo();
+
+    // Transform to include calculated salary breakdown
+    return employees.map(emp => ({
+      ...emp,
+      gross_salary: emp.pf_base_salary || 0,
+      basic_salary: Math.round((emp.pf_base_salary || 0) * 0.50),
+      hra: Math.round((emp.pf_base_salary || 0) * 0.45),
+      other_allowances: Math.round((emp.pf_base_salary || 0) * 0.05),
+    }));
+  } catch (error) {
+    console.error('[payroll-pf] Error in getEmployeesSalaryInfo:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update employee salary
+ * Updates pf_base_salary in pf_details table
+ */
+export async function updateEmployeeSalary(userId, pfBaseSalary, updatedBy) {
+  try {
+    const pfDetails = await pfModel.upsertPfDetails({
+      user_id: userId,
+      pf_base_salary: pfBaseSalary,
+      updated_by: updatedBy
+    }, updatedBy);
+
+    // Log audit
+    await auditLogModel.addPayrollAuditLog({
+      user_id: userId,
+      action: 'update_salary',
+      entity_type: 'pf_details',
+      entity_id: pfDetails.id,
+      details: { old_salary: pfDetails.pf_base_salary, new_salary: pfBaseSalary },
+      performed_by: updatedBy
+    });
+
+    return pfDetails;
+  } catch (error) {
+    console.error('[payroll-pf] Error in updateEmployeeSalary:', error);
+    throw error;
+  }
+}

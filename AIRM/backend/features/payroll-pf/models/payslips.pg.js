@@ -170,7 +170,7 @@ export async function upsertPayslip(payslipData) {
 
   const insertValues = payslipId
     ? `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, NOW()`
-    : `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, NOW()`;
+    : `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, NOW()`;
 
   const params = payslipId
     ? [
@@ -236,7 +236,7 @@ export async function upsertPayslip(payslipData) {
       status || 'pending',
       is_locked || false,
       company_name || null,
-      Company_address || null,
+      company_address || null,
       issue_date || null,
       created_by || null,
       lop_days || 0,
@@ -418,3 +418,35 @@ export async function updatePayslipStatus(payslipId, status, releasedBy = null) 
   return result.rows[0];
 }
 
+/**
+ * Get all employees with salary and bank details
+ * Joins profiles with users (for email) and pf_details (for salary)
+ * Bank details are on profiles table directly
+ */
+export async function getEmployeesSalaryInfo() {
+  const result = await pool.query(`
+    SELECT 
+      p.id,
+      p.full_name,
+      u.email,
+      p.employee_id,
+      p.department,
+      p.job_title as designation,
+      p.phone,
+      p.bank_name,
+      p.bank_account_number as account_number,
+      p.bank_ifsc as ifsc,
+      p.bank_branch,
+      pf.pf_base_salary,
+      pf.uan_number,
+      pf.pf_account_number,
+      pf.status as pf_status,
+      pf.id as pf_details_id
+    FROM erp.profiles p
+    LEFT JOIN erp.users u ON p.id = u.id
+    LEFT JOIN erp.pf_details pf ON p.id = pf.user_id
+    ORDER BY p.full_name ASC
+  `);
+
+  return result.rows;
+}

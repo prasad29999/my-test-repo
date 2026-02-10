@@ -58,6 +58,24 @@ router.put('/payslips/:id/release', payslipController.releasePayslip);
 router.put('/payslips/:id/lock', payslipController.lockPayslip);
 
 /**
+ * GET /api/payroll-pf/employees-salary-info
+ * Get all employees with salary and bank details (HR/Admin only)
+ */
+router.get('/employees-salary-info', payslipController.getEmployeesSalaryInfo);
+
+/**
+ * POST /api/payroll-pf/payslips/generate-employee
+ * Generate payslip for specific employee from attendance (HR/Admin only)
+ */
+router.post('/payslips/generate-employee', payslipController.generatePayslipForEmployee);
+
+/**
+ * PUT /api/payroll-pf/employees/:userId/salary
+ * Update employee salary (HR/Admin only)
+ */
+router.put('/employees/:userId/salary', payslipController.updateEmployeeSalary);
+
+/**
  * GET /api/payroll-pf/pf-details/:user-id
  * Get PF details for user
  */

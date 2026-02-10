@@ -79,53 +79,149 @@ export default function HRDocumentsPage() {
       setEmployeeData(defaultEmployeeData);
       return;
     }
+
     const employee = employees.find(e => e.id === employeeId);
+    setLoadingEmployees(true);
+
     try {
-      // Fetch joining form for full details (including bank info)
+      // 1. Fetch joining form
       const joiningForm = await joiningFormService.getJoiningFormById(employeeId);
-      const info: Partial<import("../joining-form/types").EmployeeInfo> = joiningForm?.employee_info || {};
+      const info: any = joiningForm?.employee_info || {};
+
+      // 2. Fetch specific profile details (for PAN, Bank, etc. if not in joining form)
+      let profile: any = null;
+      try {
+        profile = await api.profiles.getById(employeeId) as any;
+      } catch (e) { console.error('Error fetching profile:', e); }
+
+      // 3. Fetch salary info (Gross Salary / PF Details)
+      let salaryInfo: any = null;
+      try {
+        const salaryResponse = await api.get(`/payroll-pf/employees-salary-info`) as any;
+        const allEmployees = salaryResponse?.employees || [];
+        salaryInfo = allEmployees.find((e: any) => e.id === employeeId);
+      } catch (e) { console.error('Error fetching salary info:', e); }
+
+      // 4. Fetch latest payslip for LOP and actual payout details
+      let latestPayslip: any = null;
+      try {
+        const payslipResponse = await api.get(`/payroll-pf/payslips?user_id=${employeeId}`) as any;
+        const payslips = payslipResponse?.payslips || [];
+        if (payslips.length > 0) {
+          // Get the most recent one
+          latestPayslip = payslips.sort((a: any, b: any) =>
+            (b.year * 12 + b.month) - (a.year * 12 + a.month)
+          )[0];
+        }
+      } catch (e) { console.error('Error fetching payslip:', e); }
+
+      // 5. Fetch leave balances
+      let totalLeaveBalance = '0';
+      try {
+        const balances = await api.leaveCalendar.getBalancesForUser(employeeId) as any;
+        const balanceList = balances?.balances || balances || [];
+        const sum = Array.isArray(balanceList)
+          ? balanceList.reduce((acc: number, b: any) => acc + (parseFloat(b.balance) || 0), 0)
+          : 0;
+        totalLeaveBalance = String(sum);
+      } catch (e) { console.error('Error fetching leave balances:', e); }
+
+      // Calculation Logic
+      const grossSalary = parseFloat(salaryInfo?.pf_base_salary) || parseFloat(employee?.salary as string) || 0;
+
+      // Use payslip values if available, otherwise calculate from gross
+      const basic = (latestPayslip && latestPayslip.basic_pay != null) ? parseFloat(latestPayslip.basic_pay) : Math.round(grossSalary * 0.5);
+      const hra = (latestPayslip && latestPayslip.hra != null) ? parseFloat(latestPayslip.hra) : Math.round(grossSalary * 0.45);
+      const other = (latestPayslip && latestPayslip.other_earnings != null) ? parseFloat(latestPayslip.other_earnings) : Math.round(grossSalary * 0.05);
+      const pt = (latestPayslip && latestPayslip.professional_tax != null) ? parseFloat(latestPayslip.professional_tax) : (grossSalary > 15000 ? 200 : 0);
+      const totalEarnings = (latestPayslip && latestPayslip.total_earnings != null) ? parseFloat(latestPayslip.total_earnings) : grossSalary;
+      const totalDeductions = (latestPayslip && latestPayslip.total_deductions != null) ? parseFloat(latestPayslip.total_deductions) : pt;
+      const netPay = (latestPayslip && latestPayslip.net_pay != null) ? parseFloat(latestPayslip.net_pay) : (totalEarnings - totalDeductions);
+      const paidDays = (latestPayslip && latestPayslip.paid_days != null) ? parseFloat(latestPayslip.paid_days) : '';
+      const lopDays = (latestPayslip && latestPayslip.lop_days != null) ? parseFloat(latestPayslip.lop_days) : '0';
+
+      // Date formatter helper
+      const formatDate = (dateValue: any) => {
+        if (!dateValue || dateValue === '') return '';
+        try {
+          const d = new Date(dateValue);
+          if (isNaN(d.getTime())) return dateValue;
+          return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch (e) { return dateValue; }
+      };
+
+      // Number to words helper (Indian Numbering System)
+      const toWords = (num: number): string => {
+        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+        const amount = Math.round(num);
+        if (amount === 0) return 'Zero';
+
+        const convert = (i: number): string => {
+          if (i < 20) return ones[i];
+          if (i < 100) return tens[Math.floor(i / 10)] + (i % 10 ? ' ' + ones[i % 10] : '');
+          if (i < 1000) return ones[Math.floor(i / 100)] + ' Hundred' + (i % 100 ? ' and ' + convert(i % 100) : '');
+          return '';
+        };
+
+        const crore = Math.floor(amount / 10000000);
+        const lakh = Math.floor((amount % 10000000) / 100000);
+        const thousand = Math.floor((amount % 100000) / 1000);
+        const remaining = amount % 1000;
+
+        let res = '';
+        if (crore > 0) res += convert(crore) + ' Crore ';
+        if (lakh > 0) res += convert(lakh) + ' Lakh ';
+        if (thousand > 0) res += convert(thousand) + ' Thousand ';
+        if (remaining > 0 || res === '') res += convert(remaining);
+
+        return res.trim() + ' Rupees Only';
+      };
+
       setEmployeeData({
-        employee_name: info.full_name ?? employee?.full_name ?? '',
-        employee_id: info.employee_id ?? employee?.employee_id ?? employee?.id?.slice(0, 8) ?? '',
-        designation: info.designation ?? employee?.designation ?? '',
-        department: info.department ?? employee?.department ?? '',
-        date_of_joining: info.join_date ?? employee?.date_of_joining ?? '',
-        date_of_leaving: '',
-        salary: employee?.salary ?? '',
-        address: info.current_address ?? employee?.address ?? '',
-        email: info.email ?? employee?.email ?? '',
-        phone: info.phone ?? employee?.phone ?? '',
-        manager_name: employee?.manager_name ?? '',
+        employee_name: profile?.full_name || info?.full_name || employee?.full_name || '',
+        employee_id: profile?.employee_id || info?.employee_id || employee?.employee_id || employeeId.slice(0, 8),
+        designation: profile?.job_title || profile?.designation || info?.designation || salaryInfo?.designation || '',
+        department: profile?.department || info?.department || salaryInfo?.department || '',
+        date_of_joining: formatDate(profile?.join_date || info?.join_date || ''),
+        date_of_leaving: formatDate(profile?.date_of_leaving || info?.date_of_leaving || ''),
+        salary: String(grossSalary),
+        address: profile?.address || info?.current_address || '',
+        email: profile?.email || info?.email || salaryInfo?.email || '',
+        phone: profile?.phone || info?.phone || salaryInfo?.phone || '',
+        manager_name: profile?.manager_name || '',
         company_name: 'TechieMaya',
-        bank_name: info.bank_name ?? '',
-        bank_account: info.bank_account_number ?? '',
-        pan_number: '',
-        location: '',
-        leave_balance: '',
-        effective_work_days: '',
-        lop: '',
-        basic_salary: '',
-        hra: '',
-        other_allowances: '',
-        pt: '',
-        total_earnings: '',
-        total_deduction: '',
-        net_pay: '',
-        rupees_in_words: '',
+        bank_name: profile?.bank_name || info?.bank_name || salaryInfo?.bank_name || '',
+        bank_account: profile?.bank_account_number || info?.bank_account_number || salaryInfo?.account_number || '',
+        pan_number: profile?.pan_number || info?.pan_number || profile?.pan || info?.pan || '',
+        location: profile?.location || info?.location || 'Bangalore',
+        leave_balance: totalLeaveBalance,
+        effective_work_days: String(paidDays),
+        lop: String(lopDays),
+        basic_salary: String(basic),
+        hra: String(hra),
+        other_allowances: isNaN(other) ? '0' : String(other),
+        pt: String(pt),
+        total_earnings: isNaN(totalEarnings) ? String(grossSalary) : String(totalEarnings),
+        total_deduction: isNaN(totalDeductions) ? '0' : String(totalDeductions),
+        net_pay: isNaN(netPay) ? String(grossSalary) : String(Math.round(netPay)),
+        rupees_in_words: isNaN(netPay) ? toWords(grossSalary) : toWords(netPay),
       });
+
       toast({
-        title: 'Employee data loaded',
-        description: `Details for ${info.full_name ?? employee?.full_name ?? employee?.email} have been filled`,
+        title: "Employee Data Loaded",
+        description: `Successfully fetched profile, salary and attendance details for ${profile?.full_name || employee?.full_name}.`,
       });
+
     } catch (error) {
-      console.error('Error fetching joining form:', error);
-      // Fallback to basic employee data
-      setEmployeeData({
-        ...defaultEmployeeData,
-        employee_name: employee?.full_name || '',
-        email: employee?.email || '',
-        employee_id: employee?.employee_id || employee?.id?.slice(0, 8) || '',
+      console.error('Error filling employee data:', error);
+      toast({
+        title: "Limited Data Loaded",
+        description: "Some details could not be fetched. Please fill them manually.",
+        variant: "destructive"
       });
+    } finally {
+      setLoadingEmployees(false);
     }
   };
 
@@ -330,9 +426,9 @@ export default function HRDocumentsPage() {
             img.complete
               ? Promise.resolve()
               : new Promise((resolve) => {
-                  img.onload = resolve;
-                  img.onerror = resolve;
-                })
+                img.onload = resolve;
+                img.onerror = resolve;
+              })
         )
       );
 
@@ -439,7 +535,7 @@ export default function HRDocumentsPage() {
         <h1 className="text-2xl font-bold">HR Document Generator</h1>
         <p className="text-muted-foreground">Upload templates and merge employee data to generate documents</p>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Column - Upload & Form */}
         <div className="space-y-6">
@@ -461,11 +557,10 @@ export default function HRDocumentsPage() {
                     // Optionally, fetch a default template from server or static assets here
                     // Example: await fetchDefaultTemplate(cat.id)
                   }}
-                  className={`p-3 rounded-lg border text-left transition-all ${
-                    selectedCategory === cat.id && selectedUploadedTemplateIdx === null
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                  }`}
+                  className={`p-3 rounded-lg border text-left transition-all ${selectedCategory === cat.id && selectedUploadedTemplateIdx === null
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                    }`}
                 >
                   <p className="font-medium text-sm">{cat.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{cat.description}</p>
@@ -486,11 +581,10 @@ export default function HRDocumentsPage() {
                         setSelectedCategory('');
                         setTemplate(ut);
                       }}
-                      className={`p-3 rounded-lg border text-left transition-all flex flex-col ${
-                        selectedUploadedTemplateIdx === idx
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                      }`}
+                      className={`p-3 rounded-lg border text-left transition-all flex flex-col ${selectedUploadedTemplateIdx === idx
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        }`}
                     >
                       <span className="font-medium text-sm truncate">{ut.name}</span>
                       <span className="text-xs text-muted-foreground uppercase mt-1">{ut.type} template</span>
@@ -551,7 +645,7 @@ export default function HRDocumentsPage() {
                 Clear all
               </button>
             </div>
-            
+
             {/* Employee Dropdown */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-foreground mb-2">
@@ -656,11 +750,11 @@ export default function HRDocumentsPage() {
           <div className="flex items-center gap-2 mb-4">
             <h2 className="text-lg font-semibold text-foreground">3. Preview</h2>
           </div>
-          <DocumentPreview 
-            template={template} 
-            employeeData={employeeData} 
-            onDownloadPdf={handleDownloadPdf} 
-            onDownloadDocx={handleDownloadDocx} 
+          <DocumentPreview
+            template={template}
+            employeeData={employeeData}
+            onDownloadPdf={handleDownloadPdf}
+            onDownloadDocx={handleDownloadDocx}
           />
         </div>
       </div>

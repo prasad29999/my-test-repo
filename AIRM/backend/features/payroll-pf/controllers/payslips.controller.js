@@ -266,3 +266,100 @@ export async function generatePayslips(req, res) {
     });
   }
 }
+
+/**
+ * Get all employees with salary and bank details
+ */
+export async function getEmployeesSalaryInfo(req, res) {
+  try {
+    const employees = await payslipService.getEmployeesSalaryInfo();
+    res.json({ employees });
+  } catch (error) {
+    console.error('[payroll-pf] Get employees salary info error:', error);
+    res.status(500).json({
+      error: 'Failed to get employees salary information',
+      message: error.message || 'Internal server error'
+    });
+  }
+}
+
+/**
+ * Generate payslip for specific employee from attendance
+ */
+export async function generatePayslipForEmployee(req, res) {
+  try {
+    const userId = req.userId;
+    const isAdmin = req.isAdmin;
+    const isHR = req.isHR;
+
+    if (!isAdmin && !isHR) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Only HR or Admin can generate payslips'
+      });
+    }
+
+    const { employee_id, month, year } = req.body;
+
+    if (!employee_id || !month || !year) {
+      return res.status(400).json({
+        error: 'Missing parameters',
+        message: 'employee_id, month and year are required'
+      });
+    }
+
+    const results = await payslipService.generatePayslipsFromAttendance(month, year, userId, employee_id);
+
+    res.json({
+      message: results.length > 0 ? 'Payslip generated successfully' : 'No payslip generated',
+      payslips: results
+    });
+  } catch (error) {
+    console.error('[payroll-pf] Generate payslip for employee error:', error);
+    res.status(500).json({
+      error: 'Failed to generate payslip',
+      message: error.message || 'Internal server error'
+    });
+  }
+}
+
+/**
+ * Update employee salary
+ */
+export async function updateEmployeeSalary(req, res) {
+  try {
+    const userId = req.userId;
+    const isAdmin = req.isAdmin;
+    const isHR = req.isHR;
+
+    if (!isAdmin && !isHR) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Only HR or Admin can update salary'
+      });
+    }
+
+    const { userId: targetUserId } = req.params;
+    const { pf_base_salary } = req.body;
+
+    if (!pf_base_salary || isNaN(pf_base_salary)) {
+      return res.status(400).json({
+        error: 'Invalid salary',
+        message: 'pf_base_salary must be a valid number'
+      });
+    }
+
+    const result = await payslipService.updateEmployeeSalary(targetUserId, pf_base_salary, userId);
+
+    res.json({
+      message: 'Salary updated successfully',
+      pf_details: result
+    });
+  } catch (error) {
+    console.error('[payroll-pf] Update employee salary error:', error);
+    res.status(500).json({
+      error: 'Failed to update salary',
+      message: error.message || 'Internal server error'
+    });
+  }
+}

@@ -354,7 +354,9 @@ export async function getMonthlyAttendanceReport(month, year) {
     LEFT JOIN leave_requests lr ON u.id = lr.user_id AND d.date BETWEEN lr.start_date AND lr.end_date AND lr.status = 'approved'
     ORDER BY u.id, d.date;
   `;
+  console.log(`[payroll-model] Running report query for ${month}/${year}`);
   const result = await pool.query(query, [month, year]);
+  console.log(`[payroll-model] Query returned ${result.rows.length} rows`);
   return result.rows;
 }
 

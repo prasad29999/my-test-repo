@@ -13,8 +13,10 @@ export {
   usePfDetails,
   usePfContributions,
   usePayrollMutation,
+  useEmployeesSalaryInfo,
   type UsePayslipsFilters,
   type UsePfContributionsFilters,
+  type EmployeeSalaryInfo,
 } from './hooks/usepayroll-pf';
 
 // Utils

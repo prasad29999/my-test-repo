@@ -18,6 +18,9 @@ import {
   getPfDocuments,
   addPfDocument,
   generatePayslips,
+  getEmployeesSalaryInfo,
+  generatePayslipForEmployee,
+  updateEmployeeSalary,
 } from '../services/payroll-pfService';
 import type {
   Payslip,
@@ -197,14 +200,79 @@ export function usePayrollMutation() {
     },
   });
 
+  const generatePayslipForEmployeeMutation = useMutation({
+    mutationFn: (data: { employee_id: string; month: number; year: number }) =>
+      generatePayslipForEmployee(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payslips'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-salary-info'] });
+    },
+  });
+
+  const updateEmployeeSalaryMutation = useMutation({
+    mutationFn: (data: { userId: string; pf_base_salary: number }) =>
+      updateEmployeeSalary(data.userId, data.pf_base_salary),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['employees-salary-info'] });
+      queryClient.invalidateQueries({ queryKey: ['pf-details', variables.userId] });
+    },
+  });
+
   return {
     upsertPayslip: payslipMutation,
     releasePayslip: releaseMutation,
     lockPayslip: lockMutation,
     generatePayslips: generatePayslipsMutation,
+    generatePayslipForEmployee: generatePayslipForEmployeeMutation,
+    updateEmployeeSalary: updateEmployeeSalaryMutation,
     upsertPfDetails: pfDetailsMutation,
     createPfContribution: pfContributionMutation,
     addPfDocument: pfDocumentMutation,
   };
 }
 
+// ==================== Employee Salary Info Hook ====================
+
+export interface EmployeeSalaryInfo {
+  id: string;
+  full_name: string;
+  email: string;
+  employee_id?: string;
+  department?: string;
+  designation?: string;
+  phone?: string;
+  bank_name?: string;
+  account_number?: string;
+  ifsc?: string;
+  bank_branch?: string;
+  pf_base_salary?: number;
+  uan_number?: string;
+  pf_account_number?: string;
+  pf_status?: string;
+  pf_details_id?: string;
+  gross_salary: number;
+  basic_salary: number;
+  hra: number;
+  other_allowances: number;
+}
+
+/**
+ * Hook to fetch all employees with salary and bank details
+ */
+export function useEmployeesSalaryInfo() {
+  return useQuery<EmployeeSalaryInfo[]>({
+    queryKey: ['employees-salary-info'],
+    queryFn: async () => {
+      try {
+        const response = await getEmployeesSalaryInfo();
+        console.log('[useEmployeesSalaryInfo] Response:', response);
+        return response.employees || [];
+      } catch (error: any) {
+        console.error('[useEmployeesSalaryInfo] Error fetching employees salary info:', error);
+        throw error;
+      }
+    },
+    staleTime: 60000, // 1 minute
+    retry: 1,
+  });
+}

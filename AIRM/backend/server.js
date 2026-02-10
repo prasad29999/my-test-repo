@@ -8,6 +8,7 @@ console.log('🔥 PORT:', process.env.PORT);
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import fs from 'fs-extra';
 import multer from 'multer';
@@ -30,6 +31,9 @@ if (process.env.NODE_ENV === 'production' && !process.env.APP_BASE_URL) {
 }
 
 const app = express();
+
+// Use compression for all responses
+app.use(compression());
 
 // Prevent API responses from being cached (avoids 304 w/ empty body for JSON APIs)
 app.disable('etag');
@@ -55,7 +59,11 @@ const verificationUploadsDir = path.join(
 );
 
 fs.ensureDirSync(verificationUploadsDir);
-app.use('/uploads/verification', express.static(verificationUploadsDir));
+app.use('/uploads/verification', express.static(verificationUploadsDir, {
+  maxAge: '1y',
+  immutable: true,
+  fallthrough: true
+}));
 
 /* =====================
    CORS

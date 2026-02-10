@@ -64,7 +64,7 @@ const DocumentPreview = ({ template, employeeData, onDownloadPdf, onDownloadDocx
         const blob = new Blob([merged], {
           type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         });
-        
+
         const url = URL.createObjectURL(blob);
         setMergedBlobUrl(prev => {
           if (prev) URL.revokeObjectURL(prev);
@@ -101,7 +101,11 @@ const DocumentPreview = ({ template, employeeData, onDownloadPdf, onDownloadDocx
   }, []);
 
   const filledFields = useMemo(() => {
-    return Object.entries(employeeData).filter(([_, value]) => value && value.trim() !== '');
+    return Object.entries(employeeData).filter(([_, value]) => {
+      if (value == null) return false;
+      if (typeof value === 'object') return false;
+      return String(value).trim() !== '';
+    }).map(([key, value]) => [key, String(value)] as [string, string]);
   }, [employeeData]);
 
   const handleDocxDownload = () => {
@@ -121,7 +125,7 @@ const DocumentPreview = ({ template, employeeData, onDownloadPdf, onDownloadDocx
           {filledFields.length} field{filledFields.length !== 1 ? 's' : ''} filled
         </span>
       </div>
-      
+
       {filledFields.length === 0 ? (
         <p className="text-sm text-muted-foreground italic">No data entered yet. Fill in the employee form.</p>
       ) : (
@@ -189,7 +193,7 @@ const DocumentPreview = ({ template, employeeData, onDownloadPdf, onDownloadDocx
       </div>
       <div className="p-4">
         <DataSummaryPanel />
-        
+
         <div className="bg-card min-h-[400px] border border-border rounded-lg shadow-sm overflow-hidden">
           {isProcessing ? (
             <div className="flex items-center justify-center h-[400px]">
@@ -232,7 +236,7 @@ const DocumentPreview = ({ template, employeeData, onDownloadPdf, onDownloadDocx
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex-1 p-6 flex flex-col items-center justify-center bg-muted/30">
                 <div className="text-center max-w-md">
                   <div className="p-4 rounded-full bg-primary/10 inline-block mb-4">
@@ -244,7 +248,7 @@ const DocumentPreview = ({ template, employeeData, onDownloadPdf, onDownloadDocx
                   <p className="text-sm text-muted-foreground mb-4">
                     Your employee data has been merged into the template. The document preserves all original formatting.
                   </p>
-                  
+
                   {filledFields.length > 0 && (
                     <div className="bg-background border border-border rounded-lg p-4 text-left">
                       <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
@@ -263,7 +267,7 @@ const DocumentPreview = ({ template, employeeData, onDownloadPdf, onDownloadDocx
                       </div>
                     </div>
                   )}
-                  
+
                   <p className="text-xs text-muted-foreground mt-4">
                     💡 DOCX preserves perfect formatting. PDF may have minor differences with complex headers/footers.
                   </p>

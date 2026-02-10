@@ -236,3 +236,33 @@ export async function getPayrollAuditLog(filters?: {
   return apiRequest<GetPayrollAuditLogResponse>(`/payroll-pf/audit-log${query ? `?${query}` : ''}`);
 }
 
+/**
+ * Get all employees with salary and bank details
+ */
+export async function getEmployeesSalaryInfo(): Promise<{ employees: any[] }> {
+  return apiRequest<{ employees: any[] }>('/payroll-pf/employees-salary-info');
+}
+
+/**
+ * Generate payslip for specific employee from attendance
+ */
+export async function generatePayslipForEmployee(data: {
+  employee_id: string;
+  month: number;
+  year: number
+}): Promise<any> {
+  return apiRequest<any>('/payroll-pf/payslips/generate-employee', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update employee salary
+ */
+export async function updateEmployeeSalary(userId: string, pf_base_salary: number): Promise<any> {
+  return apiRequest<any>(`/payroll-pf/employees/${userId}/salary`, {
+    method: 'PUT',
+    body: JSON.stringify({ pf_base_salary }),
+  });
+}
