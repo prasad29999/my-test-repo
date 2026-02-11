@@ -294,26 +294,41 @@ export async function completeVerificationStage(candidateId, passed, notes) {
  * Complete onboarding - Creates actual employee in system
  */
 export async function completeOnboarding(candidateId, joiningDate, employeeData) {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     // Get candidate details
     const candidate = await recruitmentModel.getCandidateById(candidateId);
     if (!candidate) {
       throw new Error('Candidate not found');
     }
 
-    // Create user account
     const userId = uuidv4();
-    await pool.query(`
-      INSERT INTO users (id, email, role, created_at)
-      VALUES ($1, $2, 'employee', NOW())
-    `, [userId, candidate.email]);
+    const userRoleId = uuidv4();
 
-    // Create profile
-    await pool.query(`
-      INSERT INTO profiles (
+    // 1. Create user account (erp.users has no role column)
+    await client.query(`
+      INSERT INTO erp.users (id, email, full_name, created_at, updated_at)
+      VALUES ($1, $2, $3, NOW(), NOW())
+    `, [
+      userId, 
+      candidate.email, 
+      employeeData.full_name || candidate.full_name
+    ]);
+
+    // 2. Create user role entry (erp uses user_roles table)
+    await client.query(`
+      INSERT INTO erp.user_roles (id, user_id, role, created_at)
+      VALUES ($1, $2, $3, NOW())
+    `, [userRoleId, userId, 'employee']);
+
+    // 3. Create profile
+    await client.query(`
+      INSERT INTO erp.profiles (
         id, full_name, phone, job_title, department, join_date,
-        onboarding_status, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', NOW())
+        onboarding_status, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', NOW(), NOW())
     `, [
       userId,
       employeeData.full_name || candidate.full_name,
@@ -323,17 +338,22 @@ export async function completeOnboarding(candidateId, joiningDate, employeeData)
       joiningDate
     ]);
 
-    // Update candidate status
+    // 4. Update candidate status
     const updatedCandidate = await recruitmentModel.completeOnboarding(candidateId, joiningDate);
+
+    await client.query('COMMIT');
 
     return {
       candidate: transformCandidate(updatedCandidate),
       employee_id: userId,
-      message: 'Employee successfully hired and added to system'
+      message: 'Employee successfully hired and added to system (ERP)'
     };
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('[recruitment] Error completing onboarding:', error);
     throw error;
+  } finally {
+    client.release();
   }
 }
 
